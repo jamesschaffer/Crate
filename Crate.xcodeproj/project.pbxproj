@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -132,12 +132,12 @@
 		975D9BBC7D1F9C9C2C703FB8 /* TrackListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackListView.swift; sourceTree = "<group>"; };
 		9E957545250FA05F9DAF2345 /* CrateUITests-iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = "CrateUITests-iOS.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		9FDF960A0427D389BCEFFBD2 /* PlaybackFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackFlowTests.swift; sourceTree = "<group>"; };
-		B9812D56793559E3EE89FECB /* Crate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Crate.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B9812D56793559E3EE89FECB /* Crate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Crate.app; path = "Crate-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFDE8244CA744240D6D8F64B /* FavoritesServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesServiceTests.swift; sourceTree = "<group>"; };
 		C0EF38353AD0F9C87727F34F /* BrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseView.swift; sourceTree = "<group>"; };
 		C5735A6675D2DBAAA6C90B56 /* AlbumGridItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumGridItemView.swift; sourceTree = "<group>"; };
 		CCCAE3E3C156199B42C40FC4 /* MusicServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicServiceTests.swift; sourceTree = "<group>"; };
-		D03A2FCC458D6263935E01AD /* Crate.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Crate.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D03A2FCC458D6263935E01AD /* Crate-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Crate-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1BFFBA0E43FF384AA140DE2 /* AlbumDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumDetailView.swift; sourceTree = "<group>"; };
 		E5775BDEDC01DDE90837FE55 /* GenreTaxonomy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenreTaxonomy.swift; sourceTree = "<group>"; };
 		F12F921E65C293534215B0E9 /* BrowseViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseViewModelTests.swift; sourceTree = "<group>"; };
@@ -295,7 +295,7 @@
 		DB93F282A8026B470F1903D5 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				D03A2FCC458D6263935E01AD /* Crate.app */,
+				D03A2FCC458D6263935E01AD /* Crate-iOS.app */,
 				B9812D56793559E3EE89FECB /* Crate.app */,
 				43B2FCD8B50D5C7A5470669B /* CrateTests-iOS.xctest */,
 				384B870D0B8AB9D5D4504BC3 /* CrateTests-macOS.xctest */,
@@ -384,7 +384,7 @@
 			packageProductDependencies = (
 			);
 			productName = "Crate-iOS";
-			productReference = D03A2FCC458D6263935E01AD /* Crate.app */;
+			productReference = D03A2FCC458D6263935E01AD /* Crate-iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 		C1AAB649D1EAE3D00C89BEA9 /* CrateUITests-iOS */ = {
@@ -447,7 +447,6 @@
 			);
 			mainGroup = C79DB4467C20A8488B8B447B;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -750,6 +749,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Crate-iOS/Crate_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = XWBF92D63J;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Crate needs access to Apple Music to browse albums and play music.";
 				INFOPLIST_KEY_UIBackgroundModes = audio;
@@ -788,6 +788,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Crate-iOS/Crate_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = XWBF92D63J;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Crate needs access to Apple Music to browse albums and play music.";
 				INFOPLIST_KEY_UIBackgroundModes = audio;
