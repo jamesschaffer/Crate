@@ -109,15 +109,38 @@ If the user does not have an Apple Music subscription, the app checks via `Music
 
 There is no browse-only or free-tier mode. Once authorized and subscribed, the user proceeds directly to the main browse view.
 
-### 3.2 Main Browse View
+### 3.2 Main Browse View — The Crate Wall
 
-This is the core screen of the application. It consists of three elements stacked vertically:
+This is the core screen of the application. When the user opens Crate, they see a **wall of album art** — dense, edge-to-edge, no gaps. The experience should feel like walking into a record store and seeing the front wall of new arrivals, staff picks, and interesting finds. No genre is pre-selected. The wall is populated by an algorithm that blends multiple signals to create a fresh, surprising mix every time the app cold-launches.
+
+#### The Crate Wall (Default State)
+
+The wall is the first thing the user sees. It is a zero-gap grid of album cover art — **2 columns on iPhone**, adaptive column count on macOS (reflows based on window width). No spacing between tiles. No text overlays. Just artwork, packed tight like records in a crate.
+
+The wall is populated by five signals, weighted by the user's **Crate Dial** setting (see Section 3.6):
+
+| Signal | Source | What it provides |
+|--------|--------|-----------------|
+| **Listening History** | User's recently played albums on Apple Music (`MusicRecentlyPlayedRequest`) → extract genres → fetch chart albums in those genres | Albums in genres the user *actually* listens to. Backward-looking — mirrors real taste. |
+| **Recommendations** | Apple Music personalized recommendations (`/v1/me/recommendations`) | Albums Apple's algorithm thinks the user would like. Forward-looking — gentle discovery into adjacent territory. |
+| **Popular Charts** | Most-played chart albums across randomly selected genres | What the world is listening to right now. Social proof, genre-diverse. |
+| **New Releases** | Newly released albums across randomly selected genres | The "new arrivals" wall — what just dropped. |
+| **Wild Card** | Chart albums from completely random genres picked from the full taxonomy | The mystery bin at the back of the store. Maximum serendipity. |
+
+**On cold launch:** The app makes 5-8 API calls in parallel (one or two per signal), retrieves ~75-125 albums, shuffles them according to the current Crate Dial weights, and presents the wall. The initial load should feel fast — under 2 seconds on a decent connection. The user sees a fully populated wall immediately.
+
+**Within a session:** The wall persists in memory. If the user leaves to reply to a text and comes back, they see the same wall where they left off. A fresh wall is generated only on cold launch.
+
+**Infinite scroll:** As the user approaches the bottom of the wall, the next batch is fetched in the background using the same signal weights and shuffled in. The wall never ends.
+
+**Thin listening history:** If the user has limited Apple Music history (fewer than ~15 recently played items), the Listening History signal's weight is automatically redistributed to Recommendations. The user doesn't need to know this is happening — the experience gracefully adapts. The genre bar also provides an immediate manual override for new users.
 
 #### Tier 1: Super-Genre Bar
 
 - Horizontal scrolling list of top-level genre categories, pinned to the top of the viewport.
-- Single-select. Tapping a category loads its sub-categories in Tier 2.
+- Single-select. Tapping a category **exits the Crate Wall** and switches to genre-filtered browsing: loads sub-categories in Tier 2 and populates the grid with chart albums for that genre.
 - Includes a **Favorites** option as the first item in the list, which displays the user's saved/favorited albums.
+- A **Home / Crate** option (or equivalent) allows the user to return to the algorithm-driven Crate Wall from genre browsing.
 - Clean, minimal text labels. No icons. The aesthetic is restrained and typographic.
 
 #### Tier 2: Sub-Category Bar
@@ -127,13 +150,15 @@ This is the core screen of the application. It consists of three elements stacke
 - **Multi-select.** Users can tap multiple sub-categories to broaden the results. Tapping a selected sub-category deselects it.
 - Selections immediately update the album grid below.
 
-#### Album Grid
+#### Album Grid (Genre-Filtered Mode)
 
-- A tiled grid of album cover art. This is the dominant visual element of the application.
-- Covers fill the available width in a responsive grid (e.g., 3 columns on iPhone, 4-5 on iPad, 5-7+ on a macOS window). The grid uses adaptive `GridItem` sizing to adjust column count automatically based on available width.
-- Infinite scroll. As the user scrolls down, more albums load continuously.
-- **Sort order: Popularity.** Albums are ranked by Apple Music chart position within the selected genre. Future iterations may offer a toggle between popularity and randomized/shuffled order to create a more serendipitous "crate digging" feel.
-- Album art only. No text overlay on the grid tiles. The visual experience should feel like looking at a wall of records.
+When a genre is selected (Tier 1 or Tier 2), the grid switches from the Crate Wall algorithm to genre-filtered browsing:
+
+- Albums are ranked by Apple Music chart position within the selected genre (popularity sort).
+- Same zero-gap, edge-to-edge layout as the Crate Wall.
+- **2 columns on iPhone**, adaptive on macOS.
+- Infinite scroll with offset-based pagination.
+- Album art only. No text overlay on the grid tiles.
 - Scroll position is preserved when navigating to an album detail view and returning (handled automatically by SwiftUI's `NavigationStack`).
 
 ### 3.3 Album Detail View
@@ -162,7 +187,33 @@ Playback is powered by `ApplicationMusicPlayer`, which owns an independent playb
 
 **No shuffle button.** Shuffle is deliberately excluded. Crate is an album listening experience. Tracks play in album order. This is a product decision, not an oversight. See [ADR-114](./DECISIONS.md#adr-114-album-sequential-playback-with-no-shuffle).
 
-### 3.5 Favorites
+### 3.6 Crate Dial (Settings)
+
+The **Crate Dial** is a slider in the app's settings that controls how the Crate Wall algorithm weights its five signals. It has five discrete positions, each representing a different discovery philosophy:
+
+| Position | Label | Philosophy |
+|----------|-------|-----------|
+| 1 (far left) | **My Crate** | Play it safe. Heavily weighted toward the user's listening history and personal recommendations. The wall mirrors what you already love. |
+| 2 | **Curated** | Mostly personal, with popular charts mixed in. Familiar but with occasional surprises from what others are listening to. |
+| 3 (default) | **Mixed Crate** | The balanced default. Equal parts personal taste, popular albums, new releases, and a dash of randomness. The full record store experience. |
+| 4 | **Deep Dig** | More adventurous. New releases and random genres take over. Less about what you know, more about what you haven't heard yet. |
+| 5 (far right) | **Mystery Crate** | Maximum discovery. Almost entirely random genre selections. You grab a crate blindfolded and see what's inside. |
+
+**Signal weights by position:**
+
+| Signal | My Crate | Curated | Mixed Crate | Deep Dig | Mystery Crate |
+|--------|----------|---------|-------------|----------|---------------|
+| Listening History | 50% | 35% | 20% | 10% | 0% |
+| Recommendations | 30% | 25% | 20% | 10% | 5% |
+| Popular Charts | 15% | 20% | 25% | 20% | 15% |
+| New Releases | 5% | 15% | 25% | 30% | 25% |
+| Wild Card | 0% | 5% | 10% | 30% | 55% |
+
+The default for new users is **Mixed Crate** (position 3). The setting persists across sessions via SwiftData/UserDefaults. Changing the dial takes effect on the next cold launch (the current wall is not reshuffled mid-session).
+
+The Crate Dial is the **only** setting in the app. The settings view is minimal — just the slider with labels, a brief explanation, and nothing else.
+
+### 3.7 Favorites
 
 Users can favorite albums from the album detail view. Favorited albums are accessible by selecting "Favorites" in the Tier 1 super-genre bar. Favorites are displayed in the same album grid format.
 
@@ -174,15 +225,16 @@ Cross-device sync (iPhone to Mac) is possible via CloudKit, which SwiftData supp
 
 ## 4. Information Architecture
 
-The application has exactly three views:
+The application has exactly four views:
 
 | View         | Purpose                                 | Navigation                                      |
 |--------------|-----------------------------------------|-------------------------------------------------|
 | Auth         | MusicKit authorization + subscription check | Automatic transition to Browse on success     |
-| Browse       | Genre selection + album grid            | Tap album -> Album Detail                       |
-| Album Detail | Art, metadata, tracklist, playback      | Back -> Browse (scroll preserved)               |
+| Browse       | Crate Wall (default) or genre-filtered album grid | Tap album → Album Detail                    |
+| Album Detail | Art, metadata, tracklist, playback      | Back → Browse (scroll preserved)                |
+| Settings     | Crate Dial slider                       | Accessible from Browse view (gear icon or similar) |
 
-That's it. Three views. No settings page, no profile page, no social features, no search bar, no sidebar navigation. The entire app is: browse, pick, listen.
+Four views. No profile page, no social features, no search bar, no sidebar navigation. The entire app is: browse, pick, listen — with one dial to tune the experience.
 
 ---
 
@@ -190,10 +242,15 @@ That's it. Three views. No settings page, no profile page, no social features, n
 
 ### 5.1 In Scope
 
-- MusicKit authorization with Apple Music subscription check
-- Two-tier genre taxonomy (super-genres -> sub-genres)
+- MusicKit authorization with Apple Music subscription check (subscription required)
+- **Crate Wall** — algorithm-driven album wall as the default landing experience, blending five signals: Listening History, Recommendations, Popular Charts, New Releases, and Wild Card genres
+- **Crate Dial** — settings slider with five positions (My Crate → Curated → Mixed Crate → Deep Dig → Mystery Crate) controlling the wall's signal weights
+- Zero-gap, edge-to-edge album art grid — 2 columns on iPhone, adaptive on macOS
+- Session persistence (same wall within session, fresh on cold launch)
+- Thin listening history auto-rebalancing (graceful fallback to Recommendations)
+- Two-tier genre taxonomy (super-genres → sub-genres) for manual genre-filtered browsing
 - Album grid populated by genre selection via Apple Music Charts API, sorted by chart position (popularity)
-- Infinite scroll on the album grid
+- Infinite scroll on both the Crate Wall and genre-filtered grid
 - Album detail view with art, metadata, and track list
 - Full playback via `ApplicationMusicPlayer`: play/pause, prev/next, scrubber
 - Background audio with lock screen / Control Center integration (iOS) and Now Playing integration (macOS)
@@ -205,11 +262,10 @@ That's it. Three views. No settings page, no profile page, no social features, n
 ### 5.2 Out of Scope (Future Iterations)
 
 - **Search.** Free-text album or artist search. Planned as a fast-follow if the browse-only experience validates well.
-- **Randomized grid sort.** A toggle to switch the album grid from popularity-ranked to randomized order for a more serendipitous browsing feel.
+- **Manual reshuffle.** A "New Crate" pull-to-refresh or button to regenerate the wall mid-session. For MVP, fresh walls are generated only on cold launch.
 - **iCloud sync for favorites.** Cross-device favorites sync via CloudKit. SwiftData supports this natively with minimal code changes.
 - **Deep catalog browsing.** Search-based supplementary results for genres with sparse chart data, to surface older or less popular albums.
 - **Social features.** Sharing albums, seeing what friends are listening to.
-- **Listening history / recently played.** A view showing albums the user has recently listened to.
 - **Editorial curation.** Staff picks, featured albums, new release spotlights.
 - **Add to Apple Music Library.** An explicit action to add an album to the user's Apple Music library (separate from Crate favorites).
 
@@ -309,6 +365,39 @@ Display in grid. On scroll, increment offset for next page.
 **Supplementary strategy for sparse genres:** Some niche genres may have limited chart data. If a genre query returns fewer results than expected, we can supplement with `MusicCatalogSearchRequest` using genre-related search terms. This is a fallback, not the primary path.
 
 **Risk:** Charts data reflects recent popularity, not all-time catalog depth. Deep catalog cuts from the 1970s may not appear unless they are currently popular. This is a trade-off between "current popular" and "deep catalog." For MVP, current popular is the right default. Deep catalog exploration could be added later via search.
+
+### 7.2.1 Crate Wall Algorithm
+
+The Crate Wall is the default landing experience. It replaces the "pick a genre" empty state with an algorithm-driven album wall that feels like walking into a record store.
+
+**Signal sources and API calls:**
+
+| Signal | API | How genres are selected |
+|--------|-----|------------------------|
+| Listening History | `MusicRecentlyPlayedRequest` → extract genre IDs → `Charts API` for those genres | Derived from user's actual listening behavior |
+| Recommendations | `/v1/me/recommendations` (personalized endpoint) | Apple's algorithm — requires Apple Music subscription |
+| Popular Charts | `Charts API` with randomly selected genre IDs | Random selection from full genre taxonomy on each cold launch |
+| New Releases | `Charts API` with `chart=new-releases` and randomly selected genre IDs | Random selection from full genre taxonomy on each cold launch |
+| Wild Card | `Charts API` with completely random genre IDs | Random selection, no overlap with other signals' genre picks |
+
+**On cold launch, the algorithm:**
+
+1. Read the user's Crate Dial setting (default: Mixed Crate)
+2. Look up signal weights for that position
+3. Calculate how many albums to request per signal (targeting ~100 total for the initial wall)
+4. Execute 5-8 API calls in parallel:
+   - Fetch recently played → extract genre IDs → fetch charts for top 2-3 genres
+   - Fetch personalized recommendations
+   - Fetch popular charts for 2-3 random genres
+   - Fetch new releases for 1-2 random genres
+   - Fetch charts for 1-2 completely random "wild card" genres
+5. Deduplicate by album ID across all results
+6. Shuffle the combined results (weighted shuffle — albums from higher-weighted signals appear earlier but not deterministically)
+7. Present the wall
+
+**Infinite scroll continuation:** When the user scrolls near the bottom, the algorithm fetches the next batch using the same signal weights but with fresh random genre selections for the Popular Charts, New Releases, and Wild Card signals. Listening History and Recommendations maintain continuity by paginating through their results.
+
+**Crate Dial persistence:** The selected dial position is stored in UserDefaults (lightweight, no SwiftData needed for a single integer). Changes take effect on the next cold launch.
 
 ### 7.3 Authentication and Authorization
 
@@ -477,16 +566,17 @@ This file is the single source of truth for what genres exist in the app and how
 
 ### 7.9 Client-Side State (@Observable View Models)
 
-Four view models using the `@Observable` macro (Observation framework):
+Five view models using the `@Observable` macro (Observation framework):
 
 | View Model | Owned By | Scope | State |
 |---|---|---|---|
 | `AuthViewModel` | `CrateApp` (app root) | App lifetime | Authorization status, subscription status |
-| `PlaybackViewModel` | `CrateApp` (app root) | App lifetime -- playback persists across navigation | Current track, play/pause, progress, queue |
+| `PlaybackViewModel` | `CrateApp` (app root) | App lifetime — playback persists across navigation | Current track, play/pause, progress, queue |
+| `CrateWallViewModel` | `BrowseView` via `@State` | App lifetime — persists within session, rebuilt on cold launch | Crate Dial position, wall albums, signal weights, pagination state per signal |
 | `BrowseViewModel` | `BrowseView` via `@State` | Persists while in navigation stack | Selected super-genre, selected sub-categories, loaded album pages per genre key, scroll position |
 | `AlbumDetailViewModel` | `AlbumDetailView` | Transient, created per album | Album metadata, tracks, favorite state |
 
-`AuthViewModel` and `PlaybackViewModel` are injected via `.environment()` from the app root because they need to be accessible everywhere. `BrowseViewModel` is owned by `BrowseView` to preserve genre selection and scroll state across album detail push/pop.
+`AuthViewModel`, `PlaybackViewModel`, and `CrateWallViewModel` are injected via `.environment()` from the app root because they need to be accessible across views. `CrateWallViewModel` specifically must survive navigation to album detail and back. `BrowseViewModel` is owned by `BrowseView` to preserve genre selection and scroll state across album detail push/pop.
 
 **Scroll position preservation:** SwiftUI's `NavigationStack` with `NavigationLink` preserves the parent view's state when pushing a detail view and popping back. Because `BrowseViewModel` is owned via `@State`, and `LazyVGrid` inherently preserves its scroll position as long as the data source does not change, scroll preservation works automatically. No manual scroll offset tracking needed. See [ADR-102](./DECISIONS.md#adr-102-mvvm-with-observable-for-app-architecture).
 
@@ -506,6 +596,7 @@ Crate/
       GenreTaxonomy.swift             # Static two-tier genre tree
 
     /ViewModels                       # Business logic layer
+      CrateWallViewModel.swift        # Crate Wall algorithm, signal fetching, dial weights
       BrowseViewModel.swift           # Genre selection, album fetching, pagination
       AlbumDetailViewModel.swift      # Single album data, track list, favorite state
       PlaybackViewModel.swift         # Playback state, transport controls, queue
@@ -526,6 +617,8 @@ Crate/
         NowPlayingView.swift          # Expanded now-playing (future, not MVP)
       /Auth
         AuthView.swift                # MusicKit authorization prompt
+      /Settings
+        SettingsView.swift            # Crate Dial slider
       /Shared
         AlbumArtworkView.swift        # Reusable artwork component with size variants
         LoadingView.swift             # Skeleton / loading states
@@ -533,6 +626,7 @@ Crate/
 
     /Services                         # Data access layer
       MusicService.swift              # All MusicKit / Apple Music API calls
+      CrateWallService.swift          # Crate Wall signal fetching and album blending
       FavoritesService.swift          # SwiftData CRUD for favorites
       GenreService.swift              # Genre taxonomy lookup + charts fetching
 
@@ -603,7 +697,7 @@ These answers are captured here for reference and also reflected in the Open Que
 | Q2: Multi-select logic | OR (union) logic. Users selecting multiple sub-genres want to broaden results, not narrow them. | Section 7.2 |
 | Q3: Favorites storage | Local-only via SwiftData. Does not write to the user's Apple Music library. | Section 7.7 |
 | Q5: Multi-genre albums | Albums charting in multiple genres will naturally appear in multiple queries. Same behavior, simpler implementation. | Section 7.2 |
-| Q6: Default app state | No pre-selection. Show the genre bar with nothing highlighted and a minimal prompt inviting the user to pick a genre. | -- |
+| Q6: Default app state | The Crate Wall — an algorithm-driven album wall populated by five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card), weighted by the Crate Dial setting. Fresh on each cold launch, persists within a session. | Section 3.2, 7.2.1 |
 | Q7: Rate limit handling | 1 API call per page makes rate limits a non-issue. Defensive debounce on rapid genre switching and 429 retry. | Section 7.5 |
 | Q8: Mobile playback | Fully resolved. `ApplicationMusicPlayer` plays audio directly in the app on iOS. No external app dependency. | Section 7.4 |
 | Q9: Developer user limit | Fully resolved. Apple has no developer quota restrictions. TestFlight supports 10,000 external testers. | Section 7.12 |
@@ -616,7 +710,7 @@ These principles should guide every design and engineering decision:
 
 1. **Album art is the interface.** The cover art grid is not a feature of the app -- it is the app. Every pixel not dedicated to album art needs to justify its existence.
 2. **Two taps to music.** From opening the app: one tap on a genre, one tap on an album. That is the target. Every additional interaction is friction.
-3. **No decision fatigue.** The genre taxonomy does the organizing. The user's only job is to browse and choose. There are no modes, no settings, no toggles, no preferences to configure.
+3. **No decision fatigue.** The Crate Wall does the organizing on launch — the user's only job is to browse and choose. The single Crate Dial setting is the only configuration, and even that is optional (the default works great).
 4. **Albums are sacred.** No shuffle. No single-track promotion. No "you might also like" interstitials. When a user picks an album, the app respects that choice and plays it in order.
 5. **The record store metaphor.** Every design decision should be tested against the question: "Does this feel like browsing records, or does this feel like using a software application?" The answer should always be the former.
 
@@ -633,7 +727,7 @@ These principles should guide every design and engineering decision:
 | 3  | Should Favorites sync with the user's music library, or be a Crate-specific collection? | **Resolved** | Local-only favorites via SwiftData. Crate does not write to the user's Apple Music library. Clean separation of intents. See Section 7.7 and [ADR-106](./DECISIONS.md#adr-106-local-only-favorites-not-apple-music-library). |
 | 4  | What is the right number of top-level super-genres? | **Open** | No engineering constraint on the number. The taxonomy is a static config file (Section 7.8) and can be adjusted freely. Apple Music's own genre hierarchy may simplify this decision. See N1 below. |
 | 5  | How do we handle albums that span multiple genres? | **Resolved** | Albums charting in multiple genres will naturally appear in multiple queries. Same behavior as intended, simpler implementation. |
-| 6  | What is the default state when the app opens? | **Resolved** | No pre-selection. Show the genre bar with nothing highlighted and a minimal prompt inviting the user to pick a genre. Crate is about intentional choice. |
+| 6  | What is the default state when the app opens? | **Resolved** | The Crate Wall — an algorithm-driven wall of album art blending five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card). Weighted by the Crate Dial setting. Fresh on cold launch, persists within a session. See Section 3.2 and 7.2.1. |
 | 7  | How should the app handle API rate limits during heavy infinite scroll usage? | **Resolved** | 1 API call per page makes rate limits essentially a non-issue. Defensive debounce on rapid genre switching and 429 retry as safety measures. See Section 7.5. |
 | 8  | How do we handle mobile playback? | **Resolved** | `ApplicationMusicPlayer` plays audio directly in the app on iOS. No external app dependency. Background audio and lock screen controls are automatic. This was the primary reason for the platform pivot. |
 | 9  | How do we handle developer user limits for testing/launch? | **Resolved** | Apple has no developer quota restrictions. TestFlight supports 10,000 external beta testers. App Store has no user limits. |

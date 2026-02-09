@@ -9,7 +9,7 @@ struct AlbumGridItemView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            AlbumArtworkView(artwork: album.artwork, size: 160)
+            AlbumArtworkView(artwork: album.artwork, size: 160, artworkURL: album.artworkURL)
 
             Text(album.title)
                 .font(.caption)

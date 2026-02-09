@@ -75,6 +75,16 @@ final class BrowseViewModel {
         await resetAndFetch()
     }
 
+    /// Clear the current selection and return to the wall (no genre selected).
+    func clearSelection() {
+        selectedCategory = nil
+        selectedSubcategoryIDs = []
+        albums = []
+        currentOffset = 0
+        hasMorePages = true
+        errorMessage = nil
+    }
+
     /// Fetch the next page of albums (called when the user scrolls near the bottom).
     func fetchNextPageIfNeeded() async {
         guard !isLoadingMore, hasMorePages else { return }

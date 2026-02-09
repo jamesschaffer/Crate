@@ -27,6 +27,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 112 | [App Store + TestFlight for Distribution](#adr-112-app-store--testflight-for-distribution) | Accepted |
 | 113 | [In-Memory View Model Cache (No Multi-Layer Caching)](#adr-113-in-memory-view-model-cache-no-multi-layer-caching) | Accepted |
 | 114 | [Album-Sequential Playback with No Shuffle](#adr-114-album-sequential-playback-with-no-shuffle) | Accepted |
+| 115 | [Crate Wall as Default Landing Experience](#adr-115-crate-wall-as-default-landing-experience) | Accepted |
 
 ---
 
@@ -513,6 +514,45 @@ This is set every time we start playing an album, to guard against the shuffle m
 - Users who want shuffle cannot get it. This is intentional. If user feedback strongly requests it as an option, it would be a product decision to add it, not an architecture change.
 
 **What would change this:** A product decision to add shuffle as an opt-in feature. The architecture supports it trivially (expose a toggle that sets `shuffleMode = .songs`). The bar for adding it should be high -- it goes against the product philosophy.
+
+---
+
+## ADR-115: Crate Wall as Default Landing Experience
+
+**Date:** 2026-02-09
+**Status:** Accepted
+**PRD Reference:** Crate Wall feature specification
+
+**Context:** The original Browse view launched with an empty state ("Pick a genre"), requiring the user to make a choice before seeing any content. This creates a cold-start problem — new users see a blank screen. Additionally, chart-sourced albums showed placeholder icons because `AlbumArtworkView` only handled MusicKit `Artwork` objects, not the `artworkURL` strings returned by the Charts API.
+
+**Decision:** Replace the empty state with an algorithm-driven wall of album art as the default landing experience. The wall blends five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card) weighted by a "Crate Dial" settings slider. The user can still browse by genre by selecting a genre pill.
+
+**Architecture:**
+
+- **CrateDial model** (`CrateDialPosition` enum, `CrateDialWeights` struct): Defines 5 dial positions from "My Crate" (personal-heavy) to "Mystery Crate" (random-heavy), each with a weight table mapping signals to fractional proportions.
+- **CrateDialStore**: Persists dial position to UserDefaults. Defaults to `.mixedCrate`.
+- **CrateWallService**: Orchestrates parallel fetches across signal sources using `TaskGroup`, deduplicates by album ID, and performs a weighted-interleave shuffle so higher-weighted signals appear more frequently but aren't clustered.
+- **CrateWallViewModel**: `@Observable` class owned as `@State` on `BrowseView`. Persists within a session (survives navigation push/pop), resets on cold launch.
+- **AlbumArtworkView artworkURL fix**: Resolves Apple Music artwork URL templates (`{w}` and `{h}` placeholders) and displays via `AsyncImage`. Fixes both the wall and existing genre browse.
+- **AlbumGridView dual style**: `.wall` mode (zero-gap, artwork only, 2 fixed columns on iOS) vs `.browse` mode (existing layout with spacing and text labels).
+- **GenreBarView "Crate" pill**: First pill in the genre bar returns to the wall. Highlighted when no genre is selected.
+- **SettingsView**: Discrete slider for the Crate Dial position.
+
+**Graceful degradation:** Personal signals (recently played, recommendations) may fail if the user has limited listening history or if the API is unavailable. `CrateWallService` catches these errors and redistributes those counts to chart-based signals (which require only an Apple Music subscription, not listening history).
+
+**Rationale:**
+- Eliminates cold-start empty state. Users see content immediately on launch.
+- The five-signal blend creates a serendipitous browsing experience that gets more personalized as the user listens more.
+- The Crate Dial gives users control over the exploration/familiarity balance without requiring them to understand the algorithm.
+- `@State` ownership on `BrowseView` means the wall persists within a session (no re-fetch when navigating back from album detail) but regenerates fresh on cold launch.
+- Infinite scroll via `fetchMore(excluding:)` provides bottomless content.
+
+**Trade-offs:**
+- Multiple parallel API calls on launch (~8-12 concurrent requests). Apple Music's 20 req/sec per-user limit is sufficient, but on slow connections the wall may take a few seconds to populate.
+- The wall is generated client-side with random genre picks, so two launches produce different walls. This is a feature (serendipity), not a bug.
+- No server-side curation or editorial input. The "quality" of the wall depends on Apple Music's chart data and the user's listening history.
+
+**What would change this:** If Apple introduced a personalized "For You" albums API with genre diversity, we might use it as a simpler alternative to the five-signal blend. Or if the wall proved too slow on launch, we might cache the previous wall to SwiftData and show it while refreshing in the background.
 
 ---
 

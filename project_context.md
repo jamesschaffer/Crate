@@ -8,12 +8,13 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 
 ## Current Status
 
-**Pre-development.** Product requirements and architecture are complete. The project is ready for engineering scaffolding.
+**Active development.** Core features implemented. Crate Wall feature in progress.
 
 - PRD: Complete (Draft -- Architecture Complete, MusicKit Pivot)
-- Architecture decisions: 15 ADRs documented and accepted (ADR-100 through ADR-114)
-- Code: Not yet started
-- Design: Not yet started (PRD describes UX; visual design is pending)
+- Architecture decisions: 16 ADRs documented and accepted (ADR-100 through ADR-115)
+- Code: Core app implemented (Browse, Album Detail, Playback, Auth, Favorites)
+- Crate Wall: Implemented -- algorithm-driven landing experience with 5 blended signals, Crate Dial settings, artwork URL fix
+- Design: Visual design in progress (functional UI complete)
 
 **Note on history:** Crate was originally designed as a Spotify web app (Next.js + React). On 2026-02-09, the project pivoted to Apple Music + native SwiftUI. The original Spotify-era ADRs (001-014) are archived in git history. All current documentation reflects the Apple Music / MusicKit direction.
 
@@ -50,12 +51,12 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 | Document | Path | Description |
 |----------|------|-------------|
 | PRD | [PRD.md](./PRD.md) | Full product requirements, UX specification, and architecture |
-| Decision Log | [DECISIONS.md](./DECISIONS.md) | 15 architectural decision records (ADR-100 through ADR-114) |
+| Decision Log | [DECISIONS.md](./DECISIONS.md) | 16 architectural decision records (ADR-100 through ADR-115) |
 | README | [README.md](./README.md) | Project overview and getting started |
 
 ## Architecture Summary
 
-The application has three views (Auth, Browse, Album Detail) and no backend. All Apple Music API calls are made directly from the app via MusicKit. Auth is handled by the system via a single MusicKit authorization dialog. The genre-to-album pipeline uses the Apple Music Catalog Charts endpoint, which returns albums by genre in a single API call per page. Playback uses `ApplicationMusicPlayer` with an independent queue, providing native background audio, lock screen controls, and Now Playing integration automatically. Favorites are stored locally via SwiftData and are not synced to the user's Apple Music library. The UI is built with SwiftUI using MVVM with `@Observable` view models. A single multiplatform codebase targets both iOS and macOS with 95%+ shared code.
+The application has four views (Auth, Browse with Crate Wall, Album Detail, Settings) and no backend. All Apple Music API calls are made directly from the app via MusicKit. Auth is handled by the system via a single MusicKit authorization dialog. The genre-to-album pipeline uses the Apple Music Catalog Charts endpoint, which returns albums by genre in a single API call per page. Playback uses `ApplicationMusicPlayer` with an independent queue, providing native background audio, lock screen controls, and Now Playing integration automatically. Favorites are stored locally via SwiftData and are not synced to the user's Apple Music library. The UI is built with SwiftUI using MVVM with `@Observable` view models. A single multiplatform codebase targets both iOS and macOS with 95%+ shared code.
 
 ## Open Items
 

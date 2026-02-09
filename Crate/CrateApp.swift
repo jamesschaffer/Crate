@@ -63,8 +63,8 @@ struct CrateApp: App {
 
         #if os(macOS)
         Settings {
-            Text("Crate Settings")
-                .padding()
+            SettingsView()
+                .frame(minWidth: 400, minHeight: 300)
         }
         #endif
     }

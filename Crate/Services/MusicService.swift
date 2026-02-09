@@ -14,6 +14,15 @@ protocol MusicServiceProtocol: Sendable {
     /// - Returns: Array of CrateAlbum wrappers.
     func fetchChartAlbums(genreID: String, limit: Int, offset: Int) async throws -> [CrateAlbum]
 
+    /// Fetch new-release chart albums for a genre.
+    func fetchNewReleaseChartAlbums(genreID: String, limit: Int, offset: Int) async throws -> [CrateAlbum]
+
+    /// Fetch the user's recently played albums.
+    func fetchRecentlyPlayed(limit: Int) async throws -> [CrateAlbum]
+
+    /// Fetch personalized album recommendations.
+    func fetchRecommendations(limit: Int) async throws -> [CrateAlbum]
+
     /// Fetch a single album's full details by its MusicItemID.
     func fetchAlbumDetail(id: MusicItemID) async throws -> Album?
 
@@ -28,45 +37,76 @@ protocol MusicServiceProtocol: Sendable {
 struct MusicService: MusicServiceProtocol {
 
     func fetchChartAlbums(genreID: String, limit: Int, offset: Int) async throws -> [CrateAlbum] {
-        // Use MusicDataRequest for the charts endpoint with genre filtering.
-        // This gives us full control over query parameters.
-        let countryCode = try await MusicDataRequest.currentCountryCode
+        try await fetchCharts(genreID: genreID, chartType: "most-played", limit: limit, offset: offset)
+    }
 
+    func fetchNewReleaseChartAlbums(genreID: String, limit: Int, offset: Int) async throws -> [CrateAlbum] {
+        try await fetchCharts(genreID: genreID, chartType: "new-releases", limit: limit, offset: offset)
+    }
+
+    func fetchRecentlyPlayed(limit: Int) async throws -> [CrateAlbum] {
         var urlComponents = URLComponents()
         urlComponents.scheme = "https"
         urlComponents.host = "api.music.apple.com"
-        urlComponents.path = "/v1/catalog/\(countryCode)/charts"
+        urlComponents.path = "/v1/me/recent/played"
         urlComponents.queryItems = [
-            URLQueryItem(name: "types", value: "albums"),
-            URLQueryItem(name: "genre", value: genreID),
             URLQueryItem(name: "limit", value: "\(limit)"),
-            URLQueryItem(name: "offset", value: "\(offset)"),
-            URLQueryItem(name: "chart", value: "most-played"),
+            URLQueryItem(name: "types", value: "albums"),
         ]
 
-        guard let url = urlComponents.url else {
-            return []
-        }
+        guard let url = urlComponents.url else { return [] }
 
         let request = MusicDataRequest(urlRequest: URLRequest(url: url))
         let response = try await request.response()
 
-        // Decode the chart response
-        let decoded = try JSONDecoder().decode(ChartResponse.self, from: response.data)
-        guard let albumChart = decoded.results.albums?.first else {
-            return []
-        }
-
-        return albumChart.data.map { chartAlbum in
-            CrateAlbum(
-                id: MusicItemID(chartAlbum.id),
-                title: chartAlbum.attributes.name,
-                artistName: chartAlbum.attributes.artistName,
-                artworkURL: chartAlbum.attributes.artwork?.url,
+        let decoded = try JSONDecoder().decode(RecentlyPlayedResponse.self, from: response.data)
+        return decoded.data.compactMap { item -> CrateAlbum? in
+            guard item.type == "albums", let attrs = item.attributes else { return nil }
+            return CrateAlbum(
+                id: MusicItemID(item.id),
+                title: attrs.name,
+                artistName: attrs.artistName,
+                artworkURL: attrs.artwork?.url,
                 releaseDate: nil,
-                genreNames: chartAlbum.attributes.genreNames ?? []
+                genreNames: attrs.genreNames ?? []
             )
         }
+    }
+
+    func fetchRecommendations(limit: Int) async throws -> [CrateAlbum] {
+        var urlComponents = URLComponents()
+        urlComponents.scheme = "https"
+        urlComponents.host = "api.music.apple.com"
+        urlComponents.path = "/v1/me/recommendations"
+        urlComponents.queryItems = [
+            URLQueryItem(name: "limit", value: "\(limit)"),
+        ]
+
+        guard let url = urlComponents.url else { return [] }
+
+        let request = MusicDataRequest(urlRequest: URLRequest(url: url))
+        let response = try await request.response()
+
+        let decoded = try JSONDecoder().decode(RecommendationResponse.self, from: response.data)
+
+        // Extract album items from all recommendation groups.
+        var albums: [CrateAlbum] = []
+        for group in decoded.data {
+            guard let relationships = group.relationships else { continue }
+            for item in relationships.contents.data {
+                guard item.type == "albums" else { continue }
+                guard let attrs = item.attributes else { continue }
+                albums.append(CrateAlbum(
+                    id: MusicItemID(item.id),
+                    title: attrs.name,
+                    artistName: attrs.artistName,
+                    artworkURL: attrs.artwork?.url,
+                    releaseDate: nil,
+                    genreNames: attrs.genreNames ?? []
+                ))
+            }
+        }
+        return albums
     }
 
     func fetchAlbumDetail(id: MusicItemID) async throws -> Album? {
@@ -86,6 +126,48 @@ struct MusicService: MusicServiceProtocol {
         }
 
         return tracks
+    }
+
+    // MARK: - Private Helpers
+
+    /// Shared chart-fetching logic for both most-played and new-releases.
+    private func fetchCharts(genreID: String, chartType: String, limit: Int, offset: Int) async throws -> [CrateAlbum] {
+        let countryCode = try await MusicDataRequest.currentCountryCode
+
+        var urlComponents = URLComponents()
+        urlComponents.scheme = "https"
+        urlComponents.host = "api.music.apple.com"
+        urlComponents.path = "/v1/catalog/\(countryCode)/charts"
+        urlComponents.queryItems = [
+            URLQueryItem(name: "types", value: "albums"),
+            URLQueryItem(name: "genre", value: genreID),
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            URLQueryItem(name: "offset", value: "\(offset)"),
+            URLQueryItem(name: "chart", value: chartType),
+        ]
+
+        guard let url = urlComponents.url else {
+            return []
+        }
+
+        let request = MusicDataRequest(urlRequest: URLRequest(url: url))
+        let response = try await request.response()
+
+        let decoded = try JSONDecoder().decode(ChartResponse.self, from: response.data)
+        guard let albumChart = decoded.results.albums?.first else {
+            return []
+        }
+
+        return albumChart.data.map { chartAlbum in
+            CrateAlbum(
+                id: MusicItemID(chartAlbum.id),
+                title: chartAlbum.attributes.name,
+                artistName: chartAlbum.attributes.artistName,
+                artworkURL: chartAlbum.attributes.artwork?.url,
+                releaseDate: nil,
+                genreNames: chartAlbum.attributes.genreNames ?? []
+            )
+        }
     }
 }
 
@@ -120,4 +202,55 @@ private struct ChartAlbumAttributes: Codable {
 
 private struct ChartArtwork: Codable {
     let url: String?
+}
+
+// MARK: - Recently Played Response Decoding
+
+private struct RecentlyPlayedResponse: Codable {
+    let data: [RecentlyPlayedItem]
+}
+
+private struct RecentlyPlayedItem: Codable {
+    let id: String
+    let type: String
+    let attributes: RecentlyPlayedAttributes?
+}
+
+private struct RecentlyPlayedAttributes: Codable {
+    let name: String
+    let artistName: String
+    let artwork: ChartArtwork?
+    let genreNames: [String]?
+}
+
+// MARK: - Recommendation Response Decoding
+
+private struct RecommendationResponse: Codable {
+    let data: [RecommendationGroup]
+}
+
+private struct RecommendationGroup: Codable {
+    let id: String
+    let relationships: RecommendationRelationships?
+}
+
+private struct RecommendationRelationships: Codable {
+    let contents: RecommendationContents
+}
+
+private struct RecommendationContents: Codable {
+    let data: [RecommendationItem]
+}
+
+private struct RecommendationItem: Codable {
+    let id: String
+    let type: String
+    let attributes: RecommendationItemAttributes?
+}
+
+private struct RecommendationItemAttributes: Codable {
+    let name: String
+    let artistName: String
+    let artwork: ChartArtwork?
+    let genreNames: [String]?
 }
