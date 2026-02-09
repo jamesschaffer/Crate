@@ -72,6 +72,9 @@ struct BrowseView: View {
                 }
             )
         }
+        .navigationDestination(for: CrateAlbum.self) { album in
+            AlbumDetailView(album: album)
+        }
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showingSettings) {
             SettingsView()

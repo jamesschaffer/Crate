@@ -6,6 +6,7 @@ import MusicKit
 struct TrackListView: View {
 
     let tracks: MusicItemCollection<Track>
+    var album: CrateAlbum? = nil
 
     @Environment(PlaybackViewModel.self) private var playbackViewModel
 
@@ -14,14 +15,15 @@ struct TrackListView: View {
             ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                 Button {
                     Task {
+                        playbackViewModel.nowPlayingAlbum = album
                         await playbackViewModel.play(tracks: tracks, startingAt: index)
                     }
                 } label: {
-                    HStack {
+                    HStack(spacing: 8) {
                         Text("\(index + 1)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .frame(width: 28, alignment: .trailing)
+                            .frame(width: 20, alignment: .trailing)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(track.title)
@@ -52,7 +54,7 @@ struct TrackListView: View {
 
                 if index < tracks.count - 1 {
                     Divider()
-                        .padding(.leading, 44)
+                        .padding(.horizontal)
                 }
             }
         }

@@ -48,9 +48,6 @@ struct AlbumGridView: View {
                     .frame(height: bottomPadding)
             }
         }
-        .navigationDestination(for: CrateAlbum.self) { album in
-            AlbumDetailView(album: album)
-        }
     }
 }
 

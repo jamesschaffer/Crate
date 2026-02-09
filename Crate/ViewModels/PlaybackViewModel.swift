@@ -17,9 +17,22 @@ final class PlaybackViewModel {
 
     // MARK: - Playback State
 
-    /// The currently playing track (nil if nothing is playing).
-    var currentTrack: Track? {
-        player.queue.currentEntry?.item as? Track
+    /// The CrateAlbum that's currently playing (set when playback starts).
+    var nowPlayingAlbum: CrateAlbum?
+
+    /// Title of the currently playing entry.
+    var nowPlayingTitle: String? {
+        player.queue.currentEntry?.title
+    }
+
+    /// Subtitle (artist) of the currently playing entry.
+    var nowPlayingSubtitle: String? {
+        player.queue.currentEntry?.subtitle
+    }
+
+    /// Artwork of the currently playing entry.
+    var nowPlayingArtwork: Artwork? {
+        player.queue.currentEntry?.artwork
     }
 
     /// Current playback status.
