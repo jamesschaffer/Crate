@@ -1,6 +1,6 @@
 # Crate
 
-A focused album listening experience built on Spotify. Browse by genre, pick an album, listen start to finish.
+A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
 **Status: Pre-development** -- Product requirements and architecture are complete. Engineering scaffolding has not yet started.
 
@@ -8,7 +8,9 @@ A focused album listening experience built on Spotify. Browse by genre, pick an 
 
 ## What is Crate?
 
-Crate is a single-purpose web interface for Spotify that removes playlists, podcasts, algorithms, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy. The experience is designed to feel like browsing a record store, not using a streaming app.
+Crate is a single-purpose native app for Apple Music that removes playlists, podcasts, algorithms, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy. The experience is designed to feel like browsing a record store, not using a streaming app.
+
+Crate is a SwiftUI multiplatform app targeting **iOS** and **macOS** from a single codebase, powered by **MusicKit** for Apple Music integration. There is no server or backend -- the app is fully client-side.
 
 For the full product specification, see the [PRD](./Spotify%20Album%20UI%20Redesign.md).
 
@@ -17,61 +19,89 @@ For the full product specification, see the [PRD](./Spotify%20Album%20UI%20Redes
 | Document | Description |
 |----------|-------------|
 | [PRD](./Spotify%20Album%20UI%20Redesign.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (14 ADRs) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (15 ADRs, ADR-100 through ADR-114) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
 
-- **Framework:** Next.js 14+ (App Router)
-- **Styling:** Tailwind CSS
-- **State Management:** Zustand
-- **Validation:** Zod
-- **Testing:** Vitest + React Testing Library
-- **Deployment:** Vercel
-- **Auth:** Spotify OAuth (Authorization Code Flow)
-- **Playback:** Spotify Web Playback SDK (desktop), Spotify Connect (mobile fallback)
+- **Platform:** SwiftUI Multiplatform (iOS + macOS)
+- **Architecture:** MVVM with `@Observable` (iOS 17+ / macOS 14+)
+- **Music Integration:** MusicKit (Apple Music)
+- **Playback:** `ApplicationMusicPlayer`
+- **Local Persistence:** SwiftData (favorites)
+- **Testing:** XCTest (UI tests) + Swift Testing (unit tests)
+- **Deployment:** App Store + Mac App Store, TestFlight for beta
+- **CI/CD:** Xcode Cloud
 
 ## Prerequisites
 
-- Node.js 18+
-- Spotify Developer account with a registered application
-- Spotify Premium account (required for Web Playback SDK)
-- Vercel account (for deployment)
+- **macOS** with **Xcode 16+** (required for Swift Testing, latest MusicKit, and SwiftUI features)
+- **Apple Developer Program membership** (required for MusicKit entitlement, TestFlight, and App Store distribution)
+- **Apple Music subscription** (required for playback and subscription-dependent features during development)
+- **Physical iOS device** (iPhone or iPad) for testing -- MusicKit does not work in the iOS Simulator
+- **Physical Mac** for macOS target testing
 
 ## Getting Started
 
 > This section will be filled in once the project is scaffolded. The following is a placeholder for the expected setup flow.
 
-```bash
-# Clone the repository
-git clone <repo-url>
-cd crate
+1. **Clone the repository**
+   ```bash
+   git clone <repo-url>
+   cd Crate
+   ```
 
-# Install dependencies
-npm install
+2. **Open the Xcode project**
+   ```bash
+   open Crate.xcodeproj
+   ```
 
-# Set up environment variables
-cp .env.example .env.local
-# Fill in SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and NEXTAUTH_SECRET
+3. **Configure signing**
+   - Select the `Crate` target in Xcode
+   - Under Signing & Capabilities, select your Apple Developer team
+   - Ensure the MusicKit capability is enabled
 
-# Run the development server
-npm run dev
-```
+4. **Run on a physical device**
+   - Select your connected iPhone or Mac as the build destination
+   - Build and run (Cmd+R)
+   - On first launch, the app will request Apple Music authorization
 
-### Environment Variables
+### Entitlements Required
 
-| Variable | Description |
-|----------|-------------|
-| `SPOTIFY_CLIENT_ID` | From Spotify Developer Dashboard |
-| `SPOTIFY_CLIENT_SECRET` | From Spotify Developer Dashboard |
-| `SPOTIFY_REDIRECT_URI` | OAuth callback URL (e.g., `http://localhost:3000/api/auth/callback`) |
-| `SESSION_SECRET` | Encryption key for iron-session cookies (32+ characters) |
+| Entitlement | Platform | Purpose |
+|-------------|----------|---------|
+| MusicKit | iOS + macOS | Apple Music API access and playback |
+| Background Modes -> Audio | iOS only | Continued playback when app is backgrounded |
+
+### No Environment Variables
+
+Unlike a web app, there are no `.env` files or API keys to configure. MusicKit authentication is handled automatically via the provisioning profile and MusicKit entitlement. There is no client secret, no API key, and no server-side configuration.
 
 ## Key Constraints
 
-- **5-user limit:** Spotify Development Mode restricts the app to 5 authorized users. Public launch requires Extended Quota Mode.
-- **Mobile playback:** The Web Playback SDK does not work on mobile browsers. On mobile, the Spotify app must be running for playback via Spotify Connect.
-- **No database:** MVP has no persistent storage. Auth uses encrypted cookies, favorites sync with Spotify's library, and the genre taxonomy is a static JSON file.
+- **Physical device required.** MusicKit does not work in the Simulator. All testing involving Apple Music playback or subscription checks must run on a physical device.
+- **Apple Music subscription required.** The app requires an active Apple Music subscription for playback. Non-subscribers can browse but cannot play.
+- **Apple ecosystem only.** iOS 17+ and macOS 14+ (Sonoma). No Android, no web.
+- **No server.** The app is fully client-side. MusicKit handles auth, API access, and playback on-device.
+
+## Project Structure
+
+```
+Crate/
+  Crate.xcodeproj
+  Crate/                    # Shared code (iOS + macOS)
+    /Models                 # Data models (Album, Genre, FavoriteAlbum)
+    /ViewModels             # MVVM view models (Browse, AlbumDetail, Playback, Auth)
+    /Views                  # SwiftUI views organized by feature
+    /Services               # MusicKit service layer, favorites CRUD
+    /Config                 # Static genre taxonomy
+    /Extensions             # Convenience extensions
+    /Resources              # Assets
+  Crate-iOS/                # iOS-specific (entitlements, Info.plist)
+  Crate-macOS/              # macOS-specific (entitlements, menu commands)
+  CrateTests/               # Unit tests
+  CrateUITests/             # UI tests
+```
 
 ## License
 
