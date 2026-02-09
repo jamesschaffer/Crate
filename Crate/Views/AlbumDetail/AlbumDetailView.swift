@@ -13,7 +13,7 @@ struct AlbumDetailView: View {
         ScrollView {
             VStack(spacing: 16) {
                 // Album artwork
-                AlbumArtworkView(artwork: album.artwork, size: 280)
+                AlbumArtworkView(artwork: album.artwork, size: 280, artworkURL: album.artworkURL)
                     .shadow(radius: 8)
 
                 // Title and artist
