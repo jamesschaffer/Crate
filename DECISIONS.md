@@ -4,7 +4,7 @@ This document captures key architectural decisions for Crate, with context and r
 
 **Note:** ADRs 001-014 (Spotify/Next.js era) were superseded on 2026-02-09 by a full platform pivot from Spotify Web to Apple Music Native. The original ADRs are archived in git history. This file now contains the Apple Music / MusicKit / SwiftUI decisions starting at ADR-100.
 
-For the architecture overview, see [Section 7 of the PRD](./Spotify%20Album%20UI%20Redesign.md#7-architecture-and-technical-decisions).
+For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architecture-and-technical-decisions).
 
 ---
 
@@ -35,7 +35,7 @@ For the architecture overview, see [Section 7 of the PRD](./Spotify%20Album%20UI
 **Date:** 2026-02-09
 **Status:** Accepted
 **Supersedes:** ADR-001 (Next.js + React + Tailwind CSS for Frontend), ADR-011 (Vercel for Deployment)
-**PRD Reference:** [Section 6.3 (Platform)](./Spotify%20Album%20UI%20Redesign.md#63-platform), [Section 7.1 (Tech Stack)](./Spotify%20Album%20UI%20Redesign.md#71-tech-stack)
+**PRD Reference:** [Section 6.3 (Platform)](./PRD.md#63-platform), [Section 7.1 (Tech Stack)](./PRD.md#71-tech-stack)
 
 **Context:** The original Crate architecture was a responsive web application built with Next.js, deployed to Vercel. This worked as a starting point, but the Spotify platform constraints (detailed in ADR-101) made the web approach untenable for the core product experience -- specifically, mobile playback required the Spotify app running separately, which broke the "open Crate and listen" promise.
 
@@ -65,7 +65,7 @@ The product needs to play music directly, on mobile, without any external depend
 **Date:** 2026-02-09
 **Status:** Accepted
 **Supersedes:** ADR-002 (Genre-to-Album Pipeline via Artist Search), ADR-009 (Spotify Web Playback SDK), ADR-010 (Mobile Playback via Spotify Connect Fallback), ADR-014 (Scoped Spotify Permissions)
-**PRD Reference:** [Section 7.1 (Tech Stack)](./Spotify%20Album%20UI%20Redesign.md#71-tech-stack), [Section 7.2 (Genre-to-Album Pipeline)](./Spotify%20Album%20UI%20Redesign.md#72-genre-to-album-pipeline-apple-music-charts)
+**PRD Reference:** [Section 7.1 (Tech Stack)](./PRD.md#71-tech-stack), [Section 7.2 (Genre-to-Album Pipeline)](./PRD.md#72-genre-to-album-pipeline-apple-music-charts)
 
 **Context:** The Spotify architecture had five critical constraints:
 
@@ -131,7 +131,7 @@ The product needs to play music directly, on mobile, without any external depend
 **Date:** 2026-02-09
 **Status:** Accepted
 **Supersedes:** ADR-009 (Spotify Web Playback SDK), ADR-010 (Mobile Playback via Spotify Connect Fallback)
-**PRD Reference:** [Section 3.4 (Playback Footer)](./Spotify%20Album%20UI%20Redesign.md#34-playback-footer), [Section 7.4 (Playback Architecture)](./Spotify%20Album%20UI%20Redesign.md#74-playback-architecture)
+**PRD Reference:** [Section 3.4 (Playback Footer)](./PRD.md#34-playback-footer), [Section 7.4 (Playback Architecture)](./PRD.md#74-playback-architecture)
 
 **Context:** MusicKit provides two player types:
 - `SystemMusicPlayer` -- shares the playback queue with the system Music app. When Crate plays something, it replaces whatever the user had playing in Music.
@@ -164,7 +164,7 @@ The product needs to play music directly, on mobile, without any external depend
 **Date:** 2026-02-09
 **Status:** Accepted
 **Supersedes:** ADR-002 (Genre-to-Album Pipeline via Artist Search), ADR-003 (Server-Side API Proxy Layer)
-**PRD Reference:** [Section 7.2 (Genre-to-Album Pipeline)](./Spotify%20Album%20UI%20Redesign.md#72-genre-to-album-pipeline-apple-music-charts)
+**PRD Reference:** [Section 7.2 (Genre-to-Album Pipeline)](./PRD.md#72-genre-to-album-pipeline-apple-music-charts)
 
 **Context:** The central technical problem in Crate is: "Given a genre, show me albums." The Spotify architecture required a complex multi-step pipeline because Spotify does not associate genres with albums. Apple Music does, via the charts endpoint.
 
@@ -201,7 +201,7 @@ Some niche genres may have limited chart data. If a genre query returns fewer re
 **Date:** 2026-02-09
 **Status:** Accepted
 **Supersedes:** ADR-013 (No Supabase or External Database for MVP)
-**PRD Reference:** [Section 7.7 (Favorites)](./Spotify%20Album%20UI%20Redesign.md#77-favorites)
+**PRD Reference:** [Section 7.7 (Favorites)](./PRD.md#77-favorites)
 
 **Context:** The Spotify architecture used no database because auth lived in cookies, favorites synced with Spotify's library, and the taxonomy was a static JSON file. With the pivot to a native app, the persistence question needs to be re-evaluated.
 
@@ -240,7 +240,7 @@ Favorites need to be stored somewhere. Options:
 **Date:** 2026-02-09
 **Status:** Accepted
 **Supersedes:** ADR-007 (Favorites Stored in Spotify's Library)
-**PRD Reference:** [Section 3.5 (Favorites)](./Spotify%20Album%20UI%20Redesign.md#35-favorites), [Section 7.7 (Favorites)](./Spotify%20Album%20UI%20Redesign.md#77-favorites)
+**PRD Reference:** [Section 3.5 (Favorites)](./PRD.md#35-favorites), [Section 7.7 (Favorites)](./PRD.md#77-favorites)
 
 **Context:** The Spotify architecture synced favorites with Spotify's saved albums. This made sense because it meant no database and bi-directional sync between Crate and Spotify. The Apple Music equivalent would be using `MusicLibrary` to add albums to the user's Apple Music library.
 
@@ -267,7 +267,7 @@ Favorites need to be stored somewhere. Options:
 **Date:** 2026-02-09
 **Status:** Accepted
 **Supersedes:** ADR-008 (Genre Taxonomy as Static JSON Configuration)
-**PRD Reference:** [Section 2.2 (Structure)](./Spotify%20Album%20UI%20Redesign.md#22-structure), [Section 7.8 (Genre Taxonomy Storage)](./Spotify%20Album%20UI%20Redesign.md#78-genre-taxonomy-storage)
+**PRD Reference:** [Section 2.2 (Structure)](./PRD.md#22-structure), [Section 7.8 (Genre Taxonomy Storage)](./PRD.md#78-genre-taxonomy-storage)
 
 **Context:** The Spotify architecture stored the genre taxonomy as a JSON file validated at build time with Zod. For the native app, we need to decide how to store and validate the taxonomy.
 
@@ -310,7 +310,7 @@ struct SubCategory: Identifiable, Sendable {
 **Date:** 2026-02-09
 **Status:** Accepted
 **Supersedes:** ADR-003 (Server-Side API Proxy Layer), ADR-004 (Spotify OAuth with Server-Side Token Management)
-**PRD Reference:** [Section 6.4 (No Server / No Backend)](./Spotify%20Album%20UI%20Redesign.md#64-no-server--no-backend)
+**PRD Reference:** [Section 6.4 (No Server / No Backend)](./PRD.md#64-no-server--no-backend)
 
 **Context:** The Spotify architecture required a Next.js server for three reasons: (1) protect the Spotify client secret, (2) run the genre-to-album aggregation pipeline, (3) manage OAuth token refresh. With MusicKit, all three reasons are eliminated.
 
@@ -488,7 +488,7 @@ struct SubCategory: Identifiable, Sendable {
 
 **Date:** 2026-02-09
 **Status:** Accepted
-**PRD Reference:** [Section 3.4 (Playback Footer)](./Spotify%20Album%20UI%20Redesign.md#34-playback-footer), [Section 8 (Design Principles)](./Spotify%20Album%20UI%20Redesign.md#8-design-principles)
+**PRD Reference:** [Section 3.4 (Playback Footer)](./PRD.md#34-playback-footer), [Section 8 (Design Principles)](./PRD.md#8-design-principles)
 
 **Context:** The PRD states: "No shuffle button. Shuffle is deliberately excluded. Crate is an album listening experience. Tracks play in album order. This is a product decision, not an oversight."
 

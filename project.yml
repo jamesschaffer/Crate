@@ -1,0 +1,98 @@
+name: Crate
+options:
+  bundleIdPrefix: jamesschaffer
+  deploymentTarget:
+    iOS: "17.0"
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+
+targets:
+  Crate-iOS:
+    type: application
+    platform: iOS
+    productName: Crate
+    sources:
+      - path: Crate
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: jamesschaffer.Crate
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UIBackgroundModes: audio
+        INFOPLIST_KEY_NSAppleMusicUsageDescription: "Crate needs access to Apple Music to browse albums and play music."
+        CODE_SIGN_ENTITLEMENTS: Crate-iOS/Crate_iOS.entitlements
+      configs:
+        debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+    scheme:
+      testTargets:
+        - CrateTests-iOS
+        - CrateUITests-iOS
+
+  Crate-macOS:
+    type: application
+    platform: macOS
+    productName: Crate
+    sources:
+      - path: Crate
+        excludes:
+          - "**/.DS_Store"
+      - path: Crate-macOS/MacCommands.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: jamesschaffer.Crate
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_KEY_NSAppleMusicUsageDescription: "Crate needs access to Apple Music to browse albums and play music."
+        CODE_SIGN_ENTITLEMENTS: Crate-macOS/Crate_macOS.entitlements
+    scheme:
+      testTargets:
+        - CrateTests-macOS
+
+  CrateTests-iOS:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: CrateTests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: Crate-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: jamesschaffer.CrateTests
+        GENERATE_INFOPLIST_FILE: true
+
+  CrateTests-macOS:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: CrateTests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: Crate-macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: jamesschaffer.CrateTests
+        GENERATE_INFOPLIST_FILE: true
+
+  CrateUITests-iOS:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: CrateUITests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: Crate-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: jamesschaffer.CrateUITests
+        GENERATE_INFOPLIST_FILE: true

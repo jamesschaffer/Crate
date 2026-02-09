@@ -1,0 +1,61 @@
+# Xcode
+#
+# gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
+
+## User settings
+xcuserdata/
+
+## Xcode build files
+DerivedData/
+build/
+*.moved-aside
+
+## Obj-C/Swift specific
+*.hmap
+
+## App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# CocoaPods (not used, but just in case)
+Pods/
+
+# Carthage (not used, but just in case)
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Code Injection
+iOSInjectionProject/
+
+# Environment / Secrets
+.env
+.env.*
+*.xcconfig
+!*.xcconfig.example
+
+# macOS
+.DS_Store
+*.swp
+*~.nib
+
+# Crash logs
+*.crash
+
+# NOTE: .xcodeproj/project.xcworkspace/xcshareddata IS included
+# (shared schemes should be committed)
