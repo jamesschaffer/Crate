@@ -109,7 +109,7 @@ The product needs to play music directly, on mobile, without any external depend
 3. **TCA (The Composable Architecture)** -- a third-party framework for unidirectional data flow. Powerful but complex, steep learning curve.
 4. **No pattern (logic in views)** -- works for trivial apps but does not scale.
 
-**Decision:** MVVM using the `@Observable` macro (Observation framework). Four view models: `AuthViewModel`, `BrowseViewModel`, `AlbumDetailViewModel`, `PlaybackViewModel`.
+**Decision:** MVVM using the `@Observable` macro (Observation framework). Five view models: `AuthViewModel`, `BrowseViewModel`, `AlbumDetailViewModel`, `PlaybackViewModel`, `CrateWallViewModel`.
 
 **Rationale:**
 - `@Observable` is Apple's recommended approach as of iOS 17. It is the direction the platform is heading.
@@ -121,7 +121,7 @@ The product needs to play music directly, on mobile, without any external depend
 **Trade-offs:**
 - Requires iOS 17+ / macOS 14+. This is already our minimum target (see ADR-109), so no additional cost.
 - `@Observable` is newer and some edge cases may be less well-documented than `ObservableObject`. In practice, for our simple state model, this is low risk.
-- No unidirectional data flow enforcement. If the app grew significantly more complex, we might miss TCA's structure. But the PRD explicitly limits the app to three views with no settings, no modes, no complex workflows. The simplicity is a feature, not a limitation.
+- No unidirectional data flow enforcement. If the app grew significantly more complex, we might miss TCA's structure. The app currently has five views (Auth, Browse/Wall, Album Detail, Playback Footer, Settings) and five view models, which remains well within MVVM's comfort zone.
 
 **What would change this:** If the app grew to 10+ views with complex shared state and multi-step workflows (e.g., social features, playlists, user profiles), we would revisit TCA. The PRD's design philosophy makes this unlikely.
 
@@ -278,7 +278,7 @@ Favorites need to be stored somewhere. Options:
 - The Swift compiler validates the taxonomy at compile time. Typos in genre IDs, missing fields, or structural errors are caught before the app ever runs. This is strictly stronger than Zod validation at build time, because it is the same language and toolchain -- no separate validation step.
 - Swift structs are type-safe. An `appleMusicGenreIDs` field is an array of strings. You cannot accidentally put an integer in it. With JSON, a missing quote or wrong type is a runtime error.
 - No parsing overhead at app launch. The data is compiled into the binary.
-- The taxonomy is small (15 categories, ~100 sub-categories) and changes infrequently. A Swift file is the simplest representation with the strongest guarantees.
+- The taxonomy is small (9 super-genres, ~50 subcategories) and changes infrequently. A Swift file is the simplest representation with the strongest guarantees.
 
 **Schema:**
 

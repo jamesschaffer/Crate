@@ -2,24 +2,24 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Pre-development** -- Product requirements and architecture are complete. Engineering scaffolding has not yet started.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience complete. Visual design polish in progress.
 
 ---
 
 ## What is Crate?
 
-Crate is a single-purpose native app for Apple Music that removes playlists, podcasts, algorithms, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy. The experience is designed to feel like browsing a record store, not using a streaming app.
+Crate is a single-purpose native app for Apple Music that removes playlists, podcasts, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy (9 super-genres, ~50 subcategories). On launch, an algorithm-driven "Crate Wall" fills the screen with album art drawn from five blended signals -- listening history, recommendations, charts, new releases, and wild card picks -- controlled by a "Crate Dial" settings slider. The experience is designed to feel like browsing a record store, not using a streaming app.
 
 Crate is a SwiftUI multiplatform app targeting **iOS** and **macOS** from a single codebase, powered by **MusicKit** for Apple Music integration. There is no server or backend -- the app is fully client-side.
 
-For the full product specification, see the [PRD](./Spotify%20Album%20UI%20Redesign.md).
+For the full product specification, see the [PRD](./PRD.md).
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [PRD](./Spotify%20Album%20UI%20Redesign.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (15 ADRs, ADR-100 through ADR-114) |
+| [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (16 ADRs, ADR-100 through ADR-115) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -43,8 +43,6 @@ For the full product specification, see the [PRD](./Spotify%20Album%20UI%20Redes
 
 ## Getting Started
 
-> This section will be filled in once the project is scaffolded. The following is a placeholder for the expected setup flow.
-
 1. **Clone the repository**
    ```bash
    git clone <repo-url>
@@ -65,6 +63,7 @@ For the full product specification, see the [PRD](./Spotify%20Album%20UI%20Redes
    - Select your connected iPhone or Mac as the build destination
    - Build and run (Cmd+R)
    - On first launch, the app will request Apple Music authorization
+   - After authorization, the Crate Wall loads as the default landing screen
 
 ### Entitlements Required
 
@@ -89,18 +88,27 @@ Unlike a web app, there are no `.env` files or API keys to configure. MusicKit a
 ```
 Crate/
   Crate.xcodeproj
-  Crate/                    # Shared code (iOS + macOS)
-    /Models                 # Data models (Album, Genre, FavoriteAlbum)
-    /ViewModels             # MVVM view models (Browse, AlbumDetail, Playback, Auth)
-    /Views                  # SwiftUI views organized by feature
-    /Services               # MusicKit service layer, favorites CRUD
-    /Config                 # Static genre taxonomy
-    /Extensions             # Convenience extensions
-    /Resources              # Assets
-  Crate-iOS/                # iOS-specific (entitlements, Info.plist)
-  Crate-macOS/              # macOS-specific (entitlements, menu commands)
-  CrateTests/               # Unit tests
-  CrateUITests/             # UI tests
+  Crate/                        # Shared code (iOS + macOS)
+    CrateApp.swift              # App entry point
+    ContentView.swift           # Root view (auth gate)
+    /Models                     # CrateAlbum, Genre, GenreTaxonomy, FavoriteAlbum, CrateDial
+    /ViewModels                 # Browse, AlbumDetail, Playback, Auth, CrateWall
+    /Views
+      /Browse                   # BrowseView, AlbumGridView, AlbumGridItemView,
+                                # WallGridItemView, GenreBarView, SubCategoryBarView
+      /AlbumDetail              # AlbumDetailView, TrackListView
+      /Auth                     # AuthView
+      /Playback                 # PlaybackFooterView
+      /Settings                 # SettingsView (Crate Dial control)
+      /Shared                   # AlbumArtworkView, LoadingView, EmptyStateView
+    /Services                   # MusicService, GenreService, FavoritesService, CrateWallService
+    /Config                     # Genres.swift (static taxonomy), CrateDialStore.swift
+    /Extensions                 # MusicKit+Extensions, View+Extensions
+    /Resources                  # Assets.xcassets
+  Crate-iOS/                    # iOS entitlements, Info.plist
+  Crate-macOS/                  # macOS entitlements, Info.plist, MacCommands.swift
+  CrateTests/                   # Unit tests (Swift Testing)
+  CrateUITests/                 # UI tests (XCTest)
 ```
 
 ## License

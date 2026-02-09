@@ -8,13 +8,15 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 
 ## Current Status
 
-**Active development.** Core features implemented. Crate Wall feature in progress.
+**Active development.** Core features and Crate Wall landing experience are implemented and functional. Visual design polish is in progress.
 
 - PRD: Complete (Draft -- Architecture Complete, MusicKit Pivot)
 - Architecture decisions: 16 ADRs documented and accepted (ADR-100 through ADR-115)
-- Code: Core app implemented (Browse, Album Detail, Playback, Auth, Favorites)
-- Crate Wall: Implemented -- algorithm-driven landing experience with 5 blended signals, Crate Dial settings, artwork URL fix
-- Design: Visual design in progress (functional UI complete)
+- Core app: Implemented (Browse, Album Detail, Playback, Auth, Favorites)
+- Crate Wall: Complete -- algorithm-driven landing experience with 5 blended signals, Crate Dial settings, artwork URL template resolution fix, infinite scroll, graceful degradation
+- Genre taxonomy: Complete -- 9 super-genres with ~50 subcategories, mapped to real Apple Music genre IDs
+- Settings: Complete -- Crate Dial position control (sheet on iOS, Settings scene on macOS)
+- Design: Visual design in progress (functional UI complete, polish pending)
 
 **Note on history:** Crate was originally designed as a Spotify web app (Next.js + React). On 2026-02-09, the project pivoted to Apple Music + native SwiftUI. The original Spotify-era ADRs (001-014) are archived in git history. All current documentation reflects the Apple Music / MusicKit direction.
 
@@ -56,12 +58,21 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 
 ## Architecture Summary
 
-The application has four views (Auth, Browse with Crate Wall, Album Detail, Settings) and no backend. All Apple Music API calls are made directly from the app via MusicKit. Auth is handled by the system via a single MusicKit authorization dialog. The genre-to-album pipeline uses the Apple Music Catalog Charts endpoint, which returns albums by genre in a single API call per page. Playback uses `ApplicationMusicPlayer` with an independent queue, providing native background audio, lock screen controls, and Now Playing integration automatically. Favorites are stored locally via SwiftData and are not synced to the user's Apple Music library. The UI is built with SwiftUI using MVVM with `@Observable` view models. A single multiplatform codebase targets both iOS and macOS with 95%+ shared code.
+The application has five view areas (Auth, Browse with Crate Wall, Album Detail, Playback Footer, Settings) and no backend. All Apple Music API calls are made directly from the app via MusicKit. Auth is handled by the system via a single MusicKit authorization dialog.
+
+The default landing experience is the Crate Wall -- an algorithm-driven grid of album art blending five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card), weighted by a user-controllable "Crate Dial" slider persisted to UserDefaults. The wall persists within a session and regenerates on cold launch. Users can switch to genre-based browsing via the genre bar, which uses the Apple Music Catalog Charts endpoint (one API call per page). Genre results are cached in-memory per session.
+
+Playback uses `ApplicationMusicPlayer` with an independent queue, providing native background audio, lock screen controls, and Now Playing integration automatically. Favorites are stored locally via SwiftData and are not synced to the user's Apple Music library. The UI is built with SwiftUI using MVVM with five `@Observable` view models (`AuthViewModel`, `BrowseViewModel`, `AlbumDetailViewModel`, `PlaybackViewModel`, `CrateWallViewModel`). A single multiplatform codebase targets both iOS and macOS with 95%+ shared code.
 
 ## Open Items
 
-- **Genre taxonomy mapping.** The two-tier taxonomy is defined conceptually (15 super-genres, ~100 sub-categories) but the mapping to Apple Music genre IDs needs to be completed. Apple Music's own genre hierarchy may be close enough to use directly (Open Question N1 in the PRD).
-- **Visual design.** The PRD defines the UX and layout but not the visual design system (colors, typography, spacing). Design work is pending.
-- **Super-genre count.** User testing may refine the proposed 15 top-level categories. Apple Music's genre structure may influence the final count.
+- **Visual design.** The PRD defines the UX and layout but not the visual design system (colors, typography, spacing). Functional UI is complete but visual polish is pending.
 - **Charts depth testing.** Apple does not document a maximum offset for the charts endpoint. Empirical testing is needed to determine how many albums per genre we can paginate through.
-- **Hardware testing plan.** MusicKit requires physical devices. Need at least one iPhone and one Mac with Apple Music subscriptions for development.
+- **Testing coverage.** Unit test stubs exist (MusicServiceTests, BrowseViewModelTests, GenreTaxonomyTests, FavoritesServiceTests) and UI test stubs exist (BrowseFlowTests, PlaybackFlowTests). Tests need to be fleshed out with full assertions and run on physical devices.
+- **CloudKit sync for favorites.** Favorites are currently device-local. Cross-device sync via CloudKit is a future consideration.
+
+## Resolved Items
+
+- **Genre taxonomy mapping.** Resolved. The taxonomy is implemented in `Genres.swift` with 9 super-genres and ~50 subcategories, mapped to real Apple Music genre IDs. The original PRD proposed 15 super-genres / ~100 sub-categories, but the actual Apple Music genre hierarchy supported 9 well-differentiated super-genres.
+- **Super-genre count.** Resolved. Settled on 9: Rock, Pop, Hip-Hop, Electronic, R&B, Jazz, Country, Classical, Latin.
+- **Hardware testing plan.** Development is happening on physical devices with an active Apple Music subscription.
