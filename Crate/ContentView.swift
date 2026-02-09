@@ -7,14 +7,20 @@ struct ContentView: View {
     @Environment(PlaybackViewModel.self) private var playbackViewModel
 
     var body: some View {
+        // Read stateChangeCounter so the view re-renders when the
+        // MusicKit player state or queue changes (Combine → counter bump).
+        let _ = playbackViewModel.stateChangeCounter
+
         NavigationStack {
             BrowseView()
         }
         .safeAreaInset(edge: .bottom) {
             if playbackViewModel.hasQueue {
                 PlaybackFooterView()
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: playbackViewModel.hasQueue)
     }
 }
 
