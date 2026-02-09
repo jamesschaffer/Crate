@@ -4,6 +4,7 @@ import SwiftUI
 ///
 /// Appears below the GenreBarView when a top-level genre is selected.
 /// Users can tap multiple subcategories to filter; tapping again deselects.
+/// Uses Liquid Glass styling to match the genre bar.
 struct SubCategoryBarView: View {
 
     let subcategories: [SubCategory]
@@ -12,31 +13,25 @@ struct SubCategoryBarView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(subcategories) { sub in
-                    Button {
-                        onToggle(sub.id)
-                    } label: {
-                        Text(sub.name)
-                            .font(.caption)
-                            .fontWeight(isSelected(sub) ? .semibold : .regular)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(isSelected(sub)
-                                          ? Color.accentColor.opacity(0.8)
-                                          : Color.secondary.opacity(0.1))
-                            )
-                            .foregroundStyle(isSelected(sub)
-                                             ? Color.white
-                                             : Color.secondary)
+            GlassEffectContainer {
+                HStack(spacing: 10) {
+                    ForEach(subcategories) { sub in
+                        Button {
+                            onToggle(sub.id)
+                        } label: {
+                            Text(sub.name)
+                                .font(.caption)
+                                .fontWeight(isSelected(sub) ? .semibold : .regular)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                        .glassEffect(.regular.interactive(), in: .capsule)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal)
+                .padding(.vertical, 6)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 6)
         }
     }
 

@@ -1,70 +1,94 @@
 import SwiftUI
 
-/// Main browse screen: Crate Wall (default) or genre-filtered browsing.
+/// Main browse screen: full-bleed album art with floating Liquid Glass controls.
 ///
-/// Layout (top to bottom):
-/// 1. GenreBarView — "Crate" home pill + horizontal scroll of tier-1 super-genres
-/// 2. SubCategoryBarView — tier-2 subcategories (when a genre is selected)
-/// 3. Crate Wall grid (no genre selected) or genre album grid (genre selected)
+/// Layout (ZStack):
+/// - Background: Edge-to-edge album grid extending behind status bar
+/// - Foreground (bottom): Settings gear, subcategory bar (conditional), genre bar
 struct BrowseView: View {
 
     @State private var viewModel = BrowseViewModel()
     @State private var wallViewModel = CrateWallViewModel()
     @State private var showingSettings = false
+    @State private var overlayHeight: CGFloat = 0
 
     var body: some View {
-        VStack(spacing: 0) {
-            GenreBarView(
-                categories: GenreTaxonomy.categories,
-                selectedCategory: viewModel.selectedCategory,
-                onSelect: { category in
-                    Task {
-                        await viewModel.selectCategory(category)
-                    }
-                },
-                onHome: {
-                    viewModel.clearSelection()
-                }
-            )
+        ZStack(alignment: .bottom) {
+            // Background layer: full-bleed album grid
+            gridContent
+                .ignoresSafeArea(edges: .top)
 
-            if let category = viewModel.selectedCategory {
-                SubCategoryBarView(
-                    subcategories: category.subcategories,
-                    selectedIDs: viewModel.selectedSubcategoryIDs,
-                    onToggle: { subcategoryID in
-                        Task {
-                            await viewModel.toggleSubcategory(subcategoryID)
+            // Foreground layer: floating glass controls
+            VStack(spacing: 8) {
+                // Settings gear — right-aligned
+                HStack {
+                    Spacer()
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.title3)
+                            .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .padding(.trailing, 16)
+                }
+
+                // Subcategory bar (when genre selected)
+                if viewModel.selectedCategory != nil {
+                    SubCategoryBarView(
+                        subcategories: viewModel.selectedCategory!.subcategories,
+                        selectedIDs: viewModel.selectedSubcategoryIDs,
+                        onToggle: { subcategoryID in
+                            Task {
+                                await viewModel.toggleSubcategory(subcategoryID)
+                            }
                         }
+                    )
+                }
+
+                // Genre bar (always visible)
+                GenreBarView(
+                    categories: GenreTaxonomy.categories,
+                    selectedCategory: viewModel.selectedCategory,
+                    onSelect: { category in
+                        Task {
+                            await viewModel.selectCategory(category)
+                        }
+                    },
+                    onHome: {
+                        viewModel.clearSelection()
                     }
                 )
             }
-
-            if viewModel.selectedCategory == nil {
-                // Crate Wall mode
-                wallContent
-            } else {
-                // Genre browse mode
-                genreBrowseContent
-            }
-        }
-        .navigationTitle("Crate")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.large)
-        #endif
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    showingSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear { overlayHeight = geo.size.height }
+                        .onChange(of: geo.size.height) { _, newHeight in
+                            overlayHeight = newHeight
+                        }
                 }
-            }
+            )
         }
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showingSettings) {
             SettingsView()
         }
         .task {
             await wallViewModel.generateWallIfNeeded()
+        }
+    }
+
+    // MARK: - Grid Content
+
+    @ViewBuilder
+    private var gridContent: some View {
+        if viewModel.selectedCategory == nil {
+            wallContent
+        } else {
+            genreBrowseContent
         }
     }
 
@@ -101,7 +125,7 @@ struct BrowseView: View {
                         await wallViewModel.fetchMoreIfNeeded()
                     }
                 },
-                style: .wall
+                bottomPadding: overlayHeight
             )
         }
     }
@@ -130,7 +154,8 @@ struct BrowseView: View {
                     Task {
                         await viewModel.fetchNextPageIfNeeded()
                     }
-                }
+                },
+                bottomPadding: overlayHeight
             )
         }
     }

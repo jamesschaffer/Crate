@@ -38,7 +38,7 @@
 		786F649FCB8D7A8D2C12C06F /* GenreService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F34A2B43EBFA342D96C3432E /* GenreService.swift */; };
 		790D7C870E9EE54BC019F969 /* Genre.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CB271E8593086FE76B920B4 /* Genre.swift */; };
 		7A65201A04FA603815C45ED7 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F040B6A7EE320FB6026884 /* AuthView.swift */; };
-		7B0B6268A414D5FC1630F4AF /* AlbumGridItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5735A6675D2DBAAA6C90B56 /* AlbumGridItemView.swift */; };
+
 		7E458214B05AFC37C425A23C /* AlbumDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1BFFBA0E43FF384AA140DE2 /* AlbumDetailView.swift */; };
 		8C61835E7F742DDB1147B30C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 725C9493A0C8223AB4C9B4A9 /* ContentView.swift */; };
 		90C779F422A00F02C7A8CC21 /* FavoritesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15F477BD91295217797621B /* FavoritesService.swift */; };
@@ -75,7 +75,7 @@
 		FC30E080F705109825E96B67 /* PlaybackViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A7C8FA54276C4F9DDDCBEE2 /* PlaybackViewModel.swift */; };
 		FC9CD7A007BEB38F2C7C465A /* PlaybackViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A7C8FA54276C4F9DDDCBEE2 /* PlaybackViewModel.swift */; };
 		FCD1828A1BC38F07DCDC7FCB /* CrateApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65238F1C7C265996E715430E /* CrateApp.swift */; };
-		FE428121D2A4E30CAD54E2BD /* AlbumGridItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5735A6675D2DBAAA6C90B56 /* AlbumGridItemView.swift */; };
+
 		B1C2D3E4F5A6B7C8D9E0F1A2 /* CrateDial.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* CrateDial.swift */; };
 		C1D2E3F4A5B6C7D8E9F0A1B2 /* CrateDial.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* CrateDial.swift */; };
 		B1C2D3E4F5A6B7C8D9E0F1A3 /* CrateDialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F3 /* CrateDialStore.swift */; };
@@ -153,7 +153,7 @@
 		B9812D56793559E3EE89FECB /* Crate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Crate.app; path = "Crate-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFDE8244CA744240D6D8F64B /* FavoritesServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesServiceTests.swift; sourceTree = "<group>"; };
 		C0EF38353AD0F9C87727F34F /* BrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseView.swift; sourceTree = "<group>"; };
-		C5735A6675D2DBAAA6C90B56 /* AlbumGridItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumGridItemView.swift; sourceTree = "<group>"; };
+
 		CCCAE3E3C156199B42C40FC4 /* MusicServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicServiceTests.swift; sourceTree = "<group>"; };
 		D03A2FCC458D6263935E01AD /* Crate-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Crate-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1BFFBA0E43FF384AA140DE2 /* AlbumDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumDetailView.swift; sourceTree = "<group>"; };
@@ -215,7 +215,7 @@
 		330B5FDF2E8EFF5F653A9F19 /* Browse */ = {
 			isa = PBXGroup;
 			children = (
-				C5735A6675D2DBAAA6C90B56 /* AlbumGridItemView.swift */,
+
 				827F757E10301DFAA718FEDA /* AlbumGridView.swift */,
 				C0EF38353AD0F9C87727F34F /* BrowseView.swift */,
 				3E568C4AF26CD6CCDF589FF4 /* GenreBarView.swift */,
@@ -539,7 +539,7 @@
 				4D89103F64DE6D3225AAA47B /* AlbumArtworkView.swift in Sources */,
 				7E458214B05AFC37C425A23C /* AlbumDetailView.swift in Sources */,
 				C2B19AD45472E5483DACD1AF /* AlbumDetailViewModel.swift in Sources */,
-				FE428121D2A4E30CAD54E2BD /* AlbumGridItemView.swift in Sources */,
+
 				92D68C10E94070B582B6DEE4 /* AlbumGridView.swift in Sources */,
 				671D1F168FC648B79B3870A3 /* AuthView.swift in Sources */,
 				BE04C0C0ED7287525310E812 /* AuthViewModel.swift in Sources */,
@@ -580,7 +580,7 @@
 				AC35A72E290198781D2BAF33 /* AlbumArtworkView.swift in Sources */,
 				E3E4C48987ADECA0A71AE5E6 /* AlbumDetailView.swift in Sources */,
 				18CFD0CE7EAFCD08F9A83182 /* AlbumDetailViewModel.swift in Sources */,
-				7B0B6268A414D5FC1630F4AF /* AlbumGridItemView.swift in Sources */,
+
 				078B9C50128D289C7E910847 /* AlbumGridView.swift in Sources */,
 				7A65201A04FA603815C45ED7 /* AuthView.swift in Sources */,
 				9F08B9A73370E0A7645F361A /* AuthViewModel.swift in Sources */,
@@ -725,8 +725,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -898,8 +898,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
