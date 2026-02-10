@@ -1,5 +1,5 @@
 import Testing
-@testable import Crate
+@testable import Crate_iOS
 
 /// Tests for the static genre taxonomy data.
 struct GenreTaxonomyTests {

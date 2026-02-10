@@ -10,8 +10,8 @@ final class FavoritesService {
 
     // MARK: - Model Context
 
-    /// The model context is injected at init or lazily resolved.
-    private var modelContext: ModelContext?
+    /// The model context — injected at init or set later via the view layer.
+    var modelContext: ModelContext?
 
     init(modelContext: ModelContext? = nil) {
         self.modelContext = modelContext

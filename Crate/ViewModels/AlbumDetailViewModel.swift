@@ -1,6 +1,7 @@
 import Foundation
 import MusicKit
 import Observation
+import SwiftData
 
 /// Manages state for the Album Detail screen: tracks, favorite toggle, dislike toggle, metadata.
 @Observable
@@ -40,6 +41,15 @@ final class AlbumDetailViewModel {
         self.musicService = musicService
         self.favoritesService = favoritesService
         self.dislikeService = dislikeService
+    }
+
+    // MARK: - Configuration
+
+    /// Inject the SwiftData model context into both services.
+    /// Call this from the view layer before any CRUD operations.
+    func configure(modelContext: ModelContext) {
+        favoritesService.modelContext = modelContext
+        dislikeService.modelContext = modelContext
     }
 
     // MARK: - Actions

@@ -1,6 +1,7 @@
+import Foundation
 import Testing
 import SwiftData
-@testable import Crate
+@testable import Crate_iOS
 
 /// Tests for FavoritesService CRUD operations.
 ///

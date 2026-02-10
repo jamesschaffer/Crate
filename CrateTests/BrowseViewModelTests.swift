@@ -1,5 +1,5 @@
 import Testing
-@testable import Crate
+@testable import Crate_iOS
 
 /// Tests for BrowseViewModel's genre selection and state management.
 struct BrowseViewModelTests {

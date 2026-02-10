@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import MusicKit
 
 /// Main browse screen: full-bleed album art with a unified control bar at the bottom.
@@ -12,6 +13,7 @@ struct BrowseView: View {
     @State private var wallViewModel = CrateWallViewModel()
     @State private var showingSettings = false
     @Environment(PlaybackViewModel.self) private var playbackViewModel
+    @Environment(\.modelContext) private var modelContext
 
     private var dialLabel: String {
         CrateDialStore().position.label
@@ -33,6 +35,7 @@ struct BrowseView: View {
             SettingsView()
         }
         .task {
+            viewModel.configure(modelContext: modelContext)
             viewModel.loadDislikedIDs()
             wallViewModel.updateExcludedAlbums(viewModel.dislikedAlbumIDs)
             await wallViewModel.generateWallIfNeeded()

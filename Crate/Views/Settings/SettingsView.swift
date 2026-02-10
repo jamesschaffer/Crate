@@ -1,13 +1,16 @@
 import SwiftUI
+import SwiftData
 
-/// Settings screen with the Crate Dial slider.
+/// Settings screen with the Crate Dial slider and feed diagnostics.
 /// Presented as a sheet on iOS or via Cmd+, on macOS.
 struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @State private var dialStore = CrateDialStore()
     @State private var sliderValue: Double = 3
+    @State private var showDiagnostics: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -56,6 +59,20 @@ struct SettingsView: View {
                     .padding(.vertical, 8)
                 } footer: {
                     Text("Changes take effect on next launch.")
+                }
+
+                // MARK: - Feed Diagnostics
+
+                Section {
+                    Button(showDiagnostics ? "Hide Diagnostics" : "Show Feed Diagnostics") {
+                        showDiagnostics.toggle()
+                    }
+                } footer: {
+                    Text("Debug info for validating the feedback loop.")
+                }
+
+                if showDiagnostics {
+                    FeedDiagnosticsView(modelContext: modelContext, dialPosition: dialStore.position)
                 }
             }
             .navigationTitle("Settings")

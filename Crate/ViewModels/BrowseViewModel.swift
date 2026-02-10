@@ -1,6 +1,7 @@
 import Foundation
 import MusicKit
 import Observation
+import SwiftData
 
 /// Drives the main Browse screen: genre selection, album fetching, and pagination.
 ///
@@ -69,6 +70,15 @@ final class BrowseViewModel {
         self.favoritesService = favoritesService
         self.dislikeService = dislikeService
         self.dialStore = dialStore
+    }
+
+    // MARK: - Configuration
+
+    /// Inject the SwiftData model context into both services.
+    /// Call this from the view layer before any CRUD operations.
+    func configure(modelContext: ModelContext) {
+        favoritesService.modelContext = modelContext
+        dislikeService.modelContext = modelContext
     }
 
     // MARK: - Actions

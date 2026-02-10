@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import MusicKit
 
 /// Full album detail screen: large artwork, metadata, track list, and playback controls.
@@ -8,6 +9,7 @@ struct AlbumDetailView: View {
 
     @State private var viewModel = AlbumDetailViewModel()
     @Environment(PlaybackViewModel.self) private var playbackViewModel
+    @Environment(\.modelContext) private var modelContext
 
     /// Whether the currently playing album matches this one.
     private var isPlayingThisAlbum: Bool {
@@ -130,6 +132,7 @@ struct AlbumDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .task {
+            viewModel.configure(modelContext: modelContext)
             await viewModel.loadAlbum(album)
         }
     }
