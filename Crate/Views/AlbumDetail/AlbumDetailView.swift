@@ -18,106 +18,100 @@ struct AlbumDetailView: View {
         // Read stateChangeCounter so play/pause state updates reactively.
         let _ = playbackViewModel.stateChangeCounter
 
-        ScrollView {
-            VStack(spacing: 16) {
-                // Album artwork with favorite heart overlay
-                AlbumArtworkView(artwork: album.artwork, size: 280, artworkURL: album.artworkURL)
-                    .shadow(radius: 8)
-                    .overlay(alignment: .topTrailing) {
+        ZStack {
+            // Blurred album art background
+            AlbumArtworkView(artwork: album.artwork, size: 400, artworkURL: album.artworkURL, cornerRadius: 0)
+                .scaleEffect(3)
+                .blur(radius: 60)
+                .ignoresSafeArea()
+
+            // Dimming overlay — separate layer so it fills the full screen
+            Color(.systemBackground)
+                .opacity(0.75)
+                .ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Album artwork with favorite heart overlay
+                    AlbumArtworkView(artwork: album.artwork, size: 280, artworkURL: album.artworkURL)
+                        .shadow(radius: 8)
+                        .overlay(alignment: .topTrailing) {
+                            Button {
+                                viewModel.toggleFavorite()
+                            } label: {
+                                Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
+                                    .font(.title2)
+                                    .foregroundStyle(viewModel.isFavorite ? .red : .white)
+                                    .shadow(radius: 4)
+                                    .frame(width: 44, height: 44)
+                            }
+                            .padding(8)
+                        }
+
+                    // Title and artist
+                    VStack(spacing: 4) {
+                        Text(album.title)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .multilineTextAlignment(.center)
+
+                        Text(album.artistName)
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    // Transport controls: prev — play/pause — next
+                    HStack(spacing: 40) {
+                        Button {
+                            Task { await playbackViewModel.skipToPrevious() }
+                        } label: {
+                            Image(systemName: "backward.fill")
+                                .font(.title2)
+                                .foregroundStyle(.primary)
+                        }
+                        .disabled(!playbackViewModel.hasQueue)
+
                         Button {
                             Task {
-                                await viewModel.toggleFavorite()
+                                if isPlayingThisAlbum {
+                                    await playbackViewModel.togglePlayPause()
+                                } else if let tracks = viewModel.tracks {
+                                    playbackViewModel.nowPlayingAlbum = album
+                                    await playbackViewModel.play(tracks: tracks)
+                                }
                             }
                         } label: {
-                            Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
+                            Image(systemName: isPlayingThisAlbum && playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
+                                .font(.title)
+                                .frame(width: 64, height: 64)
+                                .background(Color.black)
+                                .foregroundStyle(.white)
+                                .clipShape(Circle())
+                        }
+                        .disabled(viewModel.tracks == nil)
+
+                        Button {
+                            Task { await playbackViewModel.skipToNext() }
+                        } label: {
+                            Image(systemName: "forward.fill")
                                 .font(.title2)
-                                .foregroundStyle(viewModel.isFavorite ? .red : .white)
-                                .shadow(radius: 4)
-                                .frame(width: 44, height: 44)
+                                .foregroundStyle(.primary)
                         }
-                        .padding(8)
+                        .disabled(!playbackViewModel.hasQueue)
                     }
+                    .padding(.vertical, 4)
 
-                // Title and artist
-                VStack(spacing: 4) {
-                    Text(album.title)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .multilineTextAlignment(.center)
-
-                    Text(album.artistName)
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
-
-                // Genre tags
-                if !album.genreNames.isEmpty {
-                    HStack {
-                        ForEach(album.genreNames, id: \.self) { genre in
-                            Text(genre)
-                                .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.secondary.opacity(0.1))
-                                .clipShape(Capsule())
-                        }
+                    // Track list
+                    if viewModel.isLoading {
+                        LoadingView(message: "Loading tracks...")
+                    } else if let tracks = viewModel.tracks {
+                        TrackListView(tracks: tracks, album: album)
+                    } else if let error = viewModel.errorMessage {
+                        EmptyStateView(title: "Error", message: error)
                     }
                 }
-
-                // Transport controls: prev — play/pause — next
-                HStack(spacing: 40) {
-                    Button {
-                        Task { await playbackViewModel.skipToPrevious() }
-                    } label: {
-                        Image(systemName: "backward.fill")
-                            .font(.title2)
-                            .foregroundStyle(.primary)
-                    }
-                    .disabled(!playbackViewModel.hasQueue)
-
-                    Button {
-                        Task {
-                            if isPlayingThisAlbum {
-                                await playbackViewModel.togglePlayPause()
-                            } else if let tracks = viewModel.tracks {
-                                playbackViewModel.nowPlayingAlbum = album
-                                await playbackViewModel.play(tracks: tracks)
-                            }
-                        }
-                    } label: {
-                        Image(systemName: isPlayingThisAlbum && playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.title)
-                            .frame(width: 64, height: 64)
-                            .background(Color.accentColor)
-                            .foregroundStyle(.white)
-                            .clipShape(Circle())
-                    }
-                    .disabled(viewModel.tracks == nil)
-
-                    Button {
-                        Task { await playbackViewModel.skipToNext() }
-                    } label: {
-                        Image(systemName: "forward.fill")
-                            .font(.title2)
-                            .foregroundStyle(.primary)
-                    }
-                    .disabled(!playbackViewModel.hasQueue)
-                }
-                .padding(.vertical, 4)
-
-                Divider()
-                    .padding(.horizontal)
-
-                // Track list
-                if viewModel.isLoading {
-                    LoadingView(message: "Loading tracks...")
-                } else if let tracks = viewModel.tracks {
-                    TrackListView(tracks: tracks, album: album)
-                } else if let error = viewModel.errorMessage {
-                    EmptyStateView(title: "Error", message: error)
-                }
+                .padding(12)
             }
-            .padding()
         }
         .navigationTitle(album.title)
         #if os(iOS)

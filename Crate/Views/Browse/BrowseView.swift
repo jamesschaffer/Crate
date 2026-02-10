@@ -72,7 +72,7 @@ struct BrowseView: View {
                 }
             )
         }
-        .background(.ultraThinMaterial.opacity(0.7))
+        .background(.ultraThinMaterial.opacity(0.85))
     }
 
     // MARK: - Playback Row

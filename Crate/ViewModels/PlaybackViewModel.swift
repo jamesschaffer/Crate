@@ -71,7 +71,7 @@ final class PlaybackViewModel {
     init() {
         // Always disable shuffle — Crate is about intentional album listening.
         player.state.shuffleMode = .off
-        player.state.repeatMode = .none
+        player.state.repeatMode = MusicPlayer.RepeatMode.none
 
         observePlayerState()
     }
@@ -79,21 +79,11 @@ final class PlaybackViewModel {
     // MARK: - Transport Controls
 
     /// Play a specific album starting from the first track (or a given track).
-    func play(album: Album, startingAt track: Track? = nil) async {
+    func play(album: Album) async {
         errorMessage = nil
         do {
-            if let track {
-                player.queue = [album]
-                // The SDK doesn't provide a direct "start at track" on queue assignment,
-                // so we set the queue to the album, then begin playback.
-                try await player.play()
-                // Attempt to skip to the desired track.
-                // We iterate forward through the queue to find the matching track.
-                // This is a pragmatic workaround for MusicKit's limited queue API.
-            } else {
-                player.queue = [album]
-                try await player.play()
-            }
+            player.queue = [album]
+            try await player.play()
         } catch {
             errorMessage = "Playback failed: \(error.localizedDescription)"
         }

@@ -11,6 +11,9 @@ struct TrackListView: View {
     @Environment(PlaybackViewModel.self) private var playbackViewModel
 
     var body: some View {
+        // Read stateChangeCounter so now-playing indicator updates reactively.
+        let _ = playbackViewModel.stateChangeCounter
+
         LazyVStack(spacing: 0) {
             ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                 Button {
@@ -20,10 +23,17 @@ struct TrackListView: View {
                     }
                 } label: {
                     HStack(spacing: 8) {
-                        Text("\(index + 1)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20, alignment: .trailing)
+                        if isCurrentlyPlaying(track: track) {
+                            Image(systemName: "play.fill")
+                                .font(.caption)
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 16, alignment: .trailing)
+                        } else {
+                            Text("\(index + 1)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 16, alignment: .trailing)
+                        }
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(track.title)
@@ -32,7 +42,7 @@ struct TrackListView: View {
 
                             if !track.artistName.isEmpty {
                                 Text(track.artistName)
-                                    .font(.caption)
+                                    .font(.footnote)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
@@ -42,22 +52,35 @@ struct TrackListView: View {
 
                         if let duration = track.duration {
                             Text(formattedDuration(duration))
-                                .font(.caption)
+                                .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
                     }
                     .padding(.vertical, 8)
-                    .padding(.horizontal)
+                    .padding(.leading, 6)
+                    .padding(.trailing, 12)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
                 if index < tracks.count - 1 {
                     Divider()
-                        .padding(.horizontal)
+                        .padding(.leading, 6)
+                        .padding(.trailing, 12)
                 }
             }
         }
+    }
+
+    /// Whether the given track is the one currently playing.
+    private func isCurrentlyPlaying(track: Track) -> Bool {
+        guard playbackViewModel.isPlaying,
+              let album = album,
+              playbackViewModel.nowPlayingAlbum?.id == album.id,
+              playbackViewModel.nowPlayingTitle == track.title else {
+            return false
+        }
+        return true
     }
 
     /// Format a TimeInterval (seconds) into "m:ss" string.
