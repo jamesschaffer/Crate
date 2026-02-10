@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (16 ADRs, ADR-100 through ADR-115) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (17 ADRs, ADR-100 through ADR-116) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -95,7 +95,7 @@ Crate/
     /ViewModels                 # Browse, AlbumDetail, Playback, Auth, CrateWall
     /Views
       /Browse                   # BrowseView, AlbumGridView, AlbumGridItemView,
-                                # WallGridItemView, GenreBarView, SubCategoryBarView
+                                # WallGridItemView, GenreBarView
       /AlbumDetail              # AlbumDetailView, TrackListView
       /Auth                     # AuthView
       /Playback                 # PlaybackFooterView

@@ -11,10 +11,11 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 **Active development.** Core features and Crate Wall landing experience are implemented and functional. Visual design polish is in progress.
 
 - PRD: Complete (Draft -- Architecture Complete, MusicKit Pivot)
-- Architecture decisions: 16 ADRs documented and accepted (ADR-100 through ADR-115)
+- Architecture decisions: 17 ADRs documented and accepted (ADR-100 through ADR-116)
 - Core app: Implemented (Browse, Album Detail, Playback, Auth, Favorites)
 - Crate Wall: Complete -- algorithm-driven landing experience with 5 blended signals, Crate Dial settings, artwork URL template resolution fix, infinite scroll, graceful degradation
 - Genre taxonomy: Complete -- 9 super-genres with ~50 subcategories, mapped to real Apple Music genre IDs
+- Genre bar: Complete -- single-row transforming filter bar (genres view OR selected-genre + subcategory pills view), search-based subcategory browsing
 - Settings: Complete -- Crate Dial position control (sheet on iOS, Settings scene on macOS)
 - Design: Visual design in progress (functional UI complete, polish pending)
 
@@ -41,7 +42,7 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 ## Key Constraints
 
 - **No Simulator support for MusicKit.** MusicKit playback and subscription checks do not work in the iOS Simulator. Integration testing and UI testing require a physical device with an active Apple Music subscription. Unit tests with mocked MusicKit can run in the Simulator.
-- **Charts endpoint popularity bias.** The Apple Music Charts API returns albums ranked by current streaming popularity, not all-time catalog depth. Deep catalog albums from older decades may not appear unless they are currently popular. This is acceptable for MVP; deep catalog browsing can be supplemented with search later.
+- **Charts endpoint popularity bias.** The Apple Music Charts API returns albums ranked by current streaming popularity, not all-time catalog depth. Deep catalog albums from older decades may not appear unless they are currently popular. This is acceptable for MVP. Subcategory browsing now uses the Apple Music Search endpoint (not charts), which provides broader catalog coverage for sub-genre exploration.
 - **Apple Music genre granularity.** Apple Music has roughly 20-30 top-level genres, which is more conservative than some platforms with hundreds of micro-genres. Some sub-categories in the taxonomy may map to the same genre ID. This needs validation during taxonomy mapping.
 - **Rate limits.** Apple Music API allows approximately 20 requests per second per user token. With 1 API call per page of album results, this is nearly a non-issue. Defensive debounce and 429 retry are implemented as safety measures.
 - **Token management is automatic.** MusicKit handles developer tokens and user tokens at the system level. There are no tokens to store, refresh, or rotate. The ~6-month token expiry concern applies only to the REST API used from servers, not to native MusicKit apps.
@@ -53,14 +54,14 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 | Document | Path | Description |
 |----------|------|-------------|
 | PRD | [PRD.md](./PRD.md) | Full product requirements, UX specification, and architecture |
-| Decision Log | [DECISIONS.md](./DECISIONS.md) | 16 architectural decision records (ADR-100 through ADR-115) |
+| Decision Log | [DECISIONS.md](./DECISIONS.md) | 17 architectural decision records (ADR-100 through ADR-116) |
 | README | [README.md](./README.md) | Project overview and getting started |
 
 ## Architecture Summary
 
 The application has five view areas (Auth, Browse with Crate Wall, Album Detail, Playback Footer, Settings) and no backend. All Apple Music API calls are made directly from the app via MusicKit. Auth is handled by the system via a single MusicKit authorization dialog.
 
-The default landing experience is the Crate Wall -- an algorithm-driven grid of album art blending five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card), weighted by a user-controllable "Crate Dial" slider persisted to UserDefaults. The wall persists within a session and regenerates on cold launch. Users can switch to genre-based browsing via the genre bar, which uses the Apple Music Catalog Charts endpoint (one API call per page). Genre results are cached in-memory per session.
+The default landing experience is the Crate Wall -- an algorithm-driven grid of album art blending five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card), weighted by a user-controllable "Crate Dial" slider persisted to UserDefaults. The wall persists within a session and regenerates on cold launch. Users can switch to genre-based browsing via the genre bar -- a single-row, two-state filter that shows either genre pills or a selected-genre dismiss button with subcategory pills. Parent genre selection uses the Apple Music Catalog Charts endpoint (one API call per page). Subcategory selection uses the Apple Music Search endpoint, running parallel search queries for multi-select subcategories with merged and deduplicated results. Genre results are cached in-memory per session.
 
 Playback uses `ApplicationMusicPlayer` with an independent queue, providing native background audio, lock screen controls, and Now Playing integration automatically. Favorites are stored locally via SwiftData and are not synced to the user's Apple Music library. The UI is built with SwiftUI using MVVM with five `@Observable` view models (`AuthViewModel`, `BrowseViewModel`, `AlbumDetailViewModel`, `PlaybackViewModel`, `CrateWallViewModel`). A single multiplatform codebase targets both iOS and macOS with 95%+ shared code.
 

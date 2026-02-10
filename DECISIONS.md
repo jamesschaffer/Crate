@@ -28,6 +28,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 113 | [In-Memory View Model Cache (No Multi-Layer Caching)](#adr-113-in-memory-view-model-cache-no-multi-layer-caching) | Accepted |
 | 114 | [Album-Sequential Playback with No Shuffle](#adr-114-album-sequential-playback-with-no-shuffle) | Accepted |
 | 115 | [Crate Wall as Default Landing Experience](#adr-115-crate-wall-as-default-landing-experience) | Accepted |
+| 116 | [Single-Row Transforming Filter Bar with Search-Based Subcategory Browsing](#adr-116-single-row-transforming-filter-bar-with-search-based-subcategory-browsing) | Accepted |
 
 ---
 
@@ -165,6 +166,7 @@ The product needs to play music directly, on mobile, without any external depend
 **Date:** 2026-02-09
 **Status:** Accepted
 **Supersedes:** ADR-002 (Genre-to-Album Pipeline via Artist Search), ADR-003 (Server-Side API Proxy Layer)
+**Refined by:** ADR-116 (subcategory browsing uses Search endpoint instead of Charts)
 **PRD Reference:** [Section 7.2 (Genre-to-Album Pipeline)](./PRD.md#72-genre-to-album-pipeline-apple-music-charts)
 
 **Context:** The central technical problem in Crate is: "Given a genre, show me albums." The Spotify architecture required a complex multi-step pipeline because Spotify does not associate genres with albums. Apple Music does, via the charts endpoint.
@@ -553,6 +555,45 @@ This is set every time we start playing an album, to guard against the shuffle m
 - No server-side curation or editorial input. The "quality" of the wall depends on Apple Music's chart data and the user's listening history.
 
 **What would change this:** If Apple introduced a personalized "For You" albums API with genre diversity, we might use it as a simpler alternative to the five-signal blend. Or if the wall proved too slow on launch, we might cache the previous wall to SwiftData and show it while refreshing in the background.
+
+---
+
+## ADR-116: Single-Row Transforming Filter Bar with Search-Based Subcategory Browsing
+
+**Date:** 2026-02-10
+**Status:** Accepted
+**Refines:** ADR-104 (Charts API for Genre-to-Album Pipeline)
+
+**Context:** The genre browsing UI previously had two separate bars -- a `GenreBarView` for super-genres and a `SubCategoryBarView` that appeared as a second row below it when a genre was selected. This created a layout height jump every time the user selected or deselected a genre, causing the album grid below to shift vertically. Additionally, subcategory browsing originally used the same Charts API endpoint as parent genres, but the Charts API does not reliably support sub-genre IDs -- many subcategory genre IDs returned empty or incorrect results, leaving the album grid sparse or unpopulated.
+
+**Decision:** Consolidate `GenreBarView` and `SubCategoryBarView` into a single-row, two-state filter bar. Use the Apple Music Search endpoint (`/v1/catalog/{storefront}/search`) for subcategory browsing instead of the Charts endpoint.
+
+**Architecture:**
+
+- **Single-row filter bar (GenreBarView)**: The bar occupies one fixed row at all times. In the default state, it shows genre pills (including the "Crate" pill for the wall). When a genre is selected, the bar transforms in-place to show the selected genre name with a dismiss button (x) followed by that genre's subcategory pills. `SubCategoryBarView` was deleted; its functionality is absorbed into `GenreBarView`.
+- **Two fetch strategies in BrowseViewModel**: Parent genre selection continues to use the Charts endpoint (proven reliable for top-level genre IDs). Subcategory selection uses the Search endpoint with the subcategory label as the search term, filtered to albums. This dual strategy is necessary because the Charts API does not reliably return results for sub-genre IDs.
+- **Multi-select subcategory search**: When multiple subcategories are selected, parallel search queries run concurrently, and results are merged and deduplicated by album ID.
+- **Catalog batch enrichment**: After chart fetches for parent genres, albums are batch-enriched via the catalog endpoint to ensure reliable `genreNames` metadata (the charts response sometimes omits genre details).
+- **Visual feedback**: Selected subcategory pills display in accent color (blue) to distinguish them from unselected pills.
+- **MusicService.searchAlbums**: New method added to `MusicService` using `/v1/catalog/{storefront}/search?types=albums&term={term}&limit={limit}&offset={offset}`.
+
+**Rationale:**
+- **No layout jumps.** A single fixed-height row means the album grid never shifts vertically when the user interacts with genre/subcategory filters. This is a smoother, less jarring experience.
+- **Search endpoint works for subcategories.** The Charts API is designed for top-level genres and does not reliably support Apple Music's sub-genre IDs. Many subcategory queries returned zero results. The Search endpoint, using the subcategory label as a search term (e.g., "Indie Rock", "Bossa Nova"), reliably returns albums and ensures the grid is always populated.
+- **Simpler view hierarchy.** One view component instead of two. The parent view (`BrowseView`) no longer needs to conditionally show/hide a second bar.
+- **Catalog enrichment for reliable metadata.** Charts responses sometimes return albums with incomplete metadata (missing `genreNames`). Batch-enriching via the catalog endpoint after chart fetches ensures consistent genre metadata for display and filtering purposes.
+
+**Alternatives Considered:**
+1. **Keep two rows, animate the height change.** Would still cause content shift, just smoothly. The fundamental UX problem (grid moves when filter state changes) remains.
+2. **Use Charts API with sub-genre IDs.** Tested and found unreliable -- many sub-genre IDs return empty results from the Charts endpoint. This is an Apple Music API limitation, not a bug in our code.
+3. **Client-side filtering of parent genre results.** Fetch all albums for a parent genre via Charts, then filter by `genreNames` to show subcategories. This was attempted but has two problems: (a) chart results are popularity-biased and may not include enough albums tagged with niche subcategories, and (b) it wastes API calls fetching albums that will be filtered out.
+
+**Trade-offs:**
+- **Search results are relevance-ranked, not popularity-ranked.** Charts results are ordered by streaming popularity. Search results are ordered by Apple Music's search relevance algorithm, which considers factors beyond popularity. For subcategory browsing, this is arguably better -- it surfaces a wider variety of albums rather than just the most-streamed ones.
+- **Search term matching is approximate.** Searching for "Indie Rock" returns albums that Apple Music's search algorithm associates with that term, which may include some tangentially related results. In practice, the results are good enough for genre exploration, and the occasional unexpected album adds to the serendipity.
+- **Two different data strategies.** Parent genres use Charts; subcategories use Search. This means the code has two fetch paths, adding some complexity to `BrowseViewModel`. The complexity is contained within the view model and the two paths share the same downstream display logic.
+
+**What would change this:** If Apple added reliable sub-genre support to the Charts endpoint, we could unify both paths back to Charts. Or if the Search endpoint proved insufficient for certain subcategories (returning too few or irrelevant results), we might revisit a hybrid approach combining search with catalog browsing.
 
 ---
 
