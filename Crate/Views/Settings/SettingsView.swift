@@ -5,12 +5,14 @@ import SwiftData
 /// Presented as a sheet on iOS or via Cmd+, on macOS.
 struct SettingsView: View {
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+
+    var onDialChanged: (() -> Void)?
 
     @State private var dialStore = CrateDialStore()
     @State private var sliderValue: Double = 3
     @State private var showDiagnostics: Bool = false
+    @State private var debounceTask: Task<Void, Never>?
 
     var body: some View {
         NavigationStack {
@@ -18,15 +20,16 @@ struct SettingsView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Crate Dial")
-                            .font(.headline)
+                            .font(.title3)
+                            .fontWeight(.semibold)
 
                         HStack {
                             Text("My Crate")
-                                .font(.caption2)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             Spacer()
                             Text("Mystery")
-                                .font(.caption2)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
 
@@ -41,24 +44,30 @@ struct SettingsView: View {
                             if let position = CrateDialPosition(rawValue: Int(newValue)) {
                                 dialStore.position = position
                             }
+                            debounceTask?.cancel()
+                            debounceTask = Task {
+                                try? await Task.sleep(for: .seconds(1))
+                                guard !Task.isCancelled else { return }
+                                onDialChanged?()
+                            }
                         }
 
-                        // Current position label
-                        if let position = CrateDialPosition(rawValue: Int(sliderValue)) {
-                            VStack(alignment: .leading, spacing: 4) {
+                        // Current position label — fixed height to prevent layout jumping
+                        VStack(alignment: .leading, spacing: 4) {
+                            if let position = CrateDialPosition(rawValue: Int(sliderValue)) {
                                 Text(position.label)
-                                    .font(.subheadline)
+                                    .font(.body)
                                     .fontWeight(.semibold)
 
                                 Text(position.description)
-                                    .font(.caption)
+                                    .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
                         }
+                        .frame(height: 50, alignment: .topLeading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(.vertical, 8)
-                } footer: {
-                    Text("Changes take effect on next launch.")
                 }
 
                 // MARK: - Feed Diagnostics
@@ -78,13 +87,6 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
             #endif
         }
         .onAppear {

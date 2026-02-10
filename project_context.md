@@ -19,7 +19,7 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 - Genre taxonomy: Complete -- 9 super-genres with ~50 subcategories, mapped to real Apple Music genre IDs
 - Genre bar: Complete -- single-row transforming filter bar (genres view OR selected-genre + subcategory pills view), search-based subcategory browsing
 - Settings: Complete -- Crate Dial position control (sheet on iOS, Settings scene on macOS), Feed Diagnostics debug panel (validates favorites/dislikes persistence, mutual exclusion, weight correctness)
-- Album Detail: Redesigned with blurred artwork ambient background, now-playing track indicator, dislike button (top-left), streamlined layout
+- Album Detail: Redesigned with blurred artwork ambient background, now-playing track indicator, like/dislike buttons in side gutters flanking artwork, streamlined layout
 - Design: Visual design in progress (album detail polished, other views pending)
 
 **Note on history:** Crate was originally designed as a Spotify web app (Next.js + React). On 2026-02-09, the project pivoted to Apple Music + native SwiftUI. The original Spotify-era ADRs (001-014) are archived in git history. All current documentation reflects the Apple Music / MusicKit direction.

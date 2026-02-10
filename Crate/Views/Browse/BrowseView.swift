@@ -32,7 +32,12 @@ struct BrowseView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showingSettings) {
-            SettingsView()
+            SettingsView(onDialChanged: {
+                Task {
+                    await wallViewModel.regenerate()
+                }
+            })
+            .presentationDetents([.medium])
         }
         .task {
             viewModel.configure(modelContext: modelContext)
