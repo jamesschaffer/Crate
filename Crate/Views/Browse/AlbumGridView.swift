@@ -9,7 +9,7 @@ struct AlbumGridView: View {
     let albums: [CrateAlbum]
     let isLoadingMore: Bool
     let onLoadMore: () -> Void
-    var bottomPadding: CGFloat = 0
+    var topInset: CGFloat = 0
 
     private var columns: [GridItem] {
         #if os(iOS)
@@ -24,30 +24,31 @@ struct AlbumGridView: View {
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 0) {
-                ForEach(albums) { album in
-                    NavigationLink(value: album) {
-                        WallGridItemView(album: album)
-                    }
-                    .buttonStyle(.plain)
-                    .onAppear {
-                        if album == albums.last {
-                            onLoadMore()
+            VStack(spacing: 0) {
+                Color.black
+                    .frame(height: topInset)
+
+                LazyVGrid(columns: columns, spacing: 0) {
+                    ForEach(albums) { album in
+                        NavigationLink(value: album) {
+                            WallGridItemView(album: album)
+                        }
+                        .buttonStyle(.plain)
+                        .onAppear {
+                            if album == albums.last {
+                                onLoadMore()
+                            }
                         }
                     }
                 }
-            }
 
-            if isLoadingMore {
-                ProgressView()
-                    .padding()
-            }
-
-            if bottomPadding > 0 {
-                Spacer()
-                    .frame(height: bottomPadding)
+                if isLoadingMore {
+                    ProgressView()
+                        .padding()
+                }
             }
         }
+        .background(.black)
     }
 }
 

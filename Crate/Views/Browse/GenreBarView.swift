@@ -92,7 +92,7 @@ struct GenreBarView: View {
                     }
                 }
                 .padding(.horizontal)
-                .padding(.vertical, 8)
+                .padding(.vertical, 12)
                 .animation(.easeInOut(duration: 0.2), value: selectedCategory?.id)
             }
         }

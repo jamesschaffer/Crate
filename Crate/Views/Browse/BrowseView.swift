@@ -18,21 +18,23 @@ struct BrowseView: View {
     }
 
     var body: some View {
-        gridContent
-            .ignoresSafeArea(edges: .top)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                controlBar
-            }
-            .navigationDestination(for: CrateAlbum.self) { album in
-                AlbumDetailView(album: album)
-            }
-            .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
-            }
-            .task {
-                await wallViewModel.generateWallIfNeeded()
-            }
+        GeometryReader { geometry in
+            gridContent(topInset: geometry.safeAreaInsets.top)
+                .ignoresSafeArea(edges: .top)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    controlBar
+                }
+                .navigationDestination(for: CrateAlbum.self) { album in
+                    AlbumDetailView(album: album)
+                }
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+        }
+        .task {
+            await wallViewModel.generateWallIfNeeded()
+        }
     }
 
     // MARK: - Unified Control Bar
@@ -70,7 +72,7 @@ struct BrowseView: View {
                 }
             )
         }
-        .background(.ultraThinMaterial)
+        .background(.ultraThinMaterial.opacity(0.7))
     }
 
     // MARK: - Playback Row
@@ -122,18 +124,18 @@ struct BrowseView: View {
     // MARK: - Grid Content
 
     @ViewBuilder
-    private var gridContent: some View {
+    private func gridContent(topInset: CGFloat) -> some View {
         if viewModel.selectedCategory == nil {
-            wallContent
+            wallContent(topInset: topInset)
         } else {
-            genreBrowseContent
+            genreBrowseContent(topInset: topInset)
         }
     }
 
     // MARK: - Crate Wall
 
     @ViewBuilder
-    private var wallContent: some View {
+    private func wallContent(topInset: CGFloat) -> some View {
         if wallViewModel.isLoading {
             LoadingView(message: "Building your crate...")
         } else if let error = wallViewModel.errorMessage {
@@ -162,7 +164,8 @@ struct BrowseView: View {
                     Task {
                         await wallViewModel.fetchMoreIfNeeded()
                     }
-                }
+                },
+                topInset: topInset
             )
         }
     }
@@ -170,7 +173,7 @@ struct BrowseView: View {
     // MARK: - Genre Browse
 
     @ViewBuilder
-    private var genreBrowseContent: some View {
+    private func genreBrowseContent(topInset: CGFloat) -> some View {
         if viewModel.isLoading {
             LoadingView(message: "Loading albums...")
         } else if let error = viewModel.errorMessage {
@@ -191,7 +194,8 @@ struct BrowseView: View {
                     Task {
                         await viewModel.fetchNextPageIfNeeded()
                     }
-                }
+                },
+                topInset: topInset
             )
         }
     }

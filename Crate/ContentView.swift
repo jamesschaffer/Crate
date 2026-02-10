@@ -16,7 +16,7 @@ struct ContentView: View {
             BrowseView()
         }
         .safeAreaInset(edge: .bottom) {
-            if playbackViewModel.hasQueue {
+            if playbackViewModel.hasQueue && !navigationPath.isEmpty {
                 PlaybackFooterView(onTap: navigateToNowPlaying)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
