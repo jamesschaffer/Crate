@@ -34,33 +34,29 @@ struct AlbumDetailView: View {
 
             ScrollView {
                 VStack(spacing: 16) {
-                    // Album artwork with favorite heart overlay
-                    AlbumArtworkView(artwork: album.artwork, size: 280, artworkURL: album.artworkURL)
-                        .shadow(radius: 8)
-                        .overlay(alignment: .topLeading) {
-                            Button {
-                                viewModel.toggleDislike()
-                            } label: {
-                                Image(systemName: viewModel.isDisliked ? "xmark.circle.fill" : "xmark.circle")
-                                    .font(.title2)
-                                    .foregroundStyle(viewModel.isDisliked ? .gray : .white)
-                                    .shadow(radius: 4)
-                                    .frame(width: 44, height: 44)
-                            }
-                            .padding(8)
+                    // Album artwork with like/dislike in gutters
+                    HStack {
+                        Button {
+                            viewModel.toggleDislike()
+                        } label: {
+                            Image(systemName: viewModel.isDisliked ? "xmark.circle.fill" : "xmark.circle")
+                                .font(.title2)
+                                .foregroundStyle(viewModel.isDisliked ? .gray : .primary)
+                                .frame(width: 44, height: 44)
                         }
-                        .overlay(alignment: .topTrailing) {
-                            Button {
-                                viewModel.toggleFavorite()
-                            } label: {
-                                Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
-                                    .font(.title2)
-                                    .foregroundStyle(viewModel.isFavorite ? .red : .white)
-                                    .shadow(radius: 4)
-                                    .frame(width: 44, height: 44)
-                            }
-                            .padding(8)
+
+                        AlbumArtworkView(artwork: album.artwork, size: 280, artworkURL: album.artworkURL)
+                            .shadow(radius: 8)
+
+                        Button {
+                            viewModel.toggleFavorite()
+                        } label: {
+                            Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
+                                .font(.title2)
+                                .foregroundStyle(viewModel.isFavorite ? .red : .primary)
+                                .frame(width: 44, height: 44)
                         }
+                    }
 
                     // Title and artist
                     VStack(spacing: 4) {
@@ -83,6 +79,7 @@ struct AlbumDetailView: View {
                                 .font(.title2)
                                 .foregroundStyle(.primary)
                         }
+                        .buttonStyle(.plain)
                         .disabled(!playbackViewModel.hasQueue)
 
                         Button {
@@ -111,6 +108,7 @@ struct AlbumDetailView: View {
                                 .font(.title2)
                                 .foregroundStyle(.primary)
                         }
+                        .buttonStyle(.plain)
                         .disabled(!playbackViewModel.hasQueue)
                     }
                     .padding(.vertical, 4)

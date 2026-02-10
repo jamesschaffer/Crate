@@ -28,11 +28,13 @@ struct TrackListView: View {
                                 .font(.caption)
                                 .foregroundStyle(Color.accentColor)
                                 .frame(width: 16, alignment: .trailing)
+                                .padding(.trailing, 8)
                         } else {
                             Text("\(index + 1)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .frame(width: 16, alignment: .trailing)
+                                .padding(.trailing, 8)
                         }
 
                         VStack(alignment: .leading, spacing: 2) {
