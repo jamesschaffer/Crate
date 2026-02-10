@@ -18,7 +18,7 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 - Feedback loop: Complete -- like/dislike write-back to Apple Music (addToLibrary + rateAlbum), disliked albums filtered from all feeds, mutual exclusion between like and dislike
 - Genre taxonomy: Complete -- 9 super-genres with ~50 subcategories, mapped to real Apple Music genre IDs
 - Genre bar: Complete -- single-row transforming filter bar (genres view OR selected-genre + subcategory pills view), search-based subcategory browsing
-- Settings: Complete -- Crate Dial position control (sheet on iOS, Settings scene on macOS), Feed Diagnostics debug panel (validates favorites/dislikes persistence, mutual exclusion, weight correctness)
+- Settings: Complete -- Crate Dial position control (half-sheet on iOS, Settings scene on macOS), dial changes regenerate the Crate Wall live with 1s debounce (no app restart required), Feed Diagnostics debug panel (validates favorites/dislikes persistence, mutual exclusion, weight correctness)
 - Album Detail: Redesigned with blurred artwork ambient background, now-playing track indicator, like/dislike buttons in side gutters flanking artwork, streamlined layout
 - Design: Visual design in progress (album detail polished, other views pending)
 
@@ -64,7 +64,7 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 
 The application has five view areas (Auth, Browse with Crate Wall, Album Detail, Playback Footer, Settings) and no backend. The Album Detail view uses a ZStack with blurred, scaled album artwork as an ambient background layer, a dimming overlay for readability, and the scrollable content on top. All Apple Music API calls are made directly from the app via MusicKit. Auth is handled by the system via a single MusicKit authorization dialog.
 
-The default landing experience is the Crate Wall -- an algorithm-driven grid of album art blending five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card), weighted by a user-controllable "Crate Dial" slider persisted to UserDefaults. Genre extraction uses heavy rotation, library albums, and recently played for richer personalization. The wall persists within a session and regenerates on cold launch.
+The default landing experience is the Crate Wall -- an algorithm-driven grid of album art blending five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card), weighted by a user-controllable "Crate Dial" slider persisted to UserDefaults. Genre extraction uses heavy rotation, library albums, and recently played for richer personalization. The wall persists within a session and regenerates on cold launch or when the user adjusts the Crate Dial (with a 1-second debounce to avoid thrashing during slider interaction).
 
 Users can switch to genre-based browsing via the genre bar. Genre feeds use a multi-signal blending system (GenreFeedService) with 6 signals: Personal History (heavy rotation + library filtered to genre), Recommendations (filtered to genre), Trending (charts with random offset), New Releases, Subcategory Rotation (random subcategories for variety), and Seed Expansion (related albums + artist albums from user's favorited seeds). Weights follow the CrateDial system via GenreFeedWeights. Subcategory selection uses the Apple Music Search endpoint for targeted browsing. Both CrateWallService and GenreFeedService share a generic `weightedInterleave()` utility for the interleave algorithm.
 

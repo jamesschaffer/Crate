@@ -545,7 +545,7 @@ This is set every time we start playing an album, to guard against the shuffle m
 - **AlbumArtworkView artworkURL fix**: Resolves Apple Music artwork URL templates (`{w}` and `{h}` placeholders) and displays via `AsyncImage`. Fixes both the wall and existing genre browse.
 - **AlbumGridView dual style**: `.wall` mode (zero-gap, artwork only, 2 fixed columns on iOS) vs `.browse` mode (existing layout with spacing and text labels).
 - **GenreBarView "Crate" pill**: First pill in the genre bar returns to the wall. Highlighted when no genre is selected.
-- **SettingsView**: Discrete slider for the Crate Dial position.
+- **SettingsView**: Half-sheet with discrete slider for the Crate Dial position. Dial changes regenerate the wall live via a debounced callback (1s delay).
 
 **Graceful degradation:** Personal signals (recently played, recommendations) may fail if the user has limited listening history or if the API is unavailable. `CrateWallService` catches these errors and redistributes those counts to chart-based signals (which require only an Apple Music subscription, not listening history).
 
@@ -553,7 +553,7 @@ This is set every time we start playing an album, to guard against the shuffle m
 - Eliminates cold-start empty state. Users see content immediately on launch.
 - The five-signal blend creates a serendipitous browsing experience that gets more personalized as the user listens more.
 - The Crate Dial gives users control over the exploration/familiarity balance without requiring them to understand the algorithm.
-- `@State` ownership on `BrowseView` means the wall persists within a session (no re-fetch when navigating back from album detail) but regenerates fresh on cold launch.
+- `@State` ownership on `BrowseView` means the wall persists within a session (no re-fetch when navigating back from album detail) but regenerates fresh on cold launch or when the user adjusts the Crate Dial (debounced at 1 second).
 - Infinite scroll via `fetchMore(excluding:)` provides bottomless content.
 
 **Trade-offs:**
