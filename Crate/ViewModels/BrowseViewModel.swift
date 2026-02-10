@@ -4,9 +4,10 @@ import Observation
 
 /// Drives the main Browse screen: genre selection, album fetching, and pagination.
 ///
-/// Holds the currently selected genre category and subcategories, fetches chart
-/// albums from MusicService, and manages an in-memory page cache so we don't
-/// re-fetch pages the user has already scrolled through.
+/// Two fetch strategies:
+/// - **Parent genre** (no subcategories): chart albums via `/charts` endpoint.
+/// - **Subcategories selected**: search albums via `/search` endpoint, one query
+///   per subcategory, merged and deduplicated.
 @Observable
 final class BrowseViewModel {
 
@@ -65,7 +66,7 @@ final class BrowseViewModel {
         await resetAndFetch()
     }
 
-    /// Toggle a subcategory on/off and re-fetch albums.
+    /// Toggle a subcategory on/off and run a fresh query.
     func toggleSubcategory(_ subcategoryID: String) async {
         if selectedSubcategoryIDs.contains(subcategoryID) {
             selectedSubcategoryIDs.remove(subcategoryID)
@@ -88,7 +89,11 @@ final class BrowseViewModel {
     /// Fetch the next page of albums (called when the user scrolls near the bottom).
     func fetchNextPageIfNeeded() async {
         guard !isLoadingMore, hasMorePages else { return }
-        await fetchAlbums(offset: currentOffset)
+        if !selectedSubcategoryIDs.isEmpty {
+            await fetchSubcategoryAlbums(offset: currentOffset)
+        } else {
+            await fetchChartPage(offset: currentOffset)
+        }
     }
 
     // MARK: - Private
@@ -99,13 +104,19 @@ final class BrowseViewModel {
         currentOffset = 0
         hasMorePages = true
         errorMessage = nil
-        await fetchAlbums(offset: 0)
+
+        if !selectedSubcategoryIDs.isEmpty {
+            await fetchSubcategoryAlbums(offset: 0)
+        } else {
+            await fetchChartPage(offset: 0)
+        }
     }
 
-    /// Fetch a page of chart albums for the active genre filter.
-    private func fetchAlbums(offset: Int) async {
-        let genreID = activeGenreID
-        guard let genreID else {
+    // MARK: - Chart Fetch (parent genre)
+
+    /// Fetch a page of chart albums for the parent genre.
+    private func fetchChartPage(offset: Int) async {
+        guard let genreID = selectedCategory?.appleMusicID else {
             albums = []
             return
         }
@@ -114,20 +125,12 @@ final class BrowseViewModel {
 
         // Return cached page if available.
         if let cached = pageCache[cacheKey] {
-            if offset == 0 {
-                albums = cached
-            } else {
-                albums.append(contentsOf: cached)
-            }
+            if offset == 0 { albums = cached } else { albums.append(contentsOf: cached) }
             currentOffset = offset + pageSize
             return
         }
 
-        if offset == 0 {
-            isLoading = true
-        } else {
-            isLoadingMore = true
-        }
+        if offset == 0 { isLoading = true } else { isLoadingMore = true }
 
         do {
             let fetched = try await musicService.fetchChartAlbums(
@@ -138,12 +141,7 @@ final class BrowseViewModel {
 
             pageCache[cacheKey] = fetched
 
-            if offset == 0 {
-                albums = fetched
-            } else {
-                albums.append(contentsOf: fetched)
-            }
-
+            if offset == 0 { albums = fetched } else { albums.append(contentsOf: fetched) }
             hasMorePages = fetched.count >= pageSize
             currentOffset = offset + pageSize
         } catch {
@@ -154,13 +152,43 @@ final class BrowseViewModel {
         isLoadingMore = false
     }
 
-    /// Determine which Apple Music genre ID to use for the current filter state.
-    /// If subcategories are selected, use the first one; otherwise use the parent category.
-    private var activeGenreID: String? {
-        if let firstSub = selectedSubcategoryIDs.first,
-           let sub = GenreTaxonomy.subcategory(withID: firstSub) {
-            return sub.appleMusicID
+    // MARK: - Search Fetch (subcategories)
+
+    /// Fetch albums by searching for each selected subcategory name.
+    /// Runs one query per subcategory, merges and deduplicates results.
+    private func fetchSubcategoryAlbums(offset: Int) async {
+        let subcatNames = selectedSubcategoryIDs.compactMap {
+            GenreTaxonomy.subcategory(withID: $0)?.name
         }
-        return selectedCategory?.appleMusicID
+        guard !subcatNames.isEmpty else { return }
+
+        if offset == 0 { isLoading = true } else { isLoadingMore = true }
+
+        do {
+            var allFetched: [CrateAlbum] = []
+            let perSubLimit = max(pageSize / subcatNames.count, 10)
+
+            for name in subcatNames {
+                let fetched = try await musicService.searchAlbums(
+                    term: name,
+                    limit: perSubLimit,
+                    offset: offset
+                )
+                allFetched.append(contentsOf: fetched)
+            }
+
+            // Deduplicate against existing albums and within the batch.
+            var seen = Set(albums.map(\.id))
+            let unique = allFetched.filter { seen.insert($0.id).inserted }
+
+            if offset == 0 { albums = unique } else { albums.append(contentsOf: unique) }
+            hasMorePages = allFetched.count >= perSubLimit
+            currentOffset = offset + perSubLimit
+        } catch {
+            errorMessage = "Failed to load albums: \(error.localizedDescription)"
+        }
+
+        isLoading = false
+        isLoadingMore = false
     }
 }

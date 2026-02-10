@@ -1,87 +1,122 @@
 import SwiftUI
+import MusicKit
 
-/// Main browse screen: full-bleed album art with floating Liquid Glass controls.
+/// Main browse screen: full-bleed album art with a unified control bar at the bottom.
 ///
-/// Layout (ZStack):
-/// - Background: Edge-to-edge album grid extending behind status bar
-/// - Foreground (bottom): Settings gear, subcategory bar (conditional), genre bar
+/// The control bar is always visible and contains (top to bottom):
+/// 1. Playback row — artwork, track info, play/pause (only when playing)
+/// 2. Filter row — dial label + genre pills, or selected genre ✕ + subcategories
 struct BrowseView: View {
 
     @State private var viewModel = BrowseViewModel()
     @State private var wallViewModel = CrateWallViewModel()
     @State private var showingSettings = false
-    @State private var overlayHeight: CGFloat = 0
+    @Environment(PlaybackViewModel.self) private var playbackViewModel
+
+    private var dialLabel: String {
+        CrateDialStore().position.label
+    }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Background layer: full-bleed album grid
-            gridContent
-                .ignoresSafeArea(edges: .top)
-
-            // Foreground layer: floating glass controls
-            VStack(spacing: 8) {
-                // Settings gear — right-aligned
-                HStack {
-                    Spacer()
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.title3)
-                            .frame(width: 44, height: 44)
-                    }
-                    .buttonStyle(.plain)
-                    .glassEffect(.regular.interactive(), in: .circle)
-                    .padding(.trailing, 16)
-                }
-
-                // Subcategory bar (when genre selected)
-                if viewModel.selectedCategory != nil {
-                    SubCategoryBarView(
-                        subcategories: viewModel.selectedCategory!.subcategories,
-                        selectedIDs: viewModel.selectedSubcategoryIDs,
-                        onToggle: { subcategoryID in
-                            Task {
-                                await viewModel.toggleSubcategory(subcategoryID)
-                            }
-                        }
-                    )
-                }
-
-                // Genre bar (always visible)
-                GenreBarView(
-                    categories: GenreTaxonomy.categories,
-                    selectedCategory: viewModel.selectedCategory,
-                    onSelect: { category in
-                        Task {
-                            await viewModel.selectCategory(category)
-                        }
-                    },
-                    onHome: {
-                        viewModel.clearSelection()
-                    }
-                )
+        gridContent
+            .ignoresSafeArea(edges: .top)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                controlBar
             }
-            .background(
-                GeometryReader { geo in
-                    Color.clear
-                        .onAppear { overlayHeight = geo.size.height }
-                        .onChange(of: geo.size.height) { _, newHeight in
-                            overlayHeight = newHeight
-                        }
+            .navigationDestination(for: CrateAlbum.self) { album in
+                AlbumDetailView(album: album)
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
+            .task {
+                await wallViewModel.generateWallIfNeeded()
+            }
+    }
+
+    // MARK: - Unified Control Bar
+
+    private var controlBar: some View {
+        // Read stateChangeCounter so playback row updates reactively.
+        let _ = playbackViewModel.stateChangeCounter
+
+        return VStack(spacing: 0) {
+            // Playback row (when something is playing)
+            if playbackViewModel.hasQueue {
+                playbackRow
+                Divider()
+            }
+
+            // Filter row (always visible, transforms between genres and subcategories)
+            GenreBarView(
+                dialLabel: dialLabel,
+                categories: GenreTaxonomy.categories,
+                selectedCategory: viewModel.selectedCategory,
+                onSelect: { category in
+                    Task {
+                        await viewModel.selectCategory(category)
+                    }
+                },
+                onDialTap: {
+                    showingSettings = true
+                },
+                onHome: {
+                    viewModel.clearSelection()
+                },
+                selectedSubcategoryIDs: viewModel.selectedSubcategoryIDs,
+                onToggleSubcategory: { id in
+                    Task { await viewModel.toggleSubcategory(id) }
                 }
             )
         }
-        .navigationDestination(for: CrateAlbum.self) { album in
-            AlbumDetailView(album: album)
+        .background(.ultraThinMaterial)
+    }
+
+    // MARK: - Playback Row
+
+    private var playbackRow: some View {
+        HStack(spacing: 12) {
+            // Tappable area: artwork + track info
+            HStack(spacing: 12) {
+                if let artwork = playbackViewModel.nowPlayingArtwork {
+                    ArtworkImage(artwork, width: 44, height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.secondary.opacity(0.2))
+                        .frame(width: 44, height: 44)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(playbackViewModel.nowPlayingTitle ?? "Not Playing")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+
+                    if let subtitle = playbackViewModel.nowPlayingSubtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+            }
+
+            // Play/pause toggle
+            Button {
+                Task { await playbackViewModel.togglePlayPause() }
+            } label: {
+                Image(systemName: playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
         }
-        .toolbar(.hidden, for: .navigationBar)
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-        }
-        .task {
-            await wallViewModel.generateWallIfNeeded()
-        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Grid Content
@@ -127,8 +162,7 @@ struct BrowseView: View {
                     Task {
                         await wallViewModel.fetchMoreIfNeeded()
                     }
-                },
-                bottomPadding: overlayHeight
+                }
             )
         }
     }
@@ -157,8 +191,7 @@ struct BrowseView: View {
                     Task {
                         await viewModel.fetchNextPageIfNeeded()
                     }
-                },
-                bottomPadding: overlayHeight
+                }
             )
         }
     }
@@ -168,4 +201,5 @@ struct BrowseView: View {
     NavigationStack {
         BrowseView()
     }
+    .environment(PlaybackViewModel())
 }

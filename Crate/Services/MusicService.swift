@@ -23,6 +23,9 @@ protocol MusicServiceProtocol: Sendable {
     /// Fetch personalized album recommendations.
     func fetchRecommendations(limit: Int) async throws -> [CrateAlbum]
 
+    /// Search for albums by term (used for sub-genre browsing).
+    func searchAlbums(term: String, limit: Int, offset: Int) async throws -> [CrateAlbum]
+
     /// Fetch a single album's full details by its MusicItemID.
     func fetchAlbumDetail(id: MusicItemID) async throws -> Album?
 
@@ -109,6 +112,40 @@ struct MusicService: MusicServiceProtocol {
         return albums
     }
 
+    func searchAlbums(term: String, limit: Int, offset: Int) async throws -> [CrateAlbum] {
+        let countryCode = try await MusicDataRequest.currentCountryCode
+
+        var urlComponents = URLComponents()
+        urlComponents.scheme = "https"
+        urlComponents.host = "api.music.apple.com"
+        urlComponents.path = "/v1/catalog/\(countryCode)/search"
+        urlComponents.queryItems = [
+            URLQueryItem(name: "term", value: term),
+            URLQueryItem(name: "types", value: "albums"),
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            URLQueryItem(name: "offset", value: "\(offset)"),
+        ]
+
+        guard let url = urlComponents.url else { return [] }
+
+        let request = MusicDataRequest(urlRequest: URLRequest(url: url))
+        let response = try await request.response()
+
+        let decoded = try JSONDecoder().decode(SearchResponse.self, from: response.data)
+        let items = decoded.results.albums?.data ?? []
+
+        return items.map { item in
+            CrateAlbum(
+                id: MusicItemID(item.id),
+                title: item.attributes.name,
+                artistName: item.attributes.artistName,
+                artworkURL: item.attributes.artwork?.url,
+                releaseDate: nil,
+                genreNames: item.attributes.genreNames ?? []
+            )
+        }
+    }
+
     func fetchAlbumDetail(id: MusicItemID) async throws -> Album? {
         let request = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: id)
         let response = try await request.response()
@@ -131,6 +168,10 @@ struct MusicService: MusicServiceProtocol {
     // MARK: - Private Helpers
 
     /// Shared chart-fetching logic for both most-played and new-releases.
+    ///
+    /// Uses the charts endpoint for popularity ordering, then batch-fetches
+    /// full Album objects from the catalog to get reliable genreNames
+    /// (the chart response often omits sub-genre detail).
     private func fetchCharts(genreID: String, chartType: String, limit: Int, offset: Int) async throws -> [CrateAlbum] {
         let countryCode = try await MusicDataRequest.currentCountryCode
 
@@ -158,16 +199,38 @@ struct MusicService: MusicServiceProtocol {
             return []
         }
 
-        return albumChart.data.map { chartAlbum in
-            CrateAlbum(
-                id: MusicItemID(chartAlbum.id),
-                title: chartAlbum.attributes.name,
-                artistName: chartAlbum.attributes.artistName,
-                artworkURL: chartAlbum.attributes.artwork?.url,
+        let chartIDs = albumChart.data.map { MusicItemID($0.id) }
+        guard !chartIDs.isEmpty else { return [] }
+
+        // Batch-fetch full catalog data for reliable genreNames.
+        let catalogAlbums = try await fetchCatalogAlbums(ids: chartIDs)
+        let catalogByID = Dictionary(uniqueKeysWithValues: catalogAlbums.map { ($0.id, $0) })
+
+        // Map in chart order, preferring catalog data for richer metadata.
+        return chartIDs.compactMap { id -> CrateAlbum? in
+            if let album = catalogByID[id] {
+                return CrateAlbum(from: album)
+            }
+            // Fall back to chart data if album missing from catalog.
+            guard let item = albumChart.data.first(where: { MusicItemID($0.id) == id }) else {
+                return nil
+            }
+            return CrateAlbum(
+                id: id,
+                title: item.attributes.name,
+                artistName: item.attributes.artistName,
+                artworkURL: item.attributes.artwork?.url,
                 releaseDate: nil,
-                genreNames: chartAlbum.attributes.genreNames ?? []
+                genreNames: item.attributes.genreNames ?? []
             )
         }
+    }
+
+    /// Batch-fetch full Album objects from the catalog by ID.
+    private func fetchCatalogAlbums(ids: [MusicItemID]) async throws -> [Album] {
+        let request = MusicCatalogResourceRequest<Album>(matching: \.id, memberOf: ids)
+        let response = try await request.response()
+        return Array(response.items)
     }
 }
 
@@ -253,4 +316,18 @@ private struct RecommendationItemAttributes: Codable {
     let artistName: String
     let artwork: ChartArtwork?
     let genreNames: [String]?
+}
+
+// MARK: - Search Response Decoding
+
+private struct SearchResponse: Codable {
+    let results: SearchResultsContainer
+}
+
+private struct SearchResultsContainer: Codable {
+    let albums: SearchAlbumResults?
+}
+
+private struct SearchAlbumResults: Codable {
+    let data: [ChartAlbumItem]   // Same structure as chart album items
 }
