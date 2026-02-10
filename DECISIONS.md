@@ -229,7 +229,10 @@ Favorites need to be stored somewhere. Options:
 
 **What we store:**
 - `FavoriteAlbum` model: album ID, title, artist name, artwork URL, date added
+- `DislikedAlbum` model: album ID, title, artist name, artwork URL, date added
 - Future: listening history, user preferences, cached genre data
+
+**Implementation note -- modelContext injection:** ViewModels are created as `@State` properties on views, which means they are initialized before the SwiftUI environment is available. Services that need a `ModelContext` (FavoritesService, DislikeService) are therefore initialized with `nil` contexts. Views must call `viewModel.configure(modelContext:)` in their `.task` modifier, passing the `@Environment(\.modelContext)` value, before any CRUD operations. Without this step, all SwiftData operations silently no-op. This pattern was introduced after discovering that favorites and dislikes appeared to work (UI toggled correctly) but never persisted to SwiftData.
 
 **Trade-offs:**
 - Adds a persistence layer that the Spotify architecture did not need. This is a small amount of additional complexity, but it is well-justified by the favorites feature and the benefits of owning data locally.
@@ -414,9 +417,11 @@ struct SubCategory: Identifiable, Sendable {
 - Both frameworks can coexist in the same test target. No conflict.
 
 **What to test:**
-- **Unit tests (Swift Testing):** `MusicService` (API call construction and response parsing), `BrowseViewModel` (genre selection logic, pagination), `GenreTaxonomy` (taxonomy structure validation), `FavoritesService` (CRUD operations).
+- **Unit tests (Swift Testing):** `MusicService` (API call construction and response parsing), `BrowseViewModel` (genre selection logic, pagination), `GenreTaxonomy` (taxonomy structure validation), `FavoritesService` (CRUD operations), `DislikeService` (CRUD, dedup, fetchAllDislikedIDs), `FeedbackLoop` (mutual exclusion between likes/dislikes, GenreFeedWeights correctness, weighted interleave).
 - **UI tests (XCTest/XCUITest):** Browse flow (select genre -> see albums), album detail flow (tap album -> see detail), playback flow (tap play -> footer appears).
 - **Note:** MusicKit does not work in the Simulator. Unit tests that mock the MusicKit layer can run in the Simulator. Integration tests and UI tests that require actual MusicKit playback must run on physical devices.
+
+**Test infrastructure note:** The test target's `TEST_HOST` must reference the iOS app bundle as `Crate-iOS` (not `Crate`), and test files must use `@testable import Crate_iOS` (the module name, with underscore replacing the hyphen). SwiftData tests use in-memory `ModelContainer` instances (`ModelConfiguration(isStoredInMemoryOnly: true)`) to avoid touching disk.
 
 **Trade-offs:**
 - Two test frameworks is slightly more complexity than one. In practice, the boundary is clean: Swift Testing for logic, XCTest for UI.

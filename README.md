@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (18 ADRs, ADR-100 through ADR-117) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (19 ADRs, ADR-100 through ADR-118) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -28,7 +28,7 @@ For the full product specification, see the [PRD](./PRD.md).
 - **Architecture:** MVVM with `@Observable` (iOS 17+ / macOS 14+)
 - **Music Integration:** MusicKit (Apple Music)
 - **Playback:** `ApplicationMusicPlayer`
-- **Local Persistence:** SwiftData (favorites)
+- **Local Persistence:** SwiftData (favorites, dislikes)
 - **Testing:** XCTest (UI tests) + Swift Testing (unit tests)
 - **Deployment:** App Store + Mac App Store, TestFlight for beta
 - **CI/CD:** Xcode Cloud
@@ -91,7 +91,8 @@ Crate/
   Crate/                        # Shared code (iOS + macOS)
     CrateApp.swift              # App entry point
     ContentView.swift           # Root view (auth gate)
-    /Models                     # CrateAlbum, Genre, GenreTaxonomy, FavoriteAlbum, CrateDial
+    /Models                     # CrateAlbum, Genre, GenreTaxonomy, FavoriteAlbum, DislikedAlbum,
+                                # CrateDial, GenreFeedSignal, GenreFeedWeights
     /ViewModels                 # Browse, AlbumDetail, Playback, Auth, CrateWall
     /Views
       /Browse                   # BrowseView, AlbumGridView, AlbumGridItemView,
@@ -99,15 +100,19 @@ Crate/
       /AlbumDetail              # AlbumDetailView, TrackListView
       /Auth                     # AuthView
       /Playback                 # PlaybackFooterView
-      /Settings                 # SettingsView (Crate Dial control)
+      /Settings                 # SettingsView (Crate Dial control), FeedDiagnosticsView
       /Shared                   # AlbumArtworkView, LoadingView, EmptyStateView
-    /Services                   # MusicService, GenreService, FavoritesService, CrateWallService
+    /Services                   # MusicService, GenreService, FavoritesService, DislikeService,
+                                # CrateWallService, GenreFeedService
     /Config                     # Genres.swift (static taxonomy), CrateDialStore.swift
     /Extensions                 # MusicKit+Extensions, View+Extensions
     /Resources                  # Assets.xcassets
   Crate-iOS/                    # iOS entitlements, Info.plist
   Crate-macOS/                  # macOS entitlements, Info.plist, MacCommands.swift
-  CrateTests/                   # Unit tests (Swift Testing)
+  CrateTests/                   # Unit tests (Swift Testing): MusicServiceTests,
+                                # BrowseViewModelTests, GenreTaxonomyTests,
+                                # FavoritesServiceTests, DislikeServiceTests,
+                                # FeedbackLoopTests
   CrateUITests/                 # UI tests (XCTest)
 ```
 

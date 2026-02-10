@@ -18,7 +18,7 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 - Feedback loop: Complete -- like/dislike write-back to Apple Music (addToLibrary + rateAlbum), disliked albums filtered from all feeds, mutual exclusion between like and dislike
 - Genre taxonomy: Complete -- 9 super-genres with ~50 subcategories, mapped to real Apple Music genre IDs
 - Genre bar: Complete -- single-row transforming filter bar (genres view OR selected-genre + subcategory pills view), search-based subcategory browsing
-- Settings: Complete -- Crate Dial position control (sheet on iOS, Settings scene on macOS)
+- Settings: Complete -- Crate Dial position control (sheet on iOS, Settings scene on macOS), Feed Diagnostics debug panel (validates favorites/dislikes persistence, mutual exclusion, weight correctness)
 - Album Detail: Redesigned with blurred artwork ambient background, now-playing track indicator, dislike button (top-left), streamlined layout
 - Design: Visual design in progress (album detail polished, other views pending)
 
@@ -70,13 +70,15 @@ Users can switch to genre-based browsing via the genre bar. Genre feeds use a mu
 
 A feedback loop connects Crate interactions to Apple Music: favoriting an album adds it to the user's Apple Music library and rates it as "love"; disliking rates it as "dislike". Disliked albums (stored via SwiftData's `DislikedAlbum` model) are filtered from all feeds. Like and dislike are mutually exclusive. This trains Apple Music's recommendation algorithm over time, creating a virtuous cycle where Crate interactions improve the recommendations that feed back into Crate.
 
+**Important: SwiftData modelContext injection.** ViewModels that use FavoritesService or DislikeService (`AlbumDetailViewModel`, `BrowseViewModel`) are created with `@State` (no modelContext at init time). Views must call `viewModel.configure(modelContext:)` in their `.task` modifier before any CRUD operations. The `modelContext` comes from `@Environment(\.modelContext)` in the view. Without this step, all SwiftData operations silently no-op (the services were initialized with `nil` contexts).
+
 Playback uses `ApplicationMusicPlayer` with an independent queue, providing native background audio, lock screen controls, and Now Playing integration automatically. The track list shows a now-playing indicator (play icon replaces track number) for the currently playing track. Favorites are stored locally via SwiftData and also synced to Apple Music library. The UI is built with SwiftUI using MVVM with five `@Observable` view models (`AuthViewModel`, `BrowseViewModel`, `AlbumDetailViewModel`, `PlaybackViewModel`, `CrateWallViewModel`). A single multiplatform codebase targets both iOS and macOS with 95%+ shared code.
 
 ## Open Items
 
 - **Visual design.** The PRD defines the UX and layout but not the visual design system (colors, typography, spacing). Album Detail has been polished (blurred artwork background, tightened typography, now-playing indicator). Other views still need visual polish.
 - **Charts depth testing.** Apple does not document a maximum offset for the charts endpoint. Empirical testing is needed to determine how many albums per genre we can paginate through.
-- **Testing coverage.** Unit test stubs exist (MusicServiceTests, BrowseViewModelTests, GenreTaxonomyTests, FavoritesServiceTests) and UI test stubs exist (BrowseFlowTests, PlaybackFlowTests). Tests need to be fleshed out with full assertions and run on physical devices.
+- **Testing coverage.** Unit tests exist for MusicServiceTests, BrowseViewModelTests, GenreTaxonomyTests, FavoritesServiceTests, DislikeServiceTests (CRUD, dedup, fetchAllDislikedIDs), and FeedbackLoopTests (mutual exclusion, GenreFeedWeights correctness, weighted interleave). UI test stubs exist (BrowseFlowTests, PlaybackFlowTests). Tests use `@testable import Crate_iOS` (the iOS target's module name) and in-memory SwiftData containers. Tests need to be run on physical devices for MusicKit-dependent paths.
 - **CloudKit sync for favorites/dislikes.** Favorites and dislikes are currently device-local. Cross-device sync via CloudKit is a future consideration.
 - **macOS build.** The macOS target has a pre-existing build failure (`.systemBackground` is iOS-only in AlbumDetailView). Needs platform-conditional fix.
 
