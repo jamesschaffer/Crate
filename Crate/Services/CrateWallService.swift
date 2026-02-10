@@ -13,11 +13,15 @@ struct CrateWallService: Sendable {
 
     private let musicService: MusicServiceProtocol
     private let dialStore: CrateDialStore
+    /// Album IDs to exclude from all wall results (disliked albums).
+    private let excludedAlbumIDs: Set<String>
 
     init(musicService: MusicServiceProtocol = MusicService(),
-         dialStore: CrateDialStore = CrateDialStore()) {
+         dialStore: CrateDialStore = CrateDialStore(),
+         excludedAlbumIDs: Set<String> = []) {
         self.musicService = musicService
         self.dialStore = dialStore
+        self.excludedAlbumIDs = excludedAlbumIDs
     }
 
     // MARK: - Public
@@ -39,12 +43,19 @@ struct CrateWallService: Sendable {
         let weights = CrateDialWeights.weights(for: position)
         var counts = weights.albumCounts(total: total)
 
-        // Step 1: Fetch recently played to extract user's genre preferences.
-        let recentlyPlayed = await fetchRecentlyPlayedSafe()
-        let userGenreIDs = extractGenreIDs(from: recentlyPlayed)
+        // Step 1: Fetch recently played + heavy rotation + library for genre preferences.
+        async let recentTask = fetchRecentlyPlayedSafe()
+        async let heavyTask = fetchHeavyRotationSafe()
+        async let libraryTask = fetchLibraryAlbumsSafe()
 
-        // If too few recently played items, redistribute Listening History count.
-        if recentlyPlayed.count < 15 {
+        let recentlyPlayed = await recentTask
+        let heavyRotation = await heavyTask
+        let libraryAlbums = await libraryTask
+        let allPersonalAlbums = recentlyPlayed + heavyRotation + libraryAlbums
+        let userGenreIDs = extractGenreIDs(from: allPersonalAlbums)
+
+        // If too few personal history items, redistribute Listening History count.
+        if allPersonalAlbums.count < 15 {
             let historyCount = counts[.listeningHistory, default: 0]
             counts[.listeningHistory] = 0
             counts[.recommendations, default: 0] += historyCount
@@ -131,8 +142,9 @@ struct CrateWallService: Sendable {
             }
         }
 
-        // Step 4: Deduplicate across all buckets.
-        var seenIDs = excluding
+        // Step 4: Deduplicate across all buckets + filter disliked albums.
+        let dislikedMusicIDs = Set(excludedAlbumIDs.map { MusicItemID($0) })
+        var seenIDs = excluding.union(dislikedMusicIDs)
         for signal in WallSignal.allCases {
             buckets[signal] = (buckets[signal] ?? []).filter { album in
                 guard !seenIDs.contains(album.id) else { return false }
@@ -149,50 +161,8 @@ struct CrateWallService: Sendable {
             }
         }
 
-        // Step 5: Weighted interleave.
-        return weightedInterleave(buckets: buckets, weights: weights)
-    }
-
-    // MARK: - Weighted Interleave
-
-    /// Interleave albums from signal buckets so higher-weighted signals appear more
-    /// frequently but aren't clustered together in long runs.
-    private func weightedInterleave(buckets: [WallSignal: [CrateAlbum]],
-                                    weights: CrateDialWeights) -> [CrateAlbum] {
-        var queues: [WallSignal: [CrateAlbum]] = [:]
-        for signal in WallSignal.allCases {
-            queues[signal] = (buckets[signal] ?? []).shuffled()
-        }
-
-        var result: [CrateAlbum] = []
-        var activeSignals = WallSignal.allCases.filter { !(queues[$0]?.isEmpty ?? true) }
-
-        while !activeSignals.isEmpty {
-            // Pick a signal weighted by its dial weight.
-            let totalWeight = activeSignals.reduce(0.0) { $0 + (weights.values[$1] ?? 0) }
-            guard totalWeight > 0 else { break }
-
-            let roll = Double.random(in: 0..<totalWeight)
-            var cumulative = 0.0
-            var chosen: WallSignal = activeSignals[0]
-
-            for signal in activeSignals {
-                cumulative += weights.values[signal] ?? 0
-                if roll < cumulative {
-                    chosen = signal
-                    break
-                }
-            }
-
-            if let album = queues[chosen]?.first {
-                result.append(album)
-                queues[chosen]?.removeFirst()
-            }
-
-            activeSignals = WallSignal.allCases.filter { !(queues[$0]?.isEmpty ?? true) }
-        }
-
-        return result
+        // Step 5: Weighted interleave using shared utility.
+        return weightedInterleave(buckets: buckets, weights: weights.values)
     }
 
     // MARK: - Genre Extraction
@@ -221,34 +191,26 @@ struct CrateWallService: Sendable {
     // MARK: - Safe Fetch Wrappers (graceful degradation)
 
     private func fetchRecentlyPlayedSafe() async -> [CrateAlbum] {
-        do {
-            return try await musicService.fetchRecentlyPlayed(limit: 25)
-        } catch {
-            return []
-        }
+        (try? await musicService.fetchRecentlyPlayed(limit: 25)) ?? []
+    }
+
+    private func fetchHeavyRotationSafe() async -> [CrateAlbum] {
+        (try? await musicService.fetchHeavyRotation(limit: 25)) ?? []
+    }
+
+    private func fetchLibraryAlbumsSafe() async -> [CrateAlbum] {
+        (try? await musicService.fetchLibraryAlbums(limit: 25, offset: 0)) ?? []
     }
 
     private func fetchRecommendationsSafe(limit: Int) async -> [CrateAlbum] {
-        do {
-            return try await musicService.fetchRecommendations(limit: limit)
-        } catch {
-            return []
-        }
+        (try? await musicService.fetchRecommendations(limit: limit)) ?? []
     }
 
     private func fetchChartsSafe(genreID: String, limit: Int) async -> [CrateAlbum] {
-        do {
-            return try await musicService.fetchChartAlbums(genreID: genreID, limit: limit, offset: 0)
-        } catch {
-            return []
-        }
+        (try? await musicService.fetchChartAlbums(genreID: genreID, limit: limit, offset: 0)) ?? []
     }
 
     private func fetchNewReleasesSafe(genreID: String, limit: Int) async -> [CrateAlbum] {
-        do {
-            return try await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: 0)
-        } catch {
-            return []
-        }
+        (try? await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: 0)) ?? []
     }
 }

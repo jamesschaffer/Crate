@@ -31,6 +31,30 @@ protocol MusicServiceProtocol: Sendable {
 
     /// Fetch the tracks for an album.
     func fetchAlbumTracks(albumID: MusicItemID) async throws -> MusicItemCollection<Track>
+
+    /// Add an album to the user's Apple Music library.
+    func addToLibrary(albumID: MusicItemID) async throws
+
+    /// Rate an album (love or dislike) in Apple Music.
+    func rateAlbum(id: MusicItemID, rating: LibraryRating) async throws
+
+    /// Fetch the user's heavy rotation albums.
+    func fetchHeavyRotation(limit: Int) async throws -> [CrateAlbum]
+
+    /// Fetch albums from the user's library.
+    func fetchLibraryAlbums(limit: Int, offset: Int) async throws -> [CrateAlbum]
+
+    /// Fetch related albums for a given album ID.
+    func fetchRelatedAlbums(for albumID: MusicItemID) async throws -> [CrateAlbum]
+
+    /// Fetch albums by an artist (via search).
+    func fetchAlbumsByArtist(name: String, limit: Int) async throws -> [CrateAlbum]
+}
+
+/// Rating to apply to a library item.
+enum LibraryRating: Int, Sendable {
+    case love = 1
+    case dislike = -1
 }
 
 // MARK: - Implementation
@@ -163,6 +187,114 @@ struct MusicService: MusicServiceProtocol {
         }
 
         return tracks
+    }
+
+    func addToLibrary(albumID: MusicItemID) async throws {
+        let request = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
+        let response = try await request.response()
+        guard let album = response.items.first else { return }
+        try await MusicLibrary.shared.add(album)
+    }
+
+    func rateAlbum(id: MusicItemID, rating: LibraryRating) async throws {
+        var urlComponents = URLComponents()
+        urlComponents.scheme = "https"
+        urlComponents.host = "api.music.apple.com"
+        urlComponents.path = "/v1/me/ratings/albums/\(id.rawValue)"
+
+        guard let url = urlComponents.url else { return }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "PUT"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = [
+            "type": "rating",
+            "attributes": ["value": rating.rawValue]
+        ]
+        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let request = MusicDataRequest(urlRequest: urlRequest)
+        _ = try await request.response()
+    }
+
+    func fetchHeavyRotation(limit: Int) async throws -> [CrateAlbum] {
+        var urlComponents = URLComponents()
+        urlComponents.scheme = "https"
+        urlComponents.host = "api.music.apple.com"
+        urlComponents.path = "/v1/me/history/heavy-rotation"
+        urlComponents.queryItems = [
+            URLQueryItem(name: "limit", value: "\(limit)"),
+        ]
+
+        guard let url = urlComponents.url else { return [] }
+
+        let request = MusicDataRequest(urlRequest: URLRequest(url: url))
+        let response = try await request.response()
+
+        let decoded = try JSONDecoder().decode(RecentlyPlayedResponse.self, from: response.data)
+        return decoded.data.compactMap { item -> CrateAlbum? in
+            guard item.type == "albums", let attrs = item.attributes else { return nil }
+            return CrateAlbum(
+                id: MusicItemID(item.id),
+                title: attrs.name,
+                artistName: attrs.artistName,
+                artworkURL: attrs.artwork?.url,
+                releaseDate: nil,
+                genreNames: attrs.genreNames ?? []
+            )
+        }
+    }
+
+    func fetchLibraryAlbums(limit: Int, offset: Int) async throws -> [CrateAlbum] {
+        var urlComponents = URLComponents()
+        urlComponents.scheme = "https"
+        urlComponents.host = "api.music.apple.com"
+        urlComponents.path = "/v1/me/library/albums"
+        urlComponents.queryItems = [
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            URLQueryItem(name: "offset", value: "\(offset)"),
+            URLQueryItem(name: "include", value: "catalog"),
+        ]
+
+        guard let url = urlComponents.url else { return [] }
+
+        let request = MusicDataRequest(urlRequest: URLRequest(url: url))
+        let response = try await request.response()
+
+        let decoded = try JSONDecoder().decode(LibraryAlbumsResponse.self, from: response.data)
+        return decoded.data.compactMap { item -> CrateAlbum? in
+            guard let attrs = item.attributes else { return nil }
+            // Prefer catalog ID if available, otherwise use library ID.
+            let catalogID = item.relationships?.catalog?.data?.first?.id
+            let albumID = catalogID ?? item.id
+            let catalogAttrs = item.relationships?.catalog?.data?.first?.attributes
+            return CrateAlbum(
+                id: MusicItemID(albumID),
+                title: attrs.name,
+                artistName: attrs.artistName,
+                artworkURL: attrs.artwork?.url,
+                releaseDate: nil,
+                genreNames: catalogAttrs?.genreNames ?? attrs.genreNames ?? []
+            )
+        }
+    }
+
+    func fetchRelatedAlbums(for albumID: MusicItemID) async throws -> [CrateAlbum] {
+        var request = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
+        request.properties = [.relatedAlbums]
+        let response = try await request.response()
+
+        guard let album = response.items.first,
+              let related = album.relatedAlbums else {
+            return []
+        }
+
+        return related.map { CrateAlbum(from: $0) }
+    }
+
+    func fetchAlbumsByArtist(name: String, limit: Int) async throws -> [CrateAlbum] {
+        try await searchAlbums(term: name, limit: limit, offset: 0)
     }
 
     // MARK: - Private Helpers
@@ -330,4 +462,36 @@ private struct SearchResultsContainer: Codable {
 
 private struct SearchAlbumResults: Codable {
     let data: [ChartAlbumItem]   // Same structure as chart album items
+}
+
+// MARK: - Library Albums Response Decoding
+
+private struct LibraryAlbumsResponse: Codable {
+    let data: [LibraryAlbumItem]
+}
+
+private struct LibraryAlbumItem: Codable {
+    let id: String
+    let attributes: LibraryAlbumAttributes?
+    let relationships: LibraryAlbumRelationships?
+}
+
+private struct LibraryAlbumAttributes: Codable {
+    let name: String
+    let artistName: String
+    let artwork: ChartArtwork?
+    let genreNames: [String]?
+}
+
+private struct LibraryAlbumRelationships: Codable {
+    let catalog: LibraryCatalogRelationship?
+}
+
+private struct LibraryCatalogRelationship: Codable {
+    let data: [LibraryCatalogItem]?
+}
+
+private struct LibraryCatalogItem: Codable {
+    let id: String
+    let attributes: ChartAlbumAttributes?
 }

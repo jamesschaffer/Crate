@@ -8,16 +8,19 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 
 ## Current Status
 
-**Active development.** Core features and Crate Wall landing experience are implemented and functional. Visual design polish is in progress.
+**Active development.** Core features, Crate Wall, and personalized genre feeds are implemented. Visual design polish is in progress.
 
 - PRD: Complete (Draft -- Architecture Complete, MusicKit Pivot)
-- Architecture decisions: 17 ADRs documented and accepted (ADR-100 through ADR-116)
-- Core app: Implemented (Browse, Album Detail, Playback, Auth, Favorites)
-- Crate Wall: Complete -- algorithm-driven landing experience with 5 blended signals, Crate Dial settings, artwork URL template resolution fix, infinite scroll, graceful degradation
+- Architecture decisions: 19 ADRs documented (ADR-100 through ADR-118)
+- Core app: Implemented (Browse, Album Detail, Playback, Auth, Favorites, Dislikes)
+- Crate Wall: Complete -- algorithm-driven landing experience with 5 blended signals, Crate Dial settings, enriched genre extraction (heavy rotation + library albums), dislike filtering, infinite scroll, graceful degradation
+- Genre feeds: Complete -- multi-signal blended genre feeds (6 signals: Personal History, Recommendations, Trending, New Releases, Subcategory Rotation, Seed Expansion), CrateDial-weighted, replaces single-source chart pagination
+- Feedback loop: Complete -- like/dislike write-back to Apple Music (addToLibrary + rateAlbum), disliked albums filtered from all feeds, mutual exclusion between like and dislike
 - Genre taxonomy: Complete -- 9 super-genres with ~50 subcategories, mapped to real Apple Music genre IDs
 - Genre bar: Complete -- single-row transforming filter bar (genres view OR selected-genre + subcategory pills view), search-based subcategory browsing
 - Settings: Complete -- Crate Dial position control (sheet on iOS, Settings scene on macOS)
-- Design: Visual design in progress (functional UI complete, polish pending)
+- Album Detail: Redesigned with blurred artwork ambient background, now-playing track indicator, dislike button (top-left), streamlined layout
+- Design: Visual design in progress (album detail polished, other views pending)
 
 **Note on history:** Crate was originally designed as a Spotify web app (Next.js + React). On 2026-02-09, the project pivoted to Apple Music + native SwiftUI. The original Spotify-era ADRs (001-014) are archived in git history. All current documentation reflects the Apple Music / MusicKit direction.
 
@@ -54,23 +57,28 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 | Document | Path | Description |
 |----------|------|-------------|
 | PRD | [PRD.md](./PRD.md) | Full product requirements, UX specification, and architecture |
-| Decision Log | [DECISIONS.md](./DECISIONS.md) | 17 architectural decision records (ADR-100 through ADR-116) |
+| Decision Log | [DECISIONS.md](./DECISIONS.md) | 19 architectural decision records (ADR-100 through ADR-118) |
 | README | [README.md](./README.md) | Project overview and getting started |
 
 ## Architecture Summary
 
-The application has five view areas (Auth, Browse with Crate Wall, Album Detail, Playback Footer, Settings) and no backend. All Apple Music API calls are made directly from the app via MusicKit. Auth is handled by the system via a single MusicKit authorization dialog.
+The application has five view areas (Auth, Browse with Crate Wall, Album Detail, Playback Footer, Settings) and no backend. The Album Detail view uses a ZStack with blurred, scaled album artwork as an ambient background layer, a dimming overlay for readability, and the scrollable content on top. All Apple Music API calls are made directly from the app via MusicKit. Auth is handled by the system via a single MusicKit authorization dialog.
 
-The default landing experience is the Crate Wall -- an algorithm-driven grid of album art blending five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card), weighted by a user-controllable "Crate Dial" slider persisted to UserDefaults. The wall persists within a session and regenerates on cold launch. Users can switch to genre-based browsing via the genre bar -- a single-row, two-state filter that shows either genre pills or a selected-genre dismiss button with subcategory pills. Parent genre selection uses the Apple Music Catalog Charts endpoint (one API call per page). Subcategory selection uses the Apple Music Search endpoint, running parallel search queries for multi-select subcategories with merged and deduplicated results. Genre results are cached in-memory per session.
+The default landing experience is the Crate Wall -- an algorithm-driven grid of album art blending five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card), weighted by a user-controllable "Crate Dial" slider persisted to UserDefaults. Genre extraction uses heavy rotation, library albums, and recently played for richer personalization. The wall persists within a session and regenerates on cold launch.
 
-Playback uses `ApplicationMusicPlayer` with an independent queue, providing native background audio, lock screen controls, and Now Playing integration automatically. Favorites are stored locally via SwiftData and are not synced to the user's Apple Music library. The UI is built with SwiftUI using MVVM with five `@Observable` view models (`AuthViewModel`, `BrowseViewModel`, `AlbumDetailViewModel`, `PlaybackViewModel`, `CrateWallViewModel`). A single multiplatform codebase targets both iOS and macOS with 95%+ shared code.
+Users can switch to genre-based browsing via the genre bar. Genre feeds use a multi-signal blending system (GenreFeedService) with 6 signals: Personal History (heavy rotation + library filtered to genre), Recommendations (filtered to genre), Trending (charts with random offset), New Releases, Subcategory Rotation (random subcategories for variety), and Seed Expansion (related albums + artist albums from user's favorited seeds). Weights follow the CrateDial system via GenreFeedWeights. Subcategory selection uses the Apple Music Search endpoint for targeted browsing. Both CrateWallService and GenreFeedService share a generic `weightedInterleave()` utility for the interleave algorithm.
+
+A feedback loop connects Crate interactions to Apple Music: favoriting an album adds it to the user's Apple Music library and rates it as "love"; disliking rates it as "dislike". Disliked albums (stored via SwiftData's `DislikedAlbum` model) are filtered from all feeds. Like and dislike are mutually exclusive. This trains Apple Music's recommendation algorithm over time, creating a virtuous cycle where Crate interactions improve the recommendations that feed back into Crate.
+
+Playback uses `ApplicationMusicPlayer` with an independent queue, providing native background audio, lock screen controls, and Now Playing integration automatically. The track list shows a now-playing indicator (play icon replaces track number) for the currently playing track. Favorites are stored locally via SwiftData and also synced to Apple Music library. The UI is built with SwiftUI using MVVM with five `@Observable` view models (`AuthViewModel`, `BrowseViewModel`, `AlbumDetailViewModel`, `PlaybackViewModel`, `CrateWallViewModel`). A single multiplatform codebase targets both iOS and macOS with 95%+ shared code.
 
 ## Open Items
 
-- **Visual design.** The PRD defines the UX and layout but not the visual design system (colors, typography, spacing). Functional UI is complete but visual polish is pending.
+- **Visual design.** The PRD defines the UX and layout but not the visual design system (colors, typography, spacing). Album Detail has been polished (blurred artwork background, tightened typography, now-playing indicator). Other views still need visual polish.
 - **Charts depth testing.** Apple does not document a maximum offset for the charts endpoint. Empirical testing is needed to determine how many albums per genre we can paginate through.
 - **Testing coverage.** Unit test stubs exist (MusicServiceTests, BrowseViewModelTests, GenreTaxonomyTests, FavoritesServiceTests) and UI test stubs exist (BrowseFlowTests, PlaybackFlowTests). Tests need to be fleshed out with full assertions and run on physical devices.
-- **CloudKit sync for favorites.** Favorites are currently device-local. Cross-device sync via CloudKit is a future consideration.
+- **CloudKit sync for favorites/dislikes.** Favorites and dislikes are currently device-local. Cross-device sync via CloudKit is a future consideration.
+- **macOS build.** The macOS target has a pre-existing build failure (`.systemBackground` is iOS-only in AlbumDetailView). Needs platform-conditional fix.
 
 ## Resolved Items
 

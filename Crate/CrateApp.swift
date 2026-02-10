@@ -22,7 +22,7 @@ struct CrateApp: App {
 
     init() {
         do {
-            let schema = Schema([FavoriteAlbum.self])
+            let schema = Schema([FavoriteAlbum.self, DislikedAlbum.self])
             let configuration = ModelConfiguration(
                 "CrateFavorites",
                 schema: schema

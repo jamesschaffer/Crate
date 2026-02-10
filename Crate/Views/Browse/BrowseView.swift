@@ -33,6 +33,8 @@ struct BrowseView: View {
             SettingsView()
         }
         .task {
+            viewModel.loadDislikedIDs()
+            wallViewModel.updateExcludedAlbums(viewModel.dislikedAlbumIDs)
             await wallViewModel.generateWallIfNeeded()
         }
     }

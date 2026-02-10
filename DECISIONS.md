@@ -18,7 +18,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 103 | [ApplicationMusicPlayer for Playback](#adr-103-applicationmusicplayer-for-playback) | Accepted |
 | 104 | [Charts API for Genre-to-Album Pipeline](#adr-104-charts-api-for-genre-to-album-pipeline) | Accepted |
 | 105 | [SwiftData for Local Persistence](#adr-105-swiftdata-for-local-persistence) | Accepted |
-| 106 | [Local-Only Favorites (Not Apple Music Library)](#adr-106-local-only-favorites-not-apple-music-library) | Accepted |
+| 106 | [Local-Only Favorites (Not Apple Music Library)](#adr-106-local-only-favorites-not-apple-music-library) | Superseded by ADR-118 |
 | 107 | [Genre Taxonomy as Static Swift Configuration](#adr-107-genre-taxonomy-as-static-swift-configuration) | Accepted |
 | 108 | [No Server / No Backend for MVP](#adr-108-no-server--no-backend-for-mvp) | Accepted |
 | 109 | [iOS 17+ and macOS 14+ Minimum Deployment Targets](#adr-109-ios-17-and-macos-14-minimum-deployment-targets) | Accepted |
@@ -29,6 +29,8 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 114 | [Album-Sequential Playback with No Shuffle](#adr-114-album-sequential-playback-with-no-shuffle) | Accepted |
 | 115 | [Crate Wall as Default Landing Experience](#adr-115-crate-wall-as-default-landing-experience) | Accepted |
 | 116 | [Single-Row Transforming Filter Bar with Search-Based Subcategory Browsing](#adr-116-single-row-transforming-filter-bar-with-search-based-subcategory-browsing) | Accepted |
+| 117 | [Blurred Artwork Background for Album Detail](#adr-117-blurred-artwork-background-for-album-detail) | Accepted |
+| 118 | [Personalized Genre Feeds with Feedback Loop](#adr-118-personalized-genre-feeds-with-feedback-loop) | Accepted |
 
 ---
 
@@ -241,7 +243,7 @@ Favorites need to be stored somewhere. Options:
 ## ADR-106: Local-Only Favorites (Not Apple Music Library)
 
 **Date:** 2026-02-09
-**Status:** Accepted
+**Status:** Superseded by ADR-118
 **Supersedes:** ADR-007 (Favorites Stored in Spotify's Library)
 **PRD Reference:** [Section 3.5 (Favorites)](./PRD.md#35-favorites), [Section 7.7 (Favorites)](./PRD.md#77-favorites)
 
@@ -594,6 +596,93 @@ This is set every time we start playing an album, to guard against the shuffle m
 - **Two different data strategies.** Parent genres use Charts; subcategories use Search. This means the code has two fetch paths, adding some complexity to `BrowseViewModel`. The complexity is contained within the view model and the two paths share the same downstream display logic.
 
 **What would change this:** If Apple added reliable sub-genre support to the Charts endpoint, we could unify both paths back to Charts. Or if the Search endpoint proved insufficient for certain subcategories (returning too few or irrelevant results), we might revisit a hybrid approach combining search with catalog browsing.
+
+---
+
+## ADR-117: Blurred Artwork Background for Album Detail
+
+**Date:** 2026-02-10
+**Status:** Accepted
+
+**Context:** The Album Detail screen had a flat, utilitarian appearance -- white background, genre pills, a divider between controls and track list, and no visual connection to the album being viewed. The screen needed a richer, more immersive feel that reinforced the "focused album listening" identity of Crate without adding clutter.
+
+**Decision:** Use a blurred, scaled-up copy of the album artwork as an ambient background layer behind the entire Album Detail view. The view is restructured as a ZStack with three layers: (1) the artwork rendered at 400pt and scaled 3x with 60pt blur, ignoring safe areas; (2) a `systemBackground`-colored dimming overlay at 75% opacity for text readability; (3) the scrollable content on top. Genre pills and the horizontal divider are removed. The play button uses a black background (replacing accent color). Track list typography is bumped from `caption` to `footnote` for artist names and durations. A now-playing indicator (play.fill icon in accent color) replaces the track number for the currently playing track.
+
+**Alternatives Considered:**
+1. **Solid gradient background derived from artwork dominant color.** Would require a color extraction step (either at runtime or via a third-party library). More complex, and the blurred artwork approach achieves a similar ambient effect with zero additional dependencies.
+2. **Keep genre pills and divider, just add the background.** Tested and found cluttered. The genre information is available on the browse screen; repeating it on the detail screen adds visual noise without adding value to the listening experience.
+3. **Use a translucent material (`.ultraThinMaterial`) instead of a color overlay.** SwiftUI materials can produce inconsistent results depending on the artwork colors. A fixed-opacity `systemBackground` overlay provides more predictable contrast across light and dark albums.
+
+**Rationale:**
+- The blurred artwork background creates a visual connection between the album art and the full-screen experience, making the detail view feel like it "belongs" to the album rather than being a generic container.
+- Removing genre pills and the divider reduces visual clutter. The album detail screen is for listening, not categorization. Genre context is already visible on the browse screen.
+- The separate dimming overlay (rather than applying opacity to the blur layer) ensures uniform coverage across the full screen including safe areas, preventing bright artwork from bleeding through unevenly.
+- The now-playing indicator in the track list provides immediate visual feedback for which track is currently playing without requiring the user to check the playback footer.
+- Changing the play button from accent color to black is a deliberate design choice to make it feel more like a physical control and less like a tappable link.
+
+**Consequences:**
+- The ZStack with blur and scale is rendered continuously while the view is visible. On modern devices this is lightweight, but it is worth monitoring for performance on older hardware (iPhone 15 and earlier).
+- The 75% opacity dimming value was chosen for readability across a range of light and dark album artwork. If specific artwork causes readability issues, this value may need to be adjusted or made adaptive.
+- The `cornerRadius: 0` parameter was added to `AlbumArtworkView` to support the background usage (no rounded corners for a full-bleed background), which means the artwork view now accepts an optional corner radius.
+
+**What would change this:** If the blur layer caused noticeable performance issues on target devices, we would consider pre-rendering a blurred image at a lower resolution instead of using the real-time `.blur()` modifier. Or if the design language evolved toward a more minimal/flat aesthetic, the background could be simplified to a solid color derived from the artwork.
+
+---
+
+## ADR-118: Personalized Genre Feeds with Feedback Loop
+
+**Date:** 2026-02-10
+**Status:** Accepted
+**Supersedes:** ADR-106 (Local-Only Favorites)
+**Refines:** ADR-104 (Charts API for Genre-to-Album Pipeline), ADR-115 (Crate Wall)
+
+**Context:** Genre browsing showed the same chart albums to every user — a flat, paginated list from one source that ran out fast and repeated across sessions. The Crate Wall had a proven multi-signal blending system (5 signals, weighted interleave, CrateDial control), but it only applied to the main wall, not genre feeds. Users also had no way to signal displeasure with album recommendations, and favoriting albums did not influence Apple Music's recommendation algorithm.
+
+**Decision:** Three interconnected changes:
+
+1. **Feedback loop (like/dislike → Apple Music write-back).** Favoriting an album now adds it to the user's Apple Music library and rates it as "love" via MusicKit. A new dislike button (xmark icon, top-left of album artwork) rates the album as "dislike" in Apple Music and persists to a local `DislikedAlbum` SwiftData model. Like and dislike are mutually exclusive. Disliked albums are filtered from all feeds. This reverses ADR-106 — interactions now write back to Apple Music to train its recommendation algorithm.
+
+2. **Multi-signal genre feeds (GenreFeedService).** Genre browsing now uses 6 blended signals instead of single-source charts:
+   - **Personal History:** Heavy rotation + library albums + recently played, filtered to the selected genre
+   - **Recommendations:** Apple Music recommendations filtered to genre
+   - **Trending:** Chart albums for the genre with randomized offset
+   - **New Releases:** New release charts for the genre
+   - **Subcategory Rotation:** Random subcategories within the genre for variety
+   - **Seed Expansion:** Related albums and artist albums seeded from user's favorited albums in the genre
+
+   Weights follow the CrateDial system (same 5 positions), with a separate `GenreFeedWeights` table tuned for genre context. The weighted interleave algorithm is extracted into a shared `weightedInterleave()` utility used by both `CrateWallService` and `GenreFeedService`.
+
+3. **Enriched Crate Wall.** The main wall's genre extraction now uses heavy rotation and library albums alongside recently played for richer user preference signal. Disliked albums are filtered from wall results.
+
+**Architecture:**
+
+- **DislikedAlbum** (`@Model`): SwiftData model mirroring FavoriteAlbum.
+- **DislikeService**: CRUD + `fetchAllDislikedIDs()` for efficient feed filtering.
+- **GenreFeedSignal** (enum): 6 signal cases for genre feeds.
+- **GenreFeedWeights**: Weight tables per CrateDial position for genre feeds, with `albumCounts(total:)` using largest-remainder method.
+- **GenreFeedService**: Parallel fetch → dedup → weighted interleave, scoped to a genre. Takes seed albums from favorites for expansion.
+- **WeightedInterleave**: Generic shared function extracted from CrateWallService.
+- **MusicService additions**: `addToLibrary()`, `rateAlbum()`, `fetchHeavyRotation()`, `fetchLibraryAlbums()`, `fetchRelatedAlbums()`, `fetchAlbumsByArtist()`.
+
+**New API endpoints used:**
+- `PUT /v1/me/ratings/albums/{id}` — rate album as love/dislike
+- `GET /v1/me/history/heavy-rotation` — user's heavy rotation
+- `GET /v1/me/library/albums` — user's library albums with catalog include
+- `MusicCatalogResourceRequest<Album>` with `.relatedAlbums` property — related albums
+
+**Rationale:**
+- The feedback loop closes the gap between Crate interactions and Apple Music's algorithm. Over time, the user's likes/dislikes improve Apple Music's recommendations, which feed back into Crate's recommendation signal — a virtuous cycle.
+- Multi-signal genre feeds eliminate the "same charts for everyone" problem. Two users with different listening histories see different genre feeds, even for the same genre.
+- Seed expansion from favorites creates a "more like this" effect without requiring an explicit UI. The more albums a user favorites in a genre, the deeper and more personalized the genre feed becomes.
+- Extracting the weighted interleave into a shared utility eliminates code duplication between CrateWallService and GenreFeedService.
+
+**Trade-offs:**
+- **More API calls per genre feed.** A blended genre feed makes 8-15 concurrent API calls vs. 1 for the old chart pagination. Apple Music's 20 req/sec limit is sufficient, but on slow connections this may feel slower than the old single-source approach.
+- **Write-back is one-directional.** We write to Apple Music (love/dislike), but removing a like/dislike in Crate does not remove the rating in Apple Music. This is deliberate — removing from Apple Music could be destructive if the user also uses the Music app.
+- **Seed expansion quality depends on favorites.** A user with no favorites in a genre gets no seed expansion — those slots are redistributed to other signals (subcategory rotation and trending).
+- **Reverses ADR-106.** We previously decided not to write to Apple Music to avoid "polluting" the user's library. The product direction has changed — the user explicitly wants Crate interactions to influence Apple Music's algorithm.
+
+**What would change this:** If Apple Music's recommendation API improved to provide genre-scoped recommendations directly, we could simplify the genre feed to lean more heavily on that signal and reduce the number of parallel fetches.
 
 ---
 

@@ -33,13 +33,18 @@ final class CrateWallViewModel {
 
     // MARK: - Dependencies
 
-    private let wallService: CrateWallService
+    private var wallService: CrateWallService
 
     init(wallService: CrateWallService = CrateWallService()) {
         self.wallService = wallService
     }
 
     // MARK: - Actions
+
+    /// Update the excluded album IDs (call when disliked albums change).
+    func updateExcludedAlbums(_ excludedIDs: Set<String>) {
+        wallService = CrateWallService(excludedAlbumIDs: excludedIDs)
+    }
 
     /// Generate the wall if it hasn't been generated yet this session.
     func generateWallIfNeeded() async {

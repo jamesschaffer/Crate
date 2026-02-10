@@ -35,6 +35,18 @@ struct AlbumDetailView: View {
                     // Album artwork with favorite heart overlay
                     AlbumArtworkView(artwork: album.artwork, size: 280, artworkURL: album.artworkURL)
                         .shadow(radius: 8)
+                        .overlay(alignment: .topLeading) {
+                            Button {
+                                viewModel.toggleDislike()
+                            } label: {
+                                Image(systemName: viewModel.isDisliked ? "xmark.circle.fill" : "xmark.circle")
+                                    .font(.title2)
+                                    .foregroundStyle(viewModel.isDisliked ? .gray : .white)
+                                    .shadow(radius: 4)
+                                    .frame(width: 44, height: 44)
+                            }
+                            .padding(8)
+                        }
                         .overlay(alignment: .topTrailing) {
                             Button {
                                 viewModel.toggleFavorite()
