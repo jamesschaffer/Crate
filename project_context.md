@@ -8,10 +8,10 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 
 ## Current Status
 
-**Active development.** Core features, Crate Wall, personalized genre feeds, and grid transition animations are implemented. Visual design polish is in progress.
+**Active development.** Core features, Crate Wall, personalized genre feeds, grid transition animations, and now-playing progress bar are implemented. Visual design polish is in progress.
 
 - PRD: Complete (Draft -- Architecture Complete, MusicKit Pivot)
-- Architecture decisions: 21 ADRs documented (ADR-100 through ADR-120)
+- Architecture decisions: 22 ADRs documented (ADR-100 through ADR-121)
 - Core app: Implemented (Browse, Album Detail, Playback, Auth, Favorites, Dislikes)
 - Crate Wall: Complete -- algorithm-driven landing experience with 5 blended signals, Crate Dial settings, enriched genre extraction (heavy rotation + library albums), dislike filtering, infinite scroll, graceful degradation
 - Genre feeds: Complete -- multi-signal blended genre feeds (6 signals: Personal History, Recommendations, Trending, New Releases, Subcategory Rotation, Seed Expansion), CrateDial-weighted, replaces single-source chart pagination
@@ -20,8 +20,9 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 - Genre taxonomy: Complete -- 9 super-genres with ~50 subcategories, mapped to real Apple Music genre IDs
 - Genre bar: Complete -- single-row transforming filter bar (genres view OR selected-genre + subcategory pills view), search-based subcategory browsing, disabled during grid transitions
 - Settings: Complete -- Crate Dial position control (half-sheet on iOS, Settings scene on macOS), dial changes regenerate the Crate Wall live with 1s debounce (no app restart required), Feed Diagnostics debug panel (validates favorites/dislikes persistence, mutual exclusion, weight correctness)
-- Album Detail: Redesigned with blurred artwork ambient background, now-playing track indicator, like/dislike buttons in side gutters flanking artwork, streamlined layout
-- Design: Visual design in progress (album detail polished, other views pending)
+- Album Detail: Redesigned with blurred artwork ambient background, now-playing track indicator, like/dislike buttons in side gutters flanking artwork, play button and track list tinted with artwork-derived colors, streamlined layout
+- Now-playing progress bar: Complete -- scrubbable progress bar with artwork-derived gradient, visible in both the playback footer and BrowseView control bar. ArtworkColorExtractor uses pure CoreGraphics (cross-platform, no UIKit/AppKit).
+- Design: Visual design in progress (album detail and playback UI polished, other views pending)
 
 **Note on history:** Crate was originally designed as a Spotify web app (Next.js + React). On 2026-02-09, the project pivoted to Apple Music + native SwiftUI. The original Spotify-era ADRs (001-014) are archived in git history. All current documentation reflects the Apple Music / MusicKit direction.
 
@@ -59,7 +60,7 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 | Document | Path | Description |
 |----------|------|-------------|
 | PRD | [PRD.md](./PRD.md) | Full product requirements, UX specification, and architecture |
-| Decision Log | [DECISIONS.md](./DECISIONS.md) | 21 architectural decision records (ADR-100 through ADR-120) |
+| Decision Log | [DECISIONS.md](./DECISIONS.md) | 22 architectural decision records (ADR-100 through ADR-121) |
 | README | [README.md](./README.md) | Project overview and getting started |
 
 ## Architecture Summary
@@ -76,11 +77,11 @@ A feedback loop connects Crate interactions to Apple Music: favoriting an album 
 
 **Important: SwiftData modelContext injection.** ViewModels that use FavoritesService or DislikeService (`AlbumDetailViewModel`, `BrowseViewModel`) are created with `@State` (no modelContext at init time). Views must call `viewModel.configure(modelContext:)` in their `.task` modifier before any CRUD operations. The `modelContext` comes from `@Environment(\.modelContext)` in the view. Without this step, all SwiftData operations silently no-op (the services were initialized with `nil` contexts).
 
-Playback uses `ApplicationMusicPlayer` with an independent queue, providing native background audio, lock screen controls, and Now Playing integration automatically. The track list shows a now-playing indicator (play icon replaces track number) for the currently playing track. A shared `PlaybackRowContent` view (in PlaybackFooterView.swift) provides the artwork + track info + play/pause row used by both the `PlaybackFooterView` mini-player and BrowseView's inline control bar, eliminating duplicated playback UI code. Favorites are stored locally via SwiftData and also synced to Apple Music library. The UI is built with SwiftUI using MVVM with five `@Observable` view models (`AuthViewModel`, `BrowseViewModel`, `AlbumDetailViewModel`, `PlaybackViewModel`, `CrateWallViewModel`). A single multiplatform codebase targets both iOS and macOS with 95%+ shared code.
+Playback uses `ApplicationMusicPlayer` with an independent queue, providing native background audio, lock screen controls, and Now Playing integration automatically. The track list shows a now-playing indicator (play icon replaces track number) for the currently playing track, tinted with a color extracted from the album artwork. A shared `PlaybackRowContent` view (in PlaybackFooterView.swift) provides the artwork + track info + play/pause row used by both the `PlaybackFooterView` mini-player and BrowseView's inline control bar, eliminating duplicated playback UI code. `PlaybackRowContent` reads `stateChangeCounter` directly in its body for self-sufficient state observation. A `PlaybackProgressBar` sits above the playback row (as a layout sibling, not an overlay) in both the footer and the BrowseView control bar. The bar shows track progress with a gradient fill derived from the album artwork's two most prominent colors, extracted by `ArtworkColorExtractor`. The bar is scrubbable via drag gesture (expands from 4pt to 8pt during scrub, fires haptic on iOS). Progress updates every 0.5s via `Timer.publish`. `PlaybackViewModel` tracks `trackDuration` and `currentTracks` to support the progress calculation, with `syncTrackDuration()` updating duration when the player advances tracks. `ArtworkColorExtractor` uses pure CoreGraphics/ImageIO (no UIKit/AppKit) for cross-platform compatibility -- it downloads a 40x40 thumbnail, downsamples to 10x10, quantizes pixels into RGB buckets, and selects two colors with sufficient contrast. Results are cached by URL. The same extractor is used in `AlbumDetailView` to tint the play button and pass a `tintColor` to `TrackListView`. `BrowseView` accepts a `navigationPath` binding from `ContentView` so the playback row can navigate to the now-playing album's detail view. Favorites are stored locally via SwiftData and also synced to Apple Music library. The UI is built with SwiftUI using MVVM with five `@Observable` view models (`AuthViewModel`, `BrowseViewModel`, `AlbumDetailViewModel`, `PlaybackViewModel`, `CrateWallViewModel`). A single multiplatform codebase targets both iOS and macOS with 95%+ shared code.
 
 ## Open Items
 
-- **Visual design.** The PRD defines the UX and layout but not the visual design system (colors, typography, spacing). Album Detail has been polished (blurred artwork background, tightened typography, now-playing indicator). Other views still need visual polish.
+- **Visual design.** The PRD defines the UX and layout but not the visual design system (colors, typography, spacing). Album Detail and playback UI have been polished (blurred artwork background, artwork-derived color theming on play button and track list, progress bar with artwork gradient). Other views still need visual polish.
 - **Charts depth testing.** Apple does not document a maximum offset for the charts endpoint. Empirical testing is needed to determine how many albums per genre we can paginate through.
 - **Testing coverage.** Unit tests exist for MusicServiceTests, BrowseViewModelTests, GenreTaxonomyTests, FavoritesServiceTests, DislikeServiceTests (CRUD, dedup, fetchAllDislikedIDs), and FeedbackLoopTests (mutual exclusion, GenreFeedWeights correctness, weighted interleave). UI test stubs exist (BrowseFlowTests, PlaybackFlowTests). Tests use `@testable import Crate_iOS` (the iOS target's module name) and in-memory SwiftData containers. Tests need to be run on physical devices for MusicKit-dependent paths.
 - **CloudKit sync for favorites/dislikes.** Favorites and dislikes are currently device-local. Cross-device sync via CloudKit is a future consideration.

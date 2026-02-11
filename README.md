@@ -2,7 +2,7 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience complete. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, and now-playing progress bar complete. Visual design polish in progress.
 
 ---
 
@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (21 ADRs, ADR-100 through ADR-120) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (22 ADRs, ADR-100 through ADR-121) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -101,11 +101,13 @@ Crate/
                                 # WallGridItemView, AnimatedGridItemView, GenreBarView
       /AlbumDetail              # AlbumDetailView, TrackListView
       /Auth                     # AuthView
-      /Playback                 # PlaybackFooterView, PlaybackRowContent
+      /Playback                 # PlaybackFooterView, PlaybackRowContent,
+                                # PlaybackProgressBar
       /Settings                 # SettingsView (Crate Dial control), FeedDiagnosticsView
       /Shared                   # AlbumArtworkView, LoadingView, EmptyStateView
     /Services                   # MusicService, FavoritesService, DislikeService,
-                                # CrateWallService, GenreFeedService, WeightedInterleave
+                                # CrateWallService, GenreFeedService, WeightedInterleave,
+                                # ArtworkColorExtractor
     /Config                     # Genres.swift (static taxonomy), CrateDialStore.swift,
                                 # GridTransitionConstants.swift
     /Resources                  # Assets.xcassets

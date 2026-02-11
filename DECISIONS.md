@@ -33,6 +33,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 118 | [Personalized Genre Feeds with Feedback Loop](#adr-118-personalized-genre-feeds-with-feedback-loop) | Accepted |
 | 119 | [Concurrency Isolation, Error Logging, and Dead Code Removal](#adr-119-concurrency-isolation-error-logging-and-dead-code-removal) | Accepted |
 | 120 | [Scatter/Fade Grid Transition for Genre Switching](#adr-120-scatterfade-grid-transition-for-genre-switching) | Accepted |
+| 121 | [Now-Playing Progress Bar with Artwork-Derived Gradient](#adr-121-now-playing-progress-bar-with-artwork-derived-gradient) | Accepted |
 
 ---
 
@@ -793,6 +794,69 @@ This is set every time we start playing an album, to guard against the shuffle m
 - The 16-item scatter count was chosen because a 2-column grid on iPhone shows roughly 8-10 items in the viewport. Scattering 16 covers the visible area plus a small buffer. Items below the fold get a faster bulk fade since they are not visible.
 
 **What would change this:** If the product direction moved toward a different transition metaphor (e.g., page curl, 3D flip, carousel), the coordinator's phase model would remain but the animation implementation in `AnimatedGridItemView` and the stagger schedule would change. If SwiftUI introduced native per-item stagger transitions in a future release, the custom coordinator could be simplified or replaced.
+
+---
+
+## ADR-121: Now-Playing Progress Bar with Artwork-Derived Gradient
+
+**Date:** 2026-02-11
+**Status:** Accepted
+**Refines:** ADR-103 (ApplicationMusicPlayer for Playback), ADR-117 (Blurred Artwork Background for Album Detail), ADR-119 (PlaybackRowContent Extraction)
+
+**Context:** The playback footer and BrowseView control bar showed track info and a play/pause button but had no visual indication of track progress. Users had no way to see how far into a song they were or to scrub to a different position. Additionally, the playback UI had no visual connection to the album artwork -- it used generic system colors regardless of the album being played. The Album Detail view's play button also used a hardcoded black background with no connection to the artwork.
+
+**Decision:** Add a scrubbable progress bar filled with a two-color gradient extracted from the current album's artwork. Use a dedicated `ArtworkColorExtractor` service built on pure CoreGraphics/ImageIO (no UIKit/AppKit) for cross-platform color extraction. Position the progress bar as a layout sibling above the playback row (not an overlay) to avoid blocking touch targets. Apply the same extracted colors to the Album Detail view's play button and track list now-playing indicator.
+
+**Architecture:**
+
+- **ArtworkColorExtractor** (`@Observable`, `@MainActor`): Downloads a 40x40 thumbnail of the current artwork, downsamples to a 10x10 pixel grid via CGContext, quantizes pixels into RGB buckets (32-per-channel granularity), and selects the two most prominent colors with a minimum Euclidean distance threshold of 60 to ensure visual contrast. Results are cached by URL. If no distinct second color exists, one is derived by shifting the first color's brightness. Falls back to semi-transparent white when no artwork is available. Uses `ImageIO` and `CoreGraphics` exclusively -- no UIKit (`UIImage`) or AppKit (`NSImage`) -- so it compiles on both iOS and macOS without `#if os()` branching.
+
+- **PlaybackProgressBar**: A `GeometryReader`-based view that shows a thin (4pt rest / 8pt expanded) progress bar. The filled portion uses a leading-to-trailing `LinearGradient` from the two extracted colors, masked to the current progress width. A `DragGesture` enables scrubbing -- during drag the bar expands with a spring animation and fires a haptic on iOS. On drag end, it calls `PlaybackViewModel.seek(to:)`. Progress is updated via a 0.5s `Timer.publish` to avoid per-frame re-renders. Artwork colors are extracted via `.task(id:)` keyed on the current artwork, so extraction reruns when the track changes and cancels automatically if the artwork changes mid-extraction.
+
+- **PlaybackViewModel additions**: `trackDuration: TimeInterval?` stores the duration of the currently playing track. `currentTracks: MusicItemCollection<Track>?` holds the track collection from the most recent `play(tracks:)` call. `syncTrackDuration()` matches the current queue entry title against `currentTracks` to update `trackDuration` when the player advances to the next track. `seek(to:)` method sets `player.playbackTime` directly.
+
+- **PlaybackFooterView restructure**: The progress bar is placed as a `VStack` sibling above `PlaybackRowContent`, not as an overlay. This ensures the bar does not block tap targets on the playback row.
+
+- **BrowseView changes**: Accepts a `@Binding var navigationPath: NavigationPath` from `ContentView` so the playback row can navigate to the now-playing album's detail view. The progress bar is included in the control bar above the playback row, matching the footer's layout.
+
+- **ContentView changes**: Passes `$navigationPath` to `BrowseView` via binding.
+
+- **PlaybackRowContent self-sufficient observation**: `PlaybackRowContent` now reads `viewModel.stateChangeCounter` directly in its own body, making it self-sufficient for state observation regardless of where it is used. Parent views no longer need to ensure the counter is read upstream.
+
+- **AlbumDetailView color integration**: Uses `ArtworkColorExtractor` to derive colors from the album artwork. The play button background uses the primary extracted color (replacing hardcoded black). The `TrackListView` receives the extracted color as a `tintColor` parameter for the now-playing indicator.
+
+- **TrackListView tintColor parameter**: Accepts an optional `tintColor: Color` parameter (defaulting to `.accentColor`) that controls the color of the now-playing `play.fill` icon. This allows the Album Detail view to pass artwork-derived color while other consumers use the default.
+
+**Alternatives Considered:**
+
+1. **Overlay the progress bar on top of the playback row.** Placing the bar as a thin overlay at the top of the footer would eliminate the need for layout changes. However, overlays can intercept touch events and make the area beneath them harder to tap. A layout sibling is cleaner and avoids accessibility issues.
+
+2. **Use UIKit/AppKit for color extraction (UIImage.getPixelColor, NSImage).** Would require `#if os(iOS)` / `#if os(macOS)` branching. CoreGraphics is available on both platforms identically, so using it directly avoids platform-specific code entirely.
+
+3. **Use a third-party color extraction library (e.g., ColorThief, Chameleon).** Adds a dependency for a task that is straightforward with CoreGraphics pixel sampling. The extraction operates on a 10x10 downsampled image (100 pixels), so performance is not a concern. No external dependency warranted.
+
+4. **Continuous playback time observation via Combine timer.** The progress bar could observe `player.playbackTime` via a Combine publisher firing every frame (~60Hz). A 0.5s `Timer.publish` was chosen instead to avoid unnecessary re-renders. At 4pt bar height, sub-second visual precision is imperceptible.
+
+5. **Extract colors server-side or at cache time.** Would require a server or pre-processing step. Since the extraction downsamples to 10x10 pixels and runs on a 40x40 thumbnail, it completes in milliseconds on-device. No server or pre-computation needed.
+
+**Rationale:**
+
+- The progress bar provides essential playback feedback that was previously missing. Users can see track progress at a glance and scrub to reposition.
+- Artwork-derived colors create a visual thread between the album art and the playback UI, reinforcing the "focused album experience" identity. The same color flows through the progress bar gradient, the play button, and the now-playing track indicator.
+- Pure CoreGraphics avoids platform branching. `CGImageSourceCreateWithData`, `CGContext`, and `CGImage` are identical on iOS and macOS. No `#if os()` needed anywhere in `ArtworkColorExtractor`.
+- Layout stacking (VStack sibling) instead of overlay ensures the progress bar and playback row have independent, non-overlapping touch targets. This is important for the drag gesture on the progress bar, which must not interfere with the play/pause button or the track info tap target below it.
+- The 0.5s timer update rate balances smoothness against efficiency. At 4pt bar height, half-second updates produce visually smooth progress. During scrubbing, the bar is driven by the drag gesture position (not the timer), so scrub responsiveness is immediate.
+- Caching extracted colors by URL means the same album art is only processed once per session, even if the user navigates away and returns.
+
+**Consequences:**
+
+- `PlaybackViewModel` now stores `trackDuration` and `currentTracks`, adding a small amount of state. The `syncTrackDuration()` method runs on every queue change to keep the duration in sync as the player advances through tracks.
+- `BrowseView` now requires a `navigationPath` binding, which changes its initialization signature. `ContentView` passes this binding down.
+- `ArtworkColorExtractor` is used in two places: `PlaybackProgressBar` (for the gradient) and `AlbumDetailView` (for the play button and track list tint). Each instance maintains its own cache, which is acceptable since they operate on different artwork (current playing track vs. displayed album).
+- The progress bar adds a `Timer.publish` that fires every 0.5s during playback. This is lightweight but means the bar (and only the bar) re-renders twice per second while music is playing.
+- The Album Detail play button now uses a dynamic color instead of black. On albums with very light artwork, the primary extracted color may be light, potentially reducing contrast against the white play icon. The brightness-shift fallback in `ArtworkColorExtractor` mitigates this for monochromatic artwork, but multi-color light artwork could still produce a light primary color.
+
+**What would change this:** If the 0.5s timer proved too coarse (e.g., for a larger, more prominent progress bar in a future redesign), we would increase the timer frequency or switch to observing `player.playbackTime` directly. If artwork color extraction needed to support album artwork that is only available as a URL string (not MusicKit `Artwork`), we would add a parallel extraction path that downloads from the URL directly. If Apple introduced a native API for artwork dominant colors (similar to `UIImageColors`), we would adopt it.
 
 ---
 
