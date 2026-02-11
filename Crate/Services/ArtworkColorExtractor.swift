@@ -104,26 +104,50 @@ final class ArtworkColorExtractor {
             buckets[key, default: 0] += 1
         }
 
-        let sorted = buckets.sorted { $0.value > $1.value }
+        // Score each bucket: frequency × saturation³ × brightness floor.
+        // Saturation is cubed so it dominates — a pastel at 50% of pixels
+        // loses to a vivid color at 10%. Near-blacks and desaturated colors
+        // (whites, grays, pastels) are filtered out entirely.
+        let scored: [([UInt8], Double)] = buckets.compactMap { key, count in
+            let hsb = rgbToHSB(key)
 
-        guard let first = sorted.first else {
+            // Hard filter: too dark or too desaturated
+            if hsb.brightness < 0.12 { return nil }
+            if hsb.saturation < 0.15 { return nil }
+
+            let frequency = Double(count)
+            // Saturation cubed: 0.2 → 0.008, 0.5 → 0.125, 1.0 → 1.0
+            let saturationWeight = hsb.saturation * hsb.saturation * hsb.saturation
+            // Brightness floor: ramps to 1.0 at brightness 0.4+, penalizes very dark
+            let brightnessWeight = min(hsb.brightness / 0.4, 1.0)
+            let score = frequency * saturationWeight * brightnessWeight
+            return (key, score)
+        }
+
+        let sorted = scored.sorted { $0.1 > $1.1 }
+
+        // If all buckets were filtered out, fall back to raw frequency
+        let fallbackSorted = buckets.sorted { $0.value > $1.value }
+        let primary = sorted.first?.0 ?? fallbackSorted.first?.key
+
+        guard let firstKey = primary else {
             return (.white.opacity(0.6), .white.opacity(0.6))
         }
 
-        let color1 = color(from: first.key)
+        let color1 = color(from: firstKey)
 
         // Find second color that's distinct enough from the first
         var color2 = color1
-        for entry in sorted.dropFirst() {
-            if colorDistance(first.key, entry.key) > 60 {
-                color2 = color(from: entry.key)
+        for (key, _) in sorted.dropFirst() {
+            if colorDistance(firstKey, key) > 60 {
+                color2 = color(from: key)
                 break
             }
         }
 
         // If no distinct second color, derive one by shifting brightness
         if sorted.count <= 1 || color2 == color1 {
-            color2 = brightnessShifted(from: first.key)
+            color2 = brightnessShifted(from: firstKey)
         }
 
         return (color1, color2)
@@ -142,6 +166,33 @@ final class ArtworkColorExtractor {
         let dg = Double(a[1]) - Double(b[1])
         let db = Double(a[2]) - Double(b[2])
         return (dr * dr + dg * dg + db * db).squareRoot()
+    }
+
+    private static func rgbToHSB(_ rgb: [UInt8]) -> (hue: Double, saturation: Double, brightness: Double) {
+        let r = Double(rgb[0]) / 255.0
+        let g = Double(rgb[1]) / 255.0
+        let b = Double(rgb[2]) / 255.0
+        let maxC = max(r, g, b)
+        let minC = min(r, g, b)
+        let delta = maxC - minC
+
+        let brightness = maxC
+        let saturation = maxC == 0 ? 0 : delta / maxC
+
+        var hue: Double = 0
+        if delta > 0 {
+            if maxC == r {
+                hue = ((g - b) / delta).truncatingRemainder(dividingBy: 6)
+            } else if maxC == g {
+                hue = (b - r) / delta + 2
+            } else {
+                hue = (r - g) / delta + 4
+            }
+            hue /= 6
+            if hue < 0 { hue += 1 }
+        }
+
+        return (hue, saturation, brightness)
     }
 
     private static func brightnessShifted(from rgb: [UInt8]) -> Color {

@@ -30,7 +30,7 @@ struct AlbumDetailView: View {
 
             // Dimming overlay — separate layer so it fills the full screen
             Color(.systemBackground)
-                .opacity(0.75)
+                .opacity(0.5)
                 .ignoresSafeArea()
 
             ScrollView {
