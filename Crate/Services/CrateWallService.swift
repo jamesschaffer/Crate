@@ -191,26 +191,56 @@ struct CrateWallService: Sendable {
     // MARK: - Safe Fetch Wrappers (graceful degradation)
 
     private func fetchRecentlyPlayedSafe() async -> [CrateAlbum] {
-        (try? await musicService.fetchRecentlyPlayed(limit: 25)) ?? []
+        do {
+            return try await musicService.fetchRecentlyPlayed(limit: 25)
+        } catch {
+            print("[Crate] fetchRecentlyPlayed failed: \(error)")
+            return []
+        }
     }
 
     private func fetchHeavyRotationSafe() async -> [CrateAlbum] {
-        (try? await musicService.fetchHeavyRotation(limit: 25)) ?? []
+        do {
+            return try await musicService.fetchHeavyRotation(limit: 25)
+        } catch {
+            print("[Crate] fetchHeavyRotation failed: \(error)")
+            return []
+        }
     }
 
     private func fetchLibraryAlbumsSafe() async -> [CrateAlbum] {
-        (try? await musicService.fetchLibraryAlbums(limit: 25, offset: 0)) ?? []
+        do {
+            return try await musicService.fetchLibraryAlbums(limit: 25, offset: 0)
+        } catch {
+            print("[Crate] fetchLibraryAlbums failed: \(error)")
+            return []
+        }
     }
 
     private func fetchRecommendationsSafe(limit: Int) async -> [CrateAlbum] {
-        (try? await musicService.fetchRecommendations(limit: limit)) ?? []
+        do {
+            return try await musicService.fetchRecommendations(limit: limit)
+        } catch {
+            print("[Crate] fetchRecommendations failed: \(error)")
+            return []
+        }
     }
 
     private func fetchChartsSafe(genreID: String, limit: Int) async -> [CrateAlbum] {
-        (try? await musicService.fetchChartAlbums(genreID: genreID, limit: limit, offset: 0)) ?? []
+        do {
+            return try await musicService.fetchChartAlbums(genreID: genreID, limit: limit, offset: 0)
+        } catch {
+            print("[Crate] fetchChartAlbums failed: \(error)")
+            return []
+        }
     }
 
     private func fetchNewReleasesSafe(genreID: String, limit: Int) async -> [CrateAlbum] {
-        (try? await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: 0)) ?? []
+        do {
+            return try await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: 0)
+        } catch {
+            print("[Crate] fetchNewReleaseChartAlbums failed: \(error)")
+            return []
+        }
     }
 }

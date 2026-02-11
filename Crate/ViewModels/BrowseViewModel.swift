@@ -15,7 +15,6 @@ final class BrowseViewModel {
     // MARK: - Dependencies
 
     private let musicService: MusicServiceProtocol
-    private let genreService: GenreService
     private let favoritesService: FavoritesService
     private let dislikeService: DislikeService
     private let dialStore: CrateDialStore
@@ -61,12 +60,10 @@ final class BrowseViewModel {
     // MARK: - Init
 
     init(musicService: MusicServiceProtocol = MusicService(),
-         genreService: GenreService = GenreService(),
          favoritesService: FavoritesService = FavoritesService(),
          dislikeService: DislikeService = DislikeService(),
          dialStore: CrateDialStore = CrateDialStore()) {
         self.musicService = musicService
-        self.genreService = genreService
         self.favoritesService = favoritesService
         self.dislikeService = dislikeService
         self.dialStore = dialStore
@@ -204,6 +201,7 @@ final class BrowseViewModel {
 
     /// Fetch albums by searching for each selected subcategory name.
     /// Runs one query per subcategory, merges and deduplicates results.
+    @MainActor
     private func fetchSubcategoryAlbums(offset: Int) async {
         let subcatNames = selectedSubcategoryIDs.compactMap {
             GenreTaxonomy.subcategory(withID: $0)?.name

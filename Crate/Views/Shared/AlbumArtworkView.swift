@@ -11,6 +11,7 @@ struct AlbumArtworkView: View {
     let size: CGFloat
     var artworkURL: String? = nil
     var cornerRadius: CGFloat? = nil
+    @Environment(\.displayScale) private var displayScale
 
     /// Computed corner radius; callers can override via `cornerRadius`.
     private var radius: CGFloat {
@@ -53,7 +54,7 @@ struct AlbumArtworkView: View {
     /// Resolve an Apple Music artwork URL template by replacing `{w}` and `{h}`
     /// with the pixel size for the current display scale.
     private func resolveURL(_ template: String) -> URL? {
-        let pixelSize = Int(size * 2) // 2x for retina
+        let pixelSize = Int(size * displayScale)
         let resolved = template
             .replacingOccurrences(of: "{w}", with: "\(pixelSize)")
             .replacingOccurrences(of: "{h}", with: "\(pixelSize)")

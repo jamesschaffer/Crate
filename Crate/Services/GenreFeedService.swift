@@ -158,19 +158,28 @@ struct GenreFeedService: Sendable {
         var albums: [CrateAlbum] = []
 
         // Heavy rotation
-        if let heavy = try? await musicService.fetchHeavyRotation(limit: 25) {
+        do {
+            let heavy = try await musicService.fetchHeavyRotation(limit: 25)
             albums.append(contentsOf: filterToGenre(heavy))
+        } catch {
+            print("[Crate] GenreFeed fetchHeavyRotation failed: \(error)")
         }
 
         // Library albums
-        if let library = try? await musicService.fetchLibraryAlbums(limit: 25, offset: 0) {
+        do {
+            let library = try await musicService.fetchLibraryAlbums(limit: 25, offset: 0)
             albums.append(contentsOf: filterToGenre(library))
+        } catch {
+            print("[Crate] GenreFeed fetchLibraryAlbums failed: \(error)")
         }
 
         // If sparse, also pull recently played
         if albums.count < limit / 2 {
-            if let recent = try? await musicService.fetchRecentlyPlayed(limit: 25) {
+            do {
+                let recent = try await musicService.fetchRecentlyPlayed(limit: 25)
                 albums.append(contentsOf: filterToGenre(recent))
+            } catch {
+                print("[Crate] GenreFeed fetchRecentlyPlayed failed: \(error)")
             }
         }
 
@@ -179,10 +188,13 @@ struct GenreFeedService: Sendable {
 
     /// Fetch recommendations filtered to this genre.
     private func fetchRecommendationsForGenre(limit: Int) async -> [CrateAlbum] {
-        guard let recs = try? await musicService.fetchRecommendations(limit: limit) else {
+        do {
+            let recs = try await musicService.fetchRecommendations(limit: limit)
+            return filterToGenre(recs)
+        } catch {
+            print("[Crate] GenreFeed fetchRecommendations failed: \(error)")
             return []
         }
-        return filterToGenre(recs)
     }
 
     /// Filter albums to those matching this genre or its subcategories.
@@ -199,10 +211,20 @@ struct GenreFeedService: Sendable {
     // MARK: - Safe Fetch Wrappers
 
     private func fetchChartsSafe(genreID: String, limit: Int, offset: Int) async -> [CrateAlbum] {
-        (try? await musicService.fetchChartAlbums(genreID: genreID, limit: limit, offset: offset)) ?? []
+        do {
+            return try await musicService.fetchChartAlbums(genreID: genreID, limit: limit, offset: offset)
+        } catch {
+            print("[Crate] GenreFeed fetchChartAlbums failed: \(error)")
+            return []
+        }
     }
 
     private func fetchNewReleasesSafe(genreID: String, limit: Int) async -> [CrateAlbum] {
-        (try? await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: 0)) ?? []
+        do {
+            return try await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: 0)
+        } catch {
+            print("[Crate] GenreFeed fetchNewReleaseChartAlbums failed: \(error)")
+            return []
+        }
     }
 }

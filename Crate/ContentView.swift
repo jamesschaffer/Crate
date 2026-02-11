@@ -4,24 +4,33 @@ import SwiftUI
 /// NavigationStack and overlays the persistent playback footer at the bottom.
 struct ContentView: View {
 
-    @Environment(PlaybackViewModel.self) private var playbackViewModel
     @State private var navigationPath = NavigationPath()
 
     var body: some View {
-        // Read stateChangeCounter so the view re-renders when the
-        // MusicKit player state or queue changes (Combine → counter bump).
-        let _ = playbackViewModel.stateChangeCounter
-
         NavigationStack(path: $navigationPath) {
             BrowseView()
         }
         .safeAreaInset(edge: .bottom) {
-            if playbackViewModel.hasQueue && !navigationPath.isEmpty {
-                PlaybackFooterView(onTap: navigateToNowPlaying)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+            PlaybackFooterOverlay(navigationPath: $navigationPath)
         }
-        .animation(.easeInOut(duration: 0.3), value: playbackViewModel.hasQueue)
+    }
+}
+
+/// Isolates the stateChangeCounter observation so only the footer
+/// re-renders on playback state changes, not the entire NavigationStack.
+private struct PlaybackFooterOverlay: View {
+
+    @Environment(PlaybackViewModel.self) private var playbackViewModel
+    @Binding var navigationPath: NavigationPath
+
+    var body: some View {
+        let _ = playbackViewModel.stateChangeCounter
+
+        if playbackViewModel.hasQueue && !navigationPath.isEmpty {
+            PlaybackFooterView(onTap: navigateToNowPlaying)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.easeInOut(duration: 0.3), value: playbackViewModel.hasQueue)
+        }
     }
 
     private func navigateToNowPlaying() {

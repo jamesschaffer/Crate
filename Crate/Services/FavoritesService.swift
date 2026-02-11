@@ -37,7 +37,7 @@ final class FavoritesService {
         )
 
         ctx.insert(favorite)
-        try? ctx.save()
+        do { try ctx.save() } catch { print("[Crate] SwiftData save failed: \(error)") }
     }
 
     /// Remove an album from favorites by its Apple Music ID.
@@ -54,7 +54,7 @@ final class FavoritesService {
         }
 
         ctx.delete(favorite)
-        try? ctx.save()
+        do { try ctx.save() } catch { print("[Crate] SwiftData save failed: \(error)") }
     }
 
     /// Check if an album is in favorites.

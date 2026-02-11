@@ -36,7 +36,7 @@ final class DislikeService {
         )
 
         ctx.insert(disliked)
-        try? ctx.save()
+        do { try ctx.save() } catch { print("[Crate] SwiftData save failed: \(error)") }
     }
 
     /// Remove an album from the disliked list.
@@ -53,7 +53,7 @@ final class DislikeService {
         }
 
         ctx.delete(item)
-        try? ctx.save()
+        do { try ctx.save() } catch { print("[Crate] SwiftData save failed: \(error)") }
     }
 
     /// Check if an album is disliked.

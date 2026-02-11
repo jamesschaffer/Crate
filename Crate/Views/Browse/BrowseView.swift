@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import MusicKit
 
 /// Main browse screen: full-bleed album art with a unified control bar at the bottom.
 ///
@@ -12,12 +11,9 @@ struct BrowseView: View {
     @State private var viewModel = BrowseViewModel()
     @State private var wallViewModel = CrateWallViewModel()
     @State private var showingSettings = false
+    @State private var dialStore = CrateDialStore()
     @Environment(PlaybackViewModel.self) private var playbackViewModel
     @Environment(\.modelContext) private var modelContext
-
-    private var dialLabel: String {
-        CrateDialStore().position.label
-    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -62,7 +58,7 @@ struct BrowseView: View {
 
             // Filter row (always visible, transforms between genres and subcategories)
             GenreBarView(
-                dialLabel: dialLabel,
+                dialLabel: dialStore.position.label,
                 categories: GenreTaxonomy.categories,
                 selectedCategory: viewModel.selectedCategory,
                 onSelect: { category in
@@ -88,47 +84,9 @@ struct BrowseView: View {
     // MARK: - Playback Row
 
     private var playbackRow: some View {
-        HStack(spacing: 12) {
-            // Tappable area: artwork + track info
-            HStack(spacing: 12) {
-                if let artwork = playbackViewModel.nowPlayingArtwork {
-                    ArtworkImage(artwork, width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                } else {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.secondary.opacity(0.2))
-                        .frame(width: 44, height: 44)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(playbackViewModel.nowPlayingTitle ?? "Not Playing")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-
-                    if let subtitle = playbackViewModel.nowPlayingSubtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer()
-            }
-
-            // Play/pause toggle
-            Button {
-                Task { await playbackViewModel.togglePlayPause() }
-            } label: {
-                Image(systemName: playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+        PlaybackRowContent()
+            .padding(.horizontal)
+            .padding(.vertical, 8)
     }
 
     // MARK: - Grid Content
