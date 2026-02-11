@@ -34,6 +34,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 119 | [Concurrency Isolation, Error Logging, and Dead Code Removal](#adr-119-concurrency-isolation-error-logging-and-dead-code-removal) | Accepted |
 | 120 | [Scatter/Fade Grid Transition for Genre Switching](#adr-120-scatterfade-grid-transition-for-genre-switching) | Accepted |
 | 121 | [Now-Playing Progress Bar with Artwork-Derived Gradient](#adr-121-now-playing-progress-bar-with-artwork-derived-gradient) | Accepted |
+| 122 | [Staggered Slide Animation for Genre Bar Pills](#adr-122-staggered-slide-animation-for-genre-bar-pills) | Accepted |
 
 ---
 
@@ -614,7 +615,7 @@ This is set every time we start playing an album, to guard against the shuffle m
 
 **Context:** The Album Detail screen had a flat, utilitarian appearance -- white background, genre pills, a divider between controls and track list, and no visual connection to the album being viewed. The screen needed a richer, more immersive feel that reinforced the "focused album listening" identity of Crate without adding clutter.
 
-**Decision:** Use a blurred, scaled-up copy of the album artwork as an ambient background layer behind the entire Album Detail view. The view is restructured as a ZStack with three layers: (1) the artwork rendered at 400pt and scaled 3x with 60pt blur, ignoring safe areas; (2) a `systemBackground`-colored dimming overlay at 75% opacity for text readability; (3) the scrollable content on top. Genre pills and the horizontal divider are removed. The play button uses a black background (replacing accent color). Track list typography is bumped from `caption` to `footnote` for artist names and durations. A now-playing indicator (play.fill icon in accent color) replaces the track number for the currently playing track.
+**Decision:** Use a blurred, scaled-up copy of the album artwork as an ambient background layer behind the entire Album Detail view. The view is restructured as a ZStack with three layers: (1) the artwork rendered at 400pt and scaled 3x with 60pt blur, ignoring safe areas; (2) a `systemBackground`-colored dimming overlay at 50% opacity for text readability (reduced from 75% to let more blurred artwork color bleed through the background); (3) the scrollable content on top. Genre pills and the horizontal divider are removed. The play button uses a black background (replacing accent color). Track list typography is bumped from `caption` to `footnote` for artist names and durations. A now-playing indicator (play.fill icon in accent color) replaces the track number for the currently playing track.
 
 **Alternatives Considered:**
 1. **Solid gradient background derived from artwork dominant color.** Would require a color extraction step (either at runtime or via a third-party library). More complex, and the blurred artwork approach achieves a similar ambient effect with zero additional dependencies.
@@ -630,7 +631,7 @@ This is set every time we start playing an album, to guard against the shuffle m
 
 **Consequences:**
 - The ZStack with blur and scale is rendered continuously while the view is visible. On modern devices this is lightweight, but it is worth monitoring for performance on older hardware (iPhone 15 and earlier).
-- The 75% opacity dimming value was chosen for readability across a range of light and dark album artwork. If specific artwork causes readability issues, this value may need to be adjusted or made adaptive.
+- The dimming overlay opacity was reduced from 75% to 50% to let more album color bleed through the background, creating a richer ambient feel. If specific artwork causes readability issues, this value may need to be increased or made adaptive.
 - The `cornerRadius: 0` parameter was added to `AlbumArtworkView` to support the background usage (no rounded corners for a full-bleed background), which means the artwork view now accepts an optional corner radius.
 
 **What would change this:** If the blur layer caused noticeable performance issues on target devices, we would consider pre-rendering a blurred image at a lower resolution instead of using the real-time `.blur()` modifier. Or if the design language evolved toward a more minimal/flat aesthetic, the background could be simplified to a solid color derived from the artwork.
@@ -809,7 +810,7 @@ This is set every time we start playing an album, to guard against the shuffle m
 
 **Architecture:**
 
-- **ArtworkColorExtractor** (`@Observable`, `@MainActor`): Downloads a 40x40 thumbnail of the current artwork, downsamples to a 10x10 pixel grid via CGContext, quantizes pixels into RGB buckets (32-per-channel granularity), and selects the two most prominent colors with a minimum Euclidean distance threshold of 60 to ensure visual contrast. Results are cached by URL. If no distinct second color exists, one is derived by shifting the first color's brightness. Falls back to semi-transparent white when no artwork is available. Uses `ImageIO` and `CoreGraphics` exclusively -- no UIKit (`UIImage`) or AppKit (`NSImage`) -- so it compiles on both iOS and macOS without `#if os()` branching.
+- **ArtworkColorExtractor** (`@Observable`, `@MainActor`): Downloads a 40x40 thumbnail of the current artwork, downsamples to a 10x10 pixel grid via CGContext, quantizes pixels into RGB buckets (32-per-channel granularity), and selects the two most prominent colors with a minimum Euclidean distance threshold of 60 to ensure visual contrast. Color scoring uses saturation-cubed weighting (`frequency * saturation^3 * brightnessFloor`) instead of pure frequency, so vivid saturated colors are strongly preferred over whites, grays, pastels, and near-blacks. Buckets with saturation below 0.15 or brightness below 0.12 are filtered out entirely. If all buckets are filtered (e.g., monochrome artwork), scoring falls back to raw frequency. An `rgbToHSB()` helper converts quantized RGB buckets to HSB for the scoring calculations. Results are cached by URL. If no distinct second color exists, one is derived by shifting the first color's brightness. Falls back to semi-transparent white when no artwork is available. Uses `ImageIO` and `CoreGraphics` exclusively -- no UIKit (`UIImage`) or AppKit (`NSImage`) -- so it compiles on both iOS and macOS without `#if os()` branching.
 
 - **PlaybackProgressBar**: A `GeometryReader`-based view that shows a thin (4pt rest / 8pt expanded) progress bar. The filled portion uses a leading-to-trailing `LinearGradient` from the two extracted colors, masked to the current progress width. A `DragGesture` enables scrubbing -- during drag the bar expands with a spring animation and fires a haptic on iOS. On drag end, it calls `PlaybackViewModel.seek(to:)`. Progress is updated via a 0.5s `Timer.publish` to avoid per-frame re-renders. Artwork colors are extracted via `.task(id:)` keyed on the current artwork, so extraction reruns when the track changes and cancels automatically if the artwork changes mid-extraction.
 
@@ -857,6 +858,59 @@ This is set every time we start playing an album, to guard against the shuffle m
 - The Album Detail play button now uses a dynamic color instead of black. On albums with very light artwork, the primary extracted color may be light, potentially reducing contrast against the white play icon. The brightness-shift fallback in `ArtworkColorExtractor` mitigates this for monochromatic artwork, but multi-color light artwork could still produce a light primary color.
 
 **What would change this:** If the 0.5s timer proved too coarse (e.g., for a larger, more prominent progress bar in a future redesign), we would increase the timer frequency or switch to observing `player.playbackTime` directly. If artwork color extraction needed to support album artwork that is only available as a URL string (not MusicKit `Artwork`), we would add a parallel extraction path that downloads from the URL directly. If Apple introduced a native API for artwork dominant colors (similar to `UIImageColors`), we would adopt it.
+
+---
+
+## ADR-122: Staggered Slide Animation for Genre Bar Pills
+
+**Date:** 2026-02-11
+**Status:** Accepted
+**Refines:** ADR-120 (Scatter/Fade Grid Transition for Genre Switching), ADR-116 (Single-Row Transforming Filter Bar)
+
+**Context:** The scatter/fade grid transition (ADR-120) animated the album grid when switching genres, but the genre bar pills remained static -- they swapped instantly while the grid below performed its coordinated animation. This created a visual disconnect: the grid had a polished, staggered transition while the filter bar above it jumped abruptly to its new state.
+
+An initial attempt to animate the pills using opacity and scaleEffect failed due to a Liquid Glass compositing limitation in SwiftUI. Views with `.glassEffect()` applied are split into separate compositing layers for the glass capsule and the text/icon content. This layer bifurcation causes two problems: (1) animated opacity is not supported at all on Liquid Glass layers -- setting opacity has no visible effect during animation, and (2) `scaleEffect` only reaches the capsule layer, leaving the text/icon content at its original scale, producing a visual mismatch where the capsule shrinks but the label does not.
+
+**Decision:** Animate genre bar pills using a staggered vertical offset (slide down on exit, slide up on enter) synchronized with the grid transition timing. Apply the offset in two locations per pill -- on the label content (inside the button) and on the view after `.glassEffect()` -- to work around the Liquid Glass layer bifurcation. Use `.clipped()` on the enclosing ScrollView to hide pills when they are offset below the bar's visible area.
+
+**Architecture:**
+
+- **`animateGenreBar` flag on GridTransitionCoordinator**: A boolean property set by the `transition(from:animateGenreBar:fetch:)` call. When `true`, the genre bar participates in the transition animation. When `false` (the default), the genre bar is simply disabled during the transition (dimmed at 60% opacity). Genre-level transitions (selecting a genre from the wall, returning home from a genre) pass `animateGenreBar: true`. Subcategory toggles do not animate the genre bar because the bar content does not change -- only the subcategory selection state changes.
+
+- **GenreBarView stagger animation**: Reads the coordinator from `@Environment`. When `coordinator.phase` changes to `.exiting`, runs `runExitStagger()` which sequentially animates each pill's vertical offset from 0 to 60pt (the `slideDistance`) using the same `GridTransition.staggerWindow` and `GridTransition.exitCurve` timing as the grid. When the phase changes to `.entering`, runs `runEnterStagger()` which reverses the process -- pills start at 60pt offset and stagger back to 0. The stagger step is evenly distributed across the pill count using `GridTransition.staggerWindow / (pillCount - 1)`.
+
+- **Dual offset application**: Each pill button applies `offset(y:)` in two places: (1) on the label content (Text/HStack inside the button, before `.glassEffect()`) and (2) on the outer view (after `.glassEffect()`). This is necessary because Liquid Glass compositing separates the text layer from the capsule layer. A single offset on the outer view would move the capsule but leave the text in place. Applying the same offset to both the label and the post-glass view ensures the entire pill -- text and capsule -- moves together.
+
+- **`.clipped()` on ScrollView**: The genre bar's ScrollView has `.clipped()` applied, which masks any content that extends beyond the ScrollView's frame. When pills are offset downward by 60pt during exit, they slide below the visible bar area and are clipped from view rather than overlapping content below.
+
+- **`pillOffsets` state dictionary**: A `[Int: CGFloat]` dictionary on `GenreBarView` tracks the current vertical offset for each pill by index. The `pillOffset(for:)` helper returns the appropriate offset based on the coordinator's phase: during `exiting`, defaults to 0 (visible) so pills start in place before the stagger slides them down; during `waiting`/`entering`, defaults to `slideDistance` (hidden below) so new pills start hidden before the stagger slides them up; during `idle`, always 0.
+
+**Alternatives Considered:**
+
+1. **Opacity animation on pills.** The natural first choice for show/hide animations. Does not work with Liquid Glass -- opacity changes are not rendered during animation on `.glassEffect()` views. The pills remain fully visible regardless of the opacity value during the animation.
+
+2. **Scale animation on pills.** Another common approach for staggered entrance/exit effects. Partially broken with Liquid Glass -- `scaleEffect` reaches the glass capsule layer but not the text layer, so the capsule shrinks while the text stays at full size. This looks worse than no animation at all.
+
+3. **Transition modifiers (`.transition(.move(edge: .bottom))`) on the pills.** SwiftUI transitions only fire when a view is inserted or removed from the hierarchy. The genre bar pills are not removed -- the bar transforms in place (ADR-116). Transitions would require conditionally removing and re-inserting the entire bar, which conflicts with the single-row design.
+
+4. **No animation on the genre bar.** Acceptable but creates a visual inconsistency -- the grid animates smoothly while the bar above it changes instantly. Since the genre bar and album grid represent the same state change (switching genres), animating both feels more cohesive.
+
+**Rationale:**
+
+- Vertical offset is the one transform that works reliably with Liquid Glass compositing. Unlike opacity (ignored) and scale (partially applied), offset moves the entire compositing stack -- both the glass capsule and the text layer -- because it operates at the layout level rather than the rendering level.
+- Applying offset in dual locations (label + post-glass) is a targeted workaround for the layer bifurcation. It is slightly redundant by construction, but it ensures correctness regardless of how SwiftUI distributes the offset across compositing layers.
+- The stagger timing reuses `GridTransition.staggerWindow` and the exit/enter curves from `GridTransitionConstants.swift`, so the genre bar animation feels synchronized with the grid scatter without requiring separate tuning constants.
+- `.clipped()` is the simplest way to hide offset pills. The alternative would be conditional `opacity(0)` at the offset threshold, but opacity is unreliable with Liquid Glass (the very problem that led to the offset approach).
+- The `animateGenreBar` flag keeps subcategory toggles simple. When the user taps a subcategory pill, the genre bar does not change its pill set -- only the selection highlight changes. Animating the bar for subcategory changes would be distracting and unnecessary.
+
+**Consequences:**
+
+- GenreBarView now depends on `GridTransitionCoordinator` via `@Environment`. It was already being passed the `isDisabled` flag from the coordinator's `isTransitioning` property; now it reads the coordinator directly to observe phase changes.
+- The dual offset pattern is specific to the Liquid Glass workaround. If Apple fixes Liquid Glass to support animated opacity or uniform scaleEffect in a future SwiftUI release, the dual offset could be simplified to a single transform at the outer level.
+- The `staggerTask` on `GenreBarView` is cancellable and self-cleaning. Rapid genre switches cancel the in-progress stagger via `staggerTask?.cancel()` before starting a new one, consistent with the coordinator's cancellation behavior.
+- Pills slide 60pt downward during exit. If the genre bar's vertical padding or height changes significantly, `slideDistance` may need to be adjusted to ensure pills are fully hidden when clipped.
+
+**What would change this:** If Apple resolves the Liquid Glass compositing limitations (animated opacity, uniform scaleEffect), the offset-based approach could be replaced with a more conventional opacity or scale animation. The dual-location offset application could also be simplified to a single outer offset. The `animateGenreBar` flag and stagger timing would remain unchanged.
 
 ---
 

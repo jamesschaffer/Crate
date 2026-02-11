@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (22 ADRs, ADR-100 through ADR-121) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (23 ADRs, ADR-100 through ADR-122) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
