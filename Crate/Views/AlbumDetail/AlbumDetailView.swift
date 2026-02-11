@@ -68,7 +68,7 @@ struct AlbumDetailView: View {
 
                         Text(album.artistName)
                             .font(.title3)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.secondaryText)
                     }
 
                     // Transport controls: prev — play/pause — next
@@ -96,8 +96,8 @@ struct AlbumDetailView: View {
                             Image(systemName: isPlayingThisAlbum && playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
                                 .font(.title)
                                 .frame(width: 64, height: 64)
-                                .background(colorExtractor.colors.0)
-                                .foregroundStyle(.white)
+                                .background(colorExtractor.hasExtracted ? colorExtractor.colors.0 : Color(.systemBackground))
+                                .foregroundStyle(colorExtractor.hasExtracted ? .white : .primary)
                                 .clipShape(Circle())
                         }
                         .disabled(viewModel.tracks == nil)
@@ -133,7 +133,7 @@ struct AlbumDetailView: View {
         .task {
             viewModel.configure(modelContext: modelContext)
             await viewModel.loadAlbum(album)
-            await colorExtractor.extract(from: album.artwork)
+            await colorExtractor.extract(from: album.artwork, artworkURL: album.artworkURL)
         }
     }
 }

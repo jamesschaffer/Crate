@@ -19,8 +19,25 @@ final class ArtworkColorExtractor {
 
     /// Extract dominant colors from the given artwork.
     /// Call this from `.task(id:)` so it cancels on artwork change.
-    func extract(from artwork: Artwork?) async {
-        guard let artwork else {
+    ///
+    /// When `artwork` is nil (common for chart-sourced albums), falls back
+    /// to `artworkURL` (the `{w}x{h}` template string from the API).
+    func extract(from artwork: Artwork?, artworkURL: String? = nil) async {
+        // Resolve a concrete URL from either source.
+        let resolvedURL: URL? = {
+            if let artwork {
+                return artwork.url(width: 40, height: 40)
+            }
+            if let template = artworkURL {
+                let filled = template
+                    .replacingOccurrences(of: "{w}", with: "40")
+                    .replacingOccurrences(of: "{h}", with: "40")
+                return URL(string: filled)
+            }
+            return nil
+        }()
+
+        guard let url = resolvedURL else {
             hasExtracted = false
             withAnimation(.easeInOut(duration: 0.3)) {
                 colors = (.white.opacity(0.6), .white.opacity(0.6))
@@ -28,7 +45,6 @@ final class ArtworkColorExtractor {
             return
         }
 
-        guard let url = artwork.url(width: 40, height: 40) else { return }
         let key = url.absoluteString
 
         // Check cache first

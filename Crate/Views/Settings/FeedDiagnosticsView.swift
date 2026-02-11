@@ -58,7 +58,7 @@ struct FeedDiagnosticsView: View {
                                 .fontWeight(.medium)
                             Text("\(fav.artistName) \u{2022} \(fav.albumID)")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.secondaryText)
                         }
                     }
                 }
@@ -74,7 +74,7 @@ struct FeedDiagnosticsView: View {
                                 .fontWeight(.medium)
                             Text("\(item.artistName) \u{2022} \(item.albumID)")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.secondaryText)
                         }
                     }
                 }
@@ -91,7 +91,7 @@ struct FeedDiagnosticsView: View {
                         Spacer()
                         Text("\(Int((weights.values[signal] ?? 0) * 100))%")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.secondaryText)
                         Text("(\(counts[signal, default: 0]) of 50)")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
@@ -137,7 +137,7 @@ struct FeedDiagnosticsView: View {
             Spacer()
             Text(value)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.secondaryText)
         }
     }
 

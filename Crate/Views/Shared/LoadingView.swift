@@ -11,7 +11,7 @@ struct LoadingView: View {
             ProgressView()
             Text(message)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.secondaryText)
             Spacer()
         }
         .frame(maxWidth: .infinity)

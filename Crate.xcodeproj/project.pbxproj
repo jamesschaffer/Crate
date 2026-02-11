@@ -109,6 +109,8 @@
 		E2A1B3C4D5E6F7A8B9C0D3E2 /* GridTransitionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B3C4D5E6F7A8B9C0D1E2 /* GridTransitionCoordinator.swift */; };
 		E2A1B3C4D5E6F7A8B9C0D2E3 /* AnimatedGridItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B3C4D5E6F7A8B9C0D1E3 /* AnimatedGridItemView.swift */; };
 		E2A1B3C4D5E6F7A8B9C0D3E3 /* AnimatedGridItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B3C4D5E6F7A8B9C0D1E3 /* AnimatedGridItemView.swift */; };
+		F1A2B3C4D5E6F7A8B9C0D2E4 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D1E4 /* AppColors.swift */; };
+		F1A2B3C4D5E6F7A8B9C0D3E4 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D1E4 /* AppColors.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -195,6 +197,7 @@
 		E2A1B3C4D5E6F7A8B9C0D1E3 /* AnimatedGridItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedGridItemView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8C9D0E6A1 /* ArtworkColorExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkColorExtractor.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8C9D0E7A1 /* PlaybackProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackProgressBar.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E6F7A8B9C0D1E4 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -272,6 +275,7 @@
 		6D58E9CC42E39E636FD6F91C /* Config */ = {
 			isa = PBXGroup;
 			children = (
+				F1A2B3C4D5E6F7A8B9C0D1E4 /* AppColors.swift */,
 				A1B2C3D4E5F6A7B8C9D0E1F3 /* CrateDialStore.swift */,
 				2F9DC97E55FE86FA4EE14786 /* Genres.swift */,
 				E2A1B3C4D5E6F7A8B9C0D1E1 /* GridTransitionConstants.swift */,
@@ -571,6 +575,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0AE776891928B987A19910D2 /* Album.swift in Sources */,
+				F1A2B3C4D5E6F7A8B9C0D2E4 /* AppColors.swift in Sources */,
 				A1B2C3D4E5F6A7B8C9D0E6B1 /* ArtworkColorExtractor.swift in Sources */,
 				4D89103F64DE6D3225AAA47B /* AlbumArtworkView.swift in Sources */,
 				7E458214B05AFC37C425A23C /* AlbumDetailView.swift in Sources */,
@@ -622,6 +627,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				92BABD2A527F4C55075A9E34 /* Album.swift in Sources */,
+				F1A2B3C4D5E6F7A8B9C0D3E4 /* AppColors.swift in Sources */,
 				A1B2C3D4E5F6A7B8C9D0E6C1 /* ArtworkColorExtractor.swift in Sources */,
 				AC35A72E290198781D2BAF33 /* AlbumArtworkView.swift in Sources */,
 				E3E4C48987ADECA0A71AE5E6 /* AlbumDetailView.swift in Sources */,

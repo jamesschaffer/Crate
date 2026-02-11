@@ -33,7 +33,7 @@ struct TrackListView: View {
                         } else {
                             Text("\(index + 1)")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.secondaryText)
                                 .frame(width: 16, alignment: .trailing)
                                 .padding(.trailing, 8)
                         }
@@ -46,7 +46,7 @@ struct TrackListView: View {
                             if !track.artistName.isEmpty {
                                 Text(track.artistName)
                                     .font(.footnote)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.secondaryText)
                                     .lineLimit(1)
                             }
                         }
@@ -56,7 +56,7 @@ struct TrackListView: View {
                         if let duration = track.duration {
                             Text(formattedDuration(duration))
                                 .font(.footnote)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.secondaryText)
                         }
                     }
                     .padding(.vertical, 8)

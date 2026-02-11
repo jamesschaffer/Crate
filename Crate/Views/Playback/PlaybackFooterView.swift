@@ -57,7 +57,7 @@ struct PlaybackRowContent: View {
                 if let subtitle = viewModel.nowPlayingSubtitle {
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.secondaryText)
                         .lineLimit(1)
                 }
             }

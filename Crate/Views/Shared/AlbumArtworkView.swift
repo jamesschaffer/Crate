@@ -47,7 +47,7 @@ struct AlbumArtworkView: View {
             .overlay {
                 Image(systemName: "music.note")
                     .font(.system(size: size * 0.3))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.secondaryText)
             }
     }
 

@@ -14,7 +14,7 @@ struct EmptyStateView: View {
                 .font(.headline)
             Text(message)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
             Spacer()

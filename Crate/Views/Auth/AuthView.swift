@@ -24,7 +24,7 @@ struct AuthView: View {
 
             Text("Browse albums by genre.\nListen to full albums, front to back.")
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.secondaryText)
                 .multilineTextAlignment(.center)
 
             Spacer()
@@ -54,7 +54,7 @@ struct AuthView: View {
 
                     Text("Open Settings and enable Music access for Crate.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.secondaryText)
                         .multilineTextAlignment(.center)
 
                     #if os(iOS)
@@ -67,7 +67,7 @@ struct AuthView: View {
                     #else
                     Text("System Preferences > Security & Privacy > Privacy > Media & Apple Music")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.secondaryText)
                     #endif
                 }
                 .padding(.horizontal, 32)
@@ -78,7 +78,7 @@ struct AuthView: View {
 
             @unknown default:
                 Text("Unexpected authorization state")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.secondaryText)
             }
 
             if authViewModel.isLoading {

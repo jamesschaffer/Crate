@@ -26,11 +26,11 @@ struct SettingsView: View {
                         HStack {
                             Text("My Crate")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.secondaryText)
                             Spacer()
                             Text("Mystery")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.secondaryText)
                         }
 
                         Slider(
@@ -61,7 +61,7 @@ struct SettingsView: View {
 
                                 Text(position.description)
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.secondaryText)
                             }
                         }
                         .frame(height: 50, alignment: .topLeading)
