@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (19 ADRs, ADR-100 through ADR-118) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (20 ADRs, ADR-100 through ADR-119) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -91,7 +91,7 @@ Crate/
   Crate.xcodeproj
   Crate/                        # Shared code (iOS + macOS)
     CrateApp.swift              # App entry point
-    ContentView.swift           # Root view (auth gate)
+    ContentView.swift           # Root view (auth gate) + PlaybackFooterOverlay
     /Models                     # CrateAlbum, Genre, GenreTaxonomy, FavoriteAlbum, DislikedAlbum,
                                 # CrateDial, GenreFeedSignal, GenreFeedWeights
     /ViewModels                 # Browse, AlbumDetail, Playback, Auth, CrateWall
@@ -100,13 +100,12 @@ Crate/
                                 # WallGridItemView, GenreBarView
       /AlbumDetail              # AlbumDetailView, TrackListView
       /Auth                     # AuthView
-      /Playback                 # PlaybackFooterView
+      /Playback                 # PlaybackFooterView, PlaybackRowContent
       /Settings                 # SettingsView (Crate Dial control), FeedDiagnosticsView
       /Shared                   # AlbumArtworkView, LoadingView, EmptyStateView
-    /Services                   # MusicService, GenreService, FavoritesService, DislikeService,
-                                # CrateWallService, GenreFeedService
+    /Services                   # MusicService, FavoritesService, DislikeService,
+                                # CrateWallService, GenreFeedService, WeightedInterleave
     /Config                     # Genres.swift (static taxonomy), CrateDialStore.swift
-    /Extensions                 # MusicKit+Extensions, View+Extensions
     /Resources                  # Assets.xcassets
   Crate-iOS/                    # iOS entitlements, Info.plist
   Crate-macOS/                  # macOS entitlements, Info.plist, MacCommands.swift

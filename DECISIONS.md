@@ -31,6 +31,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 116 | [Single-Row Transforming Filter Bar with Search-Based Subcategory Browsing](#adr-116-single-row-transforming-filter-bar-with-search-based-subcategory-browsing) | Accepted |
 | 117 | [Blurred Artwork Background for Album Detail](#adr-117-blurred-artwork-background-for-album-detail) | Accepted |
 | 118 | [Personalized Genre Feeds with Feedback Loop](#adr-118-personalized-genre-feeds-with-feedback-loop) | Accepted |
+| 119 | [Concurrency Isolation, Error Logging, and Dead Code Removal](#adr-119-concurrency-isolation-error-logging-and-dead-code-removal) | Accepted |
 
 ---
 
@@ -691,6 +692,51 @@ This is set every time we start playing an album, to guard against the shuffle m
 - **Reverses ADR-106.** We previously decided not to write to Apple Music to avoid "polluting" the user's library. The product direction has changed — the user explicitly wants Crate interactions to influence Apple Music's algorithm.
 
 **What would change this:** If Apple Music's recommendation API improved to provide genre-scoped recommendations directly, we could simplify the genre feed to lean more heavily on that signal and reduce the number of parallel fetches.
+
+---
+
+## ADR-119: Concurrency Isolation, Error Logging, and Dead Code Removal
+
+**Date:** 2026-02-11
+**Status:** Accepted
+**Refines:** ADR-102 (MVVM with @Observable), ADR-115 (Crate Wall), ADR-118 (Personalized Genre Feeds with Feedback Loop)
+
+**Context:** After completing the Crate Wall and personalized genre feeds, a review of the codebase revealed several concurrency bugs, silent error swallowing, unnecessary re-renders, duplicated code, and dead code left over from earlier iterations. These were addressed as a single cleanup pass.
+
+**Decision:** Eight targeted changes:
+
+1. **ContentView playback observation isolation.** `ContentView` was reading `playbackViewModel.stateChangeCounter` directly, causing the entire `NavigationStack` to re-render on every playback state change (every second during playback). Extracted a child `PlaybackFooterOverlay` view that owns the `stateChangeCounter` observation, so only the footer re-renders. The parent `ContentView` no longer depends on `PlaybackViewModel`.
+
+2. **`@MainActor` on `fetchSubcategoryAlbums`.** `BrowseViewModel.fetchSubcategoryAlbums` mutates `@Observable` properties (`albums`, `isLoading`) but was not isolated to the main actor, creating a data race. Added `@MainActor` annotation.
+
+3. **Consistent `do/catch` error logging.** All silent `try?` patterns across `CrateWallService`, `GenreFeedService`, `FavoritesService`, and `DislikeService` were replaced with `do/catch` blocks that `print` errors with a `[Crate]` prefix. This ensures API failures and SwiftData save errors are always visible in the Xcode console. Graceful degradation behavior is preserved (functions still return empty arrays or continue on error).
+
+4. **Shared `distributeByWeight()` utility.** Both `CrateDialWeights.albumCounts(total:)` and `GenreFeedWeights.albumCounts(total:)` contained identical largest-remainder implementations for converting fractional weight tables to integer counts. Extracted a generic `distributeByWeight<Key: Hashable>(_:total:)` function into `WeightedInterleave.swift`. Both call sites now delegate to this shared function.
+
+5. **`PlaybackRowContent` extraction.** `BrowseView` contained a 40-line inline playback row (artwork + track info + play/pause) that duplicated `PlaybackFooterView`. Extracted a shared `PlaybackRowContent` view in `PlaybackFooterView.swift`. Both `PlaybackFooterView` and `BrowseView` now use `PlaybackRowContent`, with `PlaybackFooterView` wrapping it in material styling.
+
+6. **Dead code removal.** Deleted three files that were no longer referenced:
+   - `GenreService.swift` -- genre browsing logic was absorbed by `BrowseViewModel` and `GenreFeedService` during ADR-118. `BrowseViewModel` no longer depends on `GenreService`.
+   - `View+Extensions.swift` -- contained SwiftUI view modifiers that were no longer used after UI refactoring.
+   - `MusicKit+Extensions.swift` -- contained MusicKit type extensions that were no longer used.
+   The `/Extensions` directory is now empty and removed.
+
+7. **`@Environment(\.displayScale)` for artwork resolution.** `AlbumArtworkView` was hardcoding `2x` (retina) when resolving Apple Music artwork URL templates. Replaced with `@Environment(\.displayScale)` to use the actual device display scale, producing correct pixel sizes on all devices (2x on standard retina, 3x on iPhone Plus/Max/Pro models).
+
+8. **`CrateDialStore` as `@State` on `BrowseView`.** `BrowseView` was creating a new `CrateDialStore()` instance on every render to read the dial label. Changed to `@State private var dialStore = CrateDialStore()` so the instance is created once and persists across re-renders.
+
+**Rationale:**
+- The `PlaybackFooterOverlay` isolation is a significant performance fix. During playback, `stateChangeCounter` increments every second. Without isolation, the entire view hierarchy (NavigationStack, BrowseView, genre bar, album grid) was re-rendering every second. With isolation, only the small footer overlay re-renders.
+- Replacing `try?` with `do/catch` changes no runtime behavior (all call sites still degrade gracefully) but makes debugging significantly easier. Silent `try?` was the root cause of the "Missing requesting bundle version" issue going undetected for days.
+- The `distributeByWeight()` extraction and `PlaybackRowContent` extraction follow the DRY principle. Duplicated code is harder to maintain and easier to accidentally diverge.
+- Deleting dead code reduces cognitive overhead for anyone reading the codebase. `GenreService` in particular was confusing because it appeared to be in use but was actually orphaned after ADR-118.
+
+**Consequences:**
+- The `/Extensions` directory no longer exists. If future extensions are needed, the directory will need to be recreated.
+- The `[Crate]` logging prefix provides a greppable tag for filtering console output during development on physical devices (where system noise is significant).
+- `PlaybackRowContent` is now the single source of truth for the playback row UI. Any future changes to the playback row appearance only need to be made in one place.
+
+**What would change this:** These are cleanup and correctness changes with no product-facing trade-offs. They would only be revisited if the architecture changed substantially (e.g., moving to structured concurrency actors instead of `@MainActor` annotation).
 
 ---
 
