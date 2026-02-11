@@ -79,6 +79,7 @@ Unlike a web app, there are no `.env` files or API keys to configure. MusicKit a
 ## Key Constraints
 
 - **Physical device required.** MusicKit does not work in the Simulator. All testing involving Apple Music playback or subscription checks must run on a physical device.
+- **Bundle version build settings required.** `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` must be set in all build configurations. Without them, MusicKit silently rejects all personalized API calls (`/v1/me/*`).
 - **Apple Music subscription required.** The app requires an active Apple Music subscription for playback. Non-subscribers can browse but cannot play.
 - **Apple ecosystem only.** iOS 17+ and macOS 14+ (Sonoma). No Android, no web.
 - **No server.** The app is fully client-side. MusicKit handles auth, API access, and playback on-device.

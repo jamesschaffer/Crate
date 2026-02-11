@@ -645,7 +645,7 @@ This is set every time we start playing an album, to guard against the shuffle m
 
 **Decision:** Three interconnected changes:
 
-1. **Feedback loop (like/dislike → Apple Music write-back).** Favoriting an album now adds it to the user's Apple Music library and rates it as "love" via MusicKit. A new dislike button (xmark icon, top-left of album artwork) rates the album as "dislike" in Apple Music and persists to a local `DislikedAlbum` SwiftData model. Like and dislike are mutually exclusive. Disliked albums are filtered from all feeds. This reverses ADR-106 — interactions now write back to Apple Music to train its recommendation algorithm.
+1. **Feedback loop (like/dislike → Apple Music write-back).** Favoriting an album fires three concurrent API calls: (a) `addToLibrary` adds it to the user's Apple Music library, (b) `rateAlbum(.love)` marks it as loved, and (c) `favoriteAlbum` via `POST /v1/me/favorites` marks it with the star icon in Apple Music's cross-platform Favorites system (iOS 17.1+). Running these concurrently avoids user-token expiry between sequential calls. A new dislike button (xmark icon, top-left of album artwork) rates the album as "dislike" in Apple Music and persists to a local `DislikedAlbum` SwiftData model. Like and dislike are mutually exclusive. Disliked albums are filtered from all feeds. All write-back calls use explicit `do/catch` error logging (replacing silent `try?`). This reverses ADR-106 — interactions now write back to Apple Music to train its recommendation algorithm.
 
 2. **Multi-signal genre feeds (GenreFeedService).** Genre browsing now uses 6 blended signals instead of single-source charts:
    - **Personal History:** Heavy rotation + library albums + recently played, filtered to the selected genre
@@ -667,13 +667,16 @@ This is set every time we start playing an album, to guard against the shuffle m
 - **GenreFeedWeights**: Weight tables per CrateDial position for genre feeds, with `albumCounts(total:)` using largest-remainder method.
 - **GenreFeedService**: Parallel fetch → dedup → weighted interleave, scoped to a genre. Takes seed albums from favorites for expansion.
 - **WeightedInterleave**: Generic shared function extracted from CrateWallService.
-- **MusicService additions**: `addToLibrary()`, `rateAlbum()`, `fetchHeavyRotation()`, `fetchLibraryAlbums()`, `fetchRelatedAlbums()`, `fetchAlbumsByArtist()`.
+- **MusicService additions**: `addToLibrary()`, `rateAlbum()`, `favoriteAlbum()`, `fetchHeavyRotation()`, `fetchLibraryAlbums()`, `fetchRelatedAlbums()`, `fetchAlbumsByArtist()`.
 
 **New API endpoints used:**
 - `PUT /v1/me/ratings/albums/{id}` — rate album as love/dislike
+- `POST /v1/me/favorites?ids[albums]={id}` — mark album as Favorite (star icon, cross-platform, iOS 17.1+)
 - `GET /v1/me/history/heavy-rotation` — user's heavy rotation
 - `GET /v1/me/library/albums` — user's library albums with catalog include
 - `MusicCatalogResourceRequest<Album>` with `.relatedAlbums` property — related albums
+
+**Critical build requirement:** All `/v1/me/*` endpoints require `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` to be set in the Xcode build settings. Without these, MusicKit rejects every personalized request with "Missing requesting bundle version." This affects heavy rotation, recently played, recommendations, library albums, ratings, and favorites — essentially the entire personalization layer.
 
 **Rationale:**
 - The feedback loop closes the gap between Crate interactions and Apple Music's algorithm. Over time, the user's likes/dislikes improve Apple Music's recommendations, which feed back into Crate's recommendation signal — a virtuous cycle.
