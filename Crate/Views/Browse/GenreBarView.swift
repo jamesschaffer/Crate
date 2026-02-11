@@ -6,6 +6,14 @@ import SwiftUI
 /// **Genre selected:** `[Genre ✕]` pill + subcategory pills.
 ///
 /// Always renders a single row at a constant height — no layout jumps.
+/// When the coordinator signals a genre-level transition (`animateGenreBar`),
+/// pills stagger-slide downward out of view (exit) then slide up into view
+/// (enter), synchronized with the album grid animation.
+///
+/// Uses vertical `offset` instead of `opacity` or `scaleEffect` because
+/// Liquid Glass compositing layers do not support animated opacity and render
+/// text/capsule as separate layers that scale independently. Offset applied
+/// to both label content and post-glassEffect to handle glass layer bifurcation.
 struct GenreBarView: View {
 
     let dialLabel: String
@@ -17,6 +25,44 @@ struct GenreBarView: View {
     var selectedSubcategoryIDs: Set<String> = []
     var onToggleSubcategory: ((String) -> Void)? = nil
     var isDisabled: Bool = false
+
+    @Environment(GridTransitionCoordinator.self) private var coordinator
+    @State private var pillOffsets: [Int: CGFloat] = [:]
+    @State private var staggerTask: Task<Void, Never>?
+
+    /// Distance to slide pills below the bar. Enough to fully hide them.
+    private static let slideDistance: CGFloat = 60
+
+    // MARK: - Pill Count
+
+    private var pillCount: Int {
+        if let category = selectedCategory {
+            return 1 + category.subcategories.count
+        } else {
+            return 1 + categories.count
+        }
+    }
+
+    /// Per-pill vertical offset that accounts for animation phase.
+    ///
+    /// During exit: defaults to 0 (in place) so pills are visible before stagger slides them.
+    /// During waiting/entering: defaults to slideDistance (below bar) so new pills enter via stagger.
+    /// During idle or non-animated transitions: always 0.
+    private func pillOffset(for index: Int) -> CGFloat {
+        guard coordinator.animateGenreBar && coordinator.isTransitioning else {
+            return 0
+        }
+        switch coordinator.phase {
+        case .exiting:
+            return pillOffsets[index] ?? 0
+        case .waiting, .entering:
+            return pillOffsets[index] ?? Self.slideDistance
+        case .idle:
+            return 0
+        }
+    }
+
+    // MARK: - Body
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -40,12 +86,14 @@ struct GenreBarView: View {
                             .foregroundStyle(Color.accentColor)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
+                            .offset(y: pillOffset(for: 0))
                         }
                         .buttonStyle(.plain)
                         .glassEffect(.regular.interactive(), in: .capsule)
+                        .offset(y: pillOffset(for: 0))
 
                         // Subcategory pills
-                        ForEach(category.subcategories) { sub in
+                        ForEach(Array(category.subcategories.enumerated()), id: \.element.id) { index, sub in
                             Button {
                                 onToggleSubcategory?(sub.id)
                             } label: {
@@ -55,9 +103,11 @@ struct GenreBarView: View {
                                     .foregroundStyle(selectedSubcategoryIDs.contains(sub.id) ? Color.accentColor : .primary)
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 8)
+                                    .offset(y: pillOffset(for: index + 1))
                             }
                             .buttonStyle(.plain)
                             .glassEffect(.regular.interactive(), in: .capsule)
+                            .offset(y: pillOffset(for: index + 1))
                         }
                     } else {
                         // MARK: Home state
@@ -72,12 +122,14 @@ struct GenreBarView: View {
                                 .foregroundStyle(Color.accentColor)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
+                                .offset(y: pillOffset(for: 0))
                         }
                         .buttonStyle(.plain)
                         .glassEffect(.regular.interactive(), in: .capsule)
+                        .offset(y: pillOffset(for: 0))
 
                         // Genre category pills
-                        ForEach(categories) { category in
+                        ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in
                             Button {
                                 onSelect(category)
                             } label: {
@@ -86,17 +138,85 @@ struct GenreBarView: View {
                                     .fontWeight(.medium)
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 8)
+                                    .offset(y: pillOffset(for: index + 1))
                             }
                             .buttonStyle(.plain)
                             .glassEffect(.regular.interactive(), in: .capsule)
+                            .offset(y: pillOffset(for: index + 1))
                         }
                     }
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 12)
                 .disabled(isDisabled)
-                .opacity(isDisabled ? 0.6 : 1.0)
-                .animation(.easeInOut(duration: 0.2), value: selectedCategory?.id)
+                .opacity(isDisabled && !coordinator.animateGenreBar ? 0.6 : 1.0)
+            }
+        }
+        .clipped()
+        .onChange(of: coordinator.phase) { _, newPhase in
+            guard coordinator.animateGenreBar else { return }
+            switch newPhase {
+            case .exiting:
+                runExitStagger()
+            case .entering:
+                runEnterStagger()
+            case .idle:
+                pillOffsets = [:]
+            case .waiting:
+                break
+            }
+        }
+    }
+
+    // MARK: - Stagger Animations
+
+    private func runExitStagger() {
+        staggerTask?.cancel()
+        let count = pillCount
+        pillOffsets = [:]
+
+        staggerTask = Task { @MainActor in
+            let step = count > 1
+                ? GridTransition.staggerWindow / Double(count - 1)
+                : 0
+
+            for i in 0..<count {
+                withAnimation(GridTransition.exitCurve) {
+                    pillOffsets[i] = Self.slideDistance
+                }
+                if i < count - 1 {
+                    try? await Task.sleep(for: .seconds(step))
+                    if Task.isCancelled { return }
+                }
+            }
+        }
+    }
+
+    private func runEnterStagger() {
+        staggerTask?.cancel()
+        let count = pillCount
+        // Ensure all start below the bar.
+        for i in 0..<count {
+            pillOffsets[i] = Self.slideDistance
+        }
+
+        staggerTask = Task { @MainActor in
+            // Brief pause so SwiftUI lays out the hidden pills.
+            try? await Task.sleep(for: .seconds(GridTransition.phasePause))
+            if Task.isCancelled { return }
+
+            let step = count > 1
+                ? GridTransition.staggerWindow / Double(count - 1)
+                : 0
+
+            for i in 0..<count {
+                withAnimation(GridTransition.enterCurve) {
+                    pillOffsets[i] = 0
+                }
+                if i < count - 1 {
+                    try? await Task.sleep(for: .seconds(step))
+                    if Task.isCancelled { return }
+                }
             }
         }
     }
@@ -109,4 +229,5 @@ struct GenreBarView: View {
         selectedCategory: GenreTaxonomy.categories.first,
         onSelect: { _ in }
     )
+    .environment(GridTransitionCoordinator())
 }

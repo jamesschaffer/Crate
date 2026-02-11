@@ -66,7 +66,7 @@ struct BrowseView: View {
                 categories: GenreTaxonomy.categories,
                 selectedCategory: viewModel.selectedCategory,
                 onSelect: { category in
-                    coordinator.transition(from: currentAlbums) {
+                    coordinator.transition(from: currentAlbums, animateGenreBar: true) {
                         await viewModel.selectCategory(category)
                         return viewModel.albums
                     }
@@ -75,7 +75,7 @@ struct BrowseView: View {
                     showingSettings = true
                 },
                 onHome: {
-                    coordinator.transition(from: currentAlbums) {
+                    coordinator.transition(from: currentAlbums, animateGenreBar: true) {
                         viewModel.clearSelection()
                         return wallViewModel.albums
                     }

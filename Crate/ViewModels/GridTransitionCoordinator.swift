@@ -47,6 +47,9 @@ final class GridTransitionCoordinator {
     /// Whether a waiting spinner should show (exit done, data not yet back).
     private(set) var showWaitingSpinner: Bool = false
 
+    /// Whether the genre bar should animate its pills during this transition.
+    private(set) var animateGenreBar: Bool = false
+
     /// True during any non-idle phase. Use to disable genre bar interaction.
     var isTransitioning: Bool {
         phase != .idle
@@ -64,12 +67,14 @@ final class GridTransitionCoordinator {
     /// - Parameters:
     ///   - oldAlbums: Snapshot of albums currently displayed (for exit animation).
     ///   - fetch: Async closure that triggers the VM action and returns the new albums.
-    func transition(from oldAlbums: [CrateAlbum], fetch: @escaping () async -> [CrateAlbum]) {
+    func transition(from oldAlbums: [CrateAlbum], animateGenreBar: Bool = false, fetch: @escaping () async -> [CrateAlbum]) {
         // Cancel any in-progress transition.
         cancel()
 
         transitionTask = Task { @MainActor [weak self] in
             guard let self else { return }
+
+            self.animateGenreBar = animateGenreBar
 
             // --- Exit Phase ---
             self.displayAlbums = oldAlbums
@@ -266,5 +271,6 @@ final class GridTransitionCoordinator {
         displayAlbums = []
         itemStates = [:]
         showWaitingSpinner = false
+        animateGenreBar = false
     }
 }
