@@ -32,6 +32,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 117 | [Blurred Artwork Background for Album Detail](#adr-117-blurred-artwork-background-for-album-detail) | Accepted |
 | 118 | [Personalized Genre Feeds with Feedback Loop](#adr-118-personalized-genre-feeds-with-feedback-loop) | Accepted |
 | 119 | [Concurrency Isolation, Error Logging, and Dead Code Removal](#adr-119-concurrency-isolation-error-logging-and-dead-code-removal) | Accepted |
+| 120 | [Scatter/Fade Grid Transition for Genre Switching](#adr-120-scatterfade-grid-transition-for-genre-switching) | Accepted |
 
 ---
 
@@ -737,6 +738,61 @@ This is set every time we start playing an album, to guard against the shuffle m
 - `PlaybackRowContent` is now the single source of truth for the playback row UI. Any future changes to the playback row appearance only need to be made in one place.
 
 **What would change this:** These are cleanup and correctness changes with no product-facing trade-offs. They would only be revisited if the architecture changed substantially (e.g., moving to structured concurrency actors instead of `@MainActor` annotation).
+
+---
+
+## ADR-120: Scatter/Fade Grid Transition for Genre Switching
+
+**Date:** 2026-02-11
+**Status:** Accepted
+**Refines:** ADR-115 (Crate Wall), ADR-116 (Single-Row Transforming Filter Bar)
+
+**Context:** Switching between genres (or between the Crate Wall and a genre feed) caused a jarring visual experience: the album grid was cleared instantly and replaced with a loading state, then the new albums popped in all at once. This happened because `BrowseView` conditionally swapped between two separate content builders (`wallContent` and `genreBrowseContent`) using `@ViewBuilder`, which meant SwiftUI tore down the old grid and rebuilt a new one on every switch. The result felt abrupt and mechanical, especially on fast connections where the loading state flashed briefly.
+
+**Decision:** Replace the conditional view swapping with a single always-mounted `AlbumGridView` and add a coordinated scatter/fade animation managed by a dedicated `GridTransitionCoordinator` state machine. The coordinator orchestrates a four-phase cycle -- exit (old albums scatter out), waiting (scroll resets, API fetch runs concurrently), enter (new albums scatter in), and idle (passthrough, zero overhead).
+
+**Architecture:**
+
+- **GridTransitionCoordinator** (`@Observable`, `@MainActor`): State machine with four phases (`idle`, `exiting`, `waiting`, `entering`). Owns `displayAlbums` and per-item `ItemState` (scale + opacity) during transitions. During `idle`, it holds no data -- the grid reads directly from the view models. The `transition(from:fetch:)` method takes a snapshot of current albums for the exit animation and an async closure for the data fetch, which runs concurrently during the waiting phase. Supports cancellation: rapid genre taps cancel the in-progress transition and start a new one.
+
+- **AnimatedGridItemView**: Thin wrapper around `WallGridItemView` that reads `coordinator.itemStates[index]` via `@Environment`. During idle, returns 1.0 scale / 1.0 opacity (no animation overhead). During transitions, applies the coordinator's per-item scale and opacity.
+
+- **GridTransitionConstants** (`GridTransition` enum): Tuning values for the animation -- scatter item count (16), stagger window (0.4s), per-item duration (0.25s), jitter range, bulk fade duration, easing curves. Centralized so timing can be adjusted without touching the coordinator.
+
+- **BrowseView refactor**: Replaced conditional `@ViewBuilder` (wallContent vs. genreBrowseContent) with a single always-mounted `AlbumGridView` inside a `ZStack`. A `currentAlbums` computed property reads from the coordinator during transitions or from the appropriate view model during idle. Overlay states (loading, error, empty) are layered via ZStack on top of the grid. All genre selection callbacks (`onSelect`, `onHome`, `onToggleSubcategory`) now route through `coordinator.transition(from:fetch:)`.
+
+- **AlbumGridView changes**: Added `ScrollViewReader` with a `scrollToTopTrigger` binding (toggled by the coordinator during the waiting phase). Uses `enumerated()` ForEach to pass item indices to `AnimatedGridItemView`.
+
+- **GenreBarView**: Added `isDisabled` parameter. During transitions, the genre bar is dimmed (60% opacity) and disabled to prevent double-tap race conditions.
+
+**Stagger algorithm:** Items are split into two groups (first 8 and second 8 of the 16 scatter items), then interleaved (A0, B0, A1, B1...) so the animation does not sweep linearly across the grid. Each item's delay includes a small random jitter (0-40ms) to prevent mechanical uniformity. Items beyond the scatter set (16+) receive a single bulk fade for performance.
+
+**Alternatives Considered:**
+
+1. **SwiftUI `.transition()` modifiers on the grid.** SwiftUI's built-in transitions (`.opacity`, `.scale`, `.move`) apply uniformly to the entire view. They cannot stagger individual items, interleave groups, or add per-item jitter. The result would be a simple simultaneous fade, which lacks the "record crate" tactile quality the product aims for.
+
+2. **`matchedGeometryEffect` for shared element transitions.** This would animate individual album tiles from their old positions to new positions. However, the old and new album sets are entirely different (different genre, different albums), so there are no shared elements to match. The effect would not apply.
+
+3. **Keep conditional view swapping, animate the swap.** Wrapping the conditional in a `.transition()` modifier would fade between two separate grids. This still requires SwiftUI to tear down and rebuild the grid identity, which defeats lazy loading optimizations and does not support per-item stagger.
+
+4. **Hero animation (zoom into selected genre pill, expand into grid).** Visually interesting but adds significant complexity and does not map well to the "flip through a crate" metaphor. Deferred for potential future exploration.
+
+**Rationale:**
+
+- The single always-mounted grid means SwiftUI preserves the `LazyVGrid` identity across transitions, maintaining scroll position state and avoiding teardown/rebuild costs.
+- The four-phase state machine is explicit and debuggable. Each phase has clear entry/exit conditions, and the phase is observable for UI (spinner during waiting, disabled genre bar during any non-idle phase).
+- Cancellation on rapid taps prevents animation pile-up. If the user taps three genres quickly, only the last one completes.
+- Zero overhead during idle. The coordinator holds no display data and `AnimatedGridItemView` returns constant 1.0/1.0 values. The `@Observable` property tracking means no re-renders from the coordinator during normal scrolling.
+- The `GridTransition` constants enum makes the animation tunable without touching the state machine logic. Adjusting timing, easing, or scatter count is a single-file change.
+
+**Consequences:**
+
+- `BrowseView` no longer has separate `wallContent` and `genreBrowseContent` builders. All grid content flows through the single `currentAlbums` computed property, which checks the coordinator's phase.
+- `GridTransitionCoordinator` is injected into the environment (`.environment(coordinator)` on `BrowseView`) so `AnimatedGridItemView` can read it without prop drilling through `AlbumGridView`.
+- The animation uses `Task.sleep` for stagger delays, which means it participates in cooperative cancellation. If the task is cancelled mid-animation, items snap to their final state via `resetToIdle()`.
+- The 16-item scatter count was chosen because a 2-column grid on iPhone shows roughly 8-10 items in the viewport. Scattering 16 covers the visible area plus a small buffer. Items below the fold get a faster bulk fade since they are not visible.
+
+**What would change this:** If the product direction moved toward a different transition metaphor (e.g., page curl, 3D flip, carousel), the coordinator's phase model would remain but the animation implementation in `AnimatedGridItemView` and the stagger schedule would change. If SwiftUI introduced native per-item stagger transitions in a future release, the custom coordinator could be simplified or replaced.
 
 ---
 

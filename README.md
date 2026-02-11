@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (20 ADRs, ADR-100 through ADR-119) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (21 ADRs, ADR-100 through ADR-120) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -94,10 +94,11 @@ Crate/
     ContentView.swift           # Root view (auth gate) + PlaybackFooterOverlay
     /Models                     # CrateAlbum, Genre, GenreTaxonomy, FavoriteAlbum, DislikedAlbum,
                                 # CrateDial, GenreFeedSignal, GenreFeedWeights
-    /ViewModels                 # Browse, AlbumDetail, Playback, Auth, CrateWall
+    /ViewModels                 # Browse, AlbumDetail, Playback, Auth, CrateWall,
+                                # GridTransitionCoordinator
     /Views
       /Browse                   # BrowseView, AlbumGridView, AlbumGridItemView,
-                                # WallGridItemView, GenreBarView
+                                # WallGridItemView, AnimatedGridItemView, GenreBarView
       /AlbumDetail              # AlbumDetailView, TrackListView
       /Auth                     # AuthView
       /Playback                 # PlaybackFooterView, PlaybackRowContent
@@ -105,7 +106,8 @@ Crate/
       /Shared                   # AlbumArtworkView, LoadingView, EmptyStateView
     /Services                   # MusicService, FavoritesService, DislikeService,
                                 # CrateWallService, GenreFeedService, WeightedInterleave
-    /Config                     # Genres.swift (static taxonomy), CrateDialStore.swift
+    /Config                     # Genres.swift (static taxonomy), CrateDialStore.swift,
+                                # GridTransitionConstants.swift
     /Resources                  # Assets.xcassets
   Crate-iOS/                    # iOS entitlements, Info.plist
   Crate-macOS/                  # macOS entitlements, Info.plist, MacCommands.swift

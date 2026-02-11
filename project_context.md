@@ -8,16 +8,17 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 
 ## Current Status
 
-**Active development.** Core features, Crate Wall, and personalized genre feeds are implemented. Visual design polish is in progress.
+**Active development.** Core features, Crate Wall, personalized genre feeds, and grid transition animations are implemented. Visual design polish is in progress.
 
 - PRD: Complete (Draft -- Architecture Complete, MusicKit Pivot)
-- Architecture decisions: 20 ADRs documented (ADR-100 through ADR-119)
+- Architecture decisions: 21 ADRs documented (ADR-100 through ADR-120)
 - Core app: Implemented (Browse, Album Detail, Playback, Auth, Favorites, Dislikes)
 - Crate Wall: Complete -- algorithm-driven landing experience with 5 blended signals, Crate Dial settings, enriched genre extraction (heavy rotation + library albums), dislike filtering, infinite scroll, graceful degradation
 - Genre feeds: Complete -- multi-signal blended genre feeds (6 signals: Personal History, Recommendations, Trending, New Releases, Subcategory Rotation, Seed Expansion), CrateDial-weighted, replaces single-source chart pagination
+- Grid transitions: Complete -- coordinated scatter/fade animation when switching between wall and genre or between genres. GridTransitionCoordinator state machine orchestrates exit, scroll-reset, fetch, and enter phases. Genre bar disabled during transitions. Zero overhead during idle.
 - Feedback loop: Complete -- like write-back fires 3 concurrent Apple Music calls (addToLibrary + rateAlbum(.love) + favoriteAlbum via POST /v1/me/favorites), dislike writes rateAlbum(.dislike), disliked albums filtered from all feeds, mutual exclusion between like and dislike, error logging on all write-back calls
 - Genre taxonomy: Complete -- 9 super-genres with ~50 subcategories, mapped to real Apple Music genre IDs
-- Genre bar: Complete -- single-row transforming filter bar (genres view OR selected-genre + subcategory pills view), search-based subcategory browsing
+- Genre bar: Complete -- single-row transforming filter bar (genres view OR selected-genre + subcategory pills view), search-based subcategory browsing, disabled during grid transitions
 - Settings: Complete -- Crate Dial position control (half-sheet on iOS, Settings scene on macOS), dial changes regenerate the Crate Wall live with 1s debounce (no app restart required), Feed Diagnostics debug panel (validates favorites/dislikes persistence, mutual exclusion, weight correctness)
 - Album Detail: Redesigned with blurred artwork ambient background, now-playing track indicator, like/dislike buttons in side gutters flanking artwork, streamlined layout
 - Design: Visual design in progress (album detail polished, other views pending)
@@ -58,7 +59,7 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 | Document | Path | Description |
 |----------|------|-------------|
 | PRD | [PRD.md](./PRD.md) | Full product requirements, UX specification, and architecture |
-| Decision Log | [DECISIONS.md](./DECISIONS.md) | 20 architectural decision records (ADR-100 through ADR-119) |
+| Decision Log | [DECISIONS.md](./DECISIONS.md) | 21 architectural decision records (ADR-100 through ADR-120) |
 | README | [README.md](./README.md) | Project overview and getting started |
 
 ## Architecture Summary
@@ -68,6 +69,8 @@ The application has five view areas (Auth, Browse with Crate Wall, Album Detail,
 The default landing experience is the Crate Wall -- an algorithm-driven grid of album art blending five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card), weighted by a user-controllable "Crate Dial" slider persisted to UserDefaults. Genre extraction uses heavy rotation, library albums, and recently played for richer personalization. The wall persists within a session and regenerates on cold launch or when the user adjusts the Crate Dial (with a 1-second debounce to avoid thrashing during slider interaction).
 
 Users can switch to genre-based browsing via the genre bar. Genre feeds use a multi-signal blending system (GenreFeedService) with 6 signals: Personal History (heavy rotation + library filtered to genre), Recommendations (filtered to genre), Trending (charts with random offset), New Releases, Subcategory Rotation (random subcategories for variety), and Seed Expansion (related albums + artist albums from user's favorited seeds). Weights follow the CrateDial system via GenreFeedWeights. Subcategory selection uses the Apple Music Search endpoint for targeted browsing. Both CrateWallService and GenreFeedService share generic utilities from `WeightedInterleave.swift`: `weightedInterleave()` for the interleave algorithm and `distributeByWeight()` for converting fractional weight tables to integer album counts using the largest-remainder method (replacing duplicated implementations in CrateDialWeights and GenreFeedWeights).
+
+Switching between the wall and a genre (or between genres) is animated via a `GridTransitionCoordinator` -- an `@Observable` state machine with four phases: `idle` (passthrough, no overhead), `exiting` (old albums scatter out with staggered scale+fade), `waiting` (scroll resets to top, API fetch runs concurrently, spinner shown if needed), and `entering` (new albums scatter in). `BrowseView` uses a single always-mounted `AlbumGridView` inside a `ZStack` with overlay states (loading, error, empty). During idle, the grid reads albums directly from the wall or genre view model. During transitions, it reads from the coordinator's `displayAlbums`. Each grid item is wrapped in `AnimatedGridItemView`, which reads per-item scale/opacity from the coordinator via `@Environment`. The first 16 items get a staggered scatter effect with interleaved groups and random jitter; items beyond 16 get a bulk fade. All genre selection callbacks route through `coordinator.transition(from:fetch:)`. The genre bar is disabled during transitions to prevent double-tap race conditions. Rapid taps cancel the in-progress transition and start a new one. Animation tuning constants are centralized in `GridTransitionConstants.swift` (`GridTransition` enum).
 
 A feedback loop connects Crate interactions to Apple Music: favoriting an album fires three concurrent API calls -- `addToLibrary` (adds to library), `rateAlbum(.love)` (marks as loved), and `favoriteAlbum` (POST `/v1/me/favorites`, marks with the star icon in Apple Music's Favorites system, iOS 17.1+). Disliking fires `rateAlbum(.dislike)`. All write-back calls use explicit error logging (`do/catch` with print) instead of silent `try?`, so failures are visible in the console. Disliked albums (stored via SwiftData's `DislikedAlbum` model) are filtered from all feeds. Like and dislike are mutually exclusive. This trains Apple Music's recommendation algorithm over time, creating a virtuous cycle where Crate interactions improve the recommendations that feed back into Crate.
 
