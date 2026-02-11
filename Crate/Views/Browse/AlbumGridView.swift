@@ -10,6 +10,7 @@ struct AlbumGridView: View {
     let isLoadingMore: Bool
     let onLoadMore: () -> Void
     var topInset: CGFloat = 0
+    var scrollToTopTrigger: Bool = false
 
     private var columns: [GridItem] {
         #if os(iOS)
@@ -23,32 +24,43 @@ struct AlbumGridView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                Color.black
-                    .frame(height: topInset)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    Color.clear
+                        .frame(height: 0)
+                        .id("grid-top")
 
-                LazyVGrid(columns: columns, spacing: 0) {
-                    ForEach(albums) { album in
-                        NavigationLink(value: album) {
-                            WallGridItemView(album: album)
-                        }
-                        .buttonStyle(.plain)
-                        .onAppear {
-                            if album == albums.last {
-                                onLoadMore()
+                    Color.black
+                        .frame(height: topInset)
+
+                    LazyVGrid(columns: columns, spacing: 0) {
+                        ForEach(Array(albums.enumerated()), id: \.element.id) { index, album in
+                            NavigationLink(value: album) {
+                                AnimatedGridItemView(album: album, index: index)
+                            }
+                            .buttonStyle(.plain)
+                            .onAppear {
+                                if album == albums.last {
+                                    onLoadMore()
+                                }
                             }
                         }
                     }
-                }
 
-                if isLoadingMore {
-                    ProgressView()
-                        .padding()
+                    if isLoadingMore {
+                        ProgressView()
+                            .padding()
+                    }
+                }
+            }
+            .background(.black)
+            .onChange(of: scrollToTopTrigger) {
+                withAnimation(nil) {
+                    proxy.scrollTo("grid-top", anchor: .top)
                 }
             }
         }
-        .background(.black)
     }
 }
 

@@ -10,6 +10,7 @@ struct BrowseView: View {
 
     @State private var viewModel = BrowseViewModel()
     @State private var wallViewModel = CrateWallViewModel()
+    @State private var coordinator = GridTransitionCoordinator()
     @State private var showingSettings = false
     @State private var dialStore = CrateDialStore()
     @Environment(PlaybackViewModel.self) private var playbackViewModel
@@ -41,6 +42,7 @@ struct BrowseView: View {
             wallViewModel.updateExcludedAlbums(viewModel.dislikedAlbumIDs)
             await wallViewModel.generateWallIfNeeded()
         }
+        .environment(coordinator)
     }
 
     // MARK: - Unified Control Bar
@@ -62,20 +64,28 @@ struct BrowseView: View {
                 categories: GenreTaxonomy.categories,
                 selectedCategory: viewModel.selectedCategory,
                 onSelect: { category in
-                    Task {
+                    coordinator.transition(from: currentAlbums) {
                         await viewModel.selectCategory(category)
+                        return viewModel.albums
                     }
                 },
                 onDialTap: {
                     showingSettings = true
                 },
                 onHome: {
-                    viewModel.clearSelection()
+                    coordinator.transition(from: currentAlbums) {
+                        viewModel.clearSelection()
+                        return wallViewModel.albums
+                    }
                 },
                 selectedSubcategoryIDs: viewModel.selectedSubcategoryIDs,
                 onToggleSubcategory: { id in
-                    Task { await viewModel.toggleSubcategory(id) }
-                }
+                    coordinator.transition(from: currentAlbums) {
+                        await viewModel.toggleSubcategory(id)
+                        return viewModel.albums
+                    }
+                },
+                isDisabled: coordinator.isTransitioning
             )
         }
         .background(.ultraThinMaterial.opacity(0.85))
@@ -89,21 +99,74 @@ struct BrowseView: View {
             .padding(.vertical, 8)
     }
 
-    // MARK: - Grid Content
+    // MARK: - Current Albums (reads from coordinator during transition, VMs during idle)
 
-    @ViewBuilder
-    private func gridContent(topInset: CGFloat) -> some View {
-        if viewModel.selectedCategory == nil {
-            wallContent(topInset: topInset)
-        } else {
-            genreBrowseContent(topInset: topInset)
+    private var currentAlbums: [CrateAlbum] {
+        switch coordinator.phase {
+        case .idle:
+            return viewModel.selectedCategory == nil
+                ? wallViewModel.albums
+                : viewModel.albums
+        case .exiting, .waiting, .entering:
+            return coordinator.displayAlbums
         }
     }
 
-    // MARK: - Crate Wall
+    private var currentIsLoadingMore: Bool {
+        viewModel.selectedCategory == nil
+            ? wallViewModel.isLoadingMore
+            : viewModel.isLoadingMore
+    }
+
+    // MARK: - Grid Content (single path — always mounted)
+
+    private func gridContent(topInset: CGFloat) -> some View {
+        ZStack {
+            // Always-mounted grid
+            AlbumGridView(
+                albums: currentAlbums,
+                isLoadingMore: currentIsLoadingMore,
+                onLoadMore: {
+                    Task {
+                        if viewModel.selectedCategory == nil {
+                            await wallViewModel.fetchMoreIfNeeded()
+                        } else {
+                            await viewModel.fetchNextPageIfNeeded()
+                        }
+                    }
+                },
+                topInset: topInset,
+                scrollToTopTrigger: coordinator.scrollToTopTrigger
+            )
+
+            // Overlay states
+            overlayContent
+        }
+    }
+
+    // MARK: - Overlay States
 
     @ViewBuilder
-    private func wallContent(topInset: CGFloat) -> some View {
+    private var overlayContent: some View {
+        if coordinator.showWaitingSpinner {
+            // Transition waiting spinner
+            ProgressView()
+                .tint(.white)
+                .scaleEffect(1.5)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.black)
+        } else if !coordinator.isTransitioning {
+            // Only show loading/error/empty states during idle
+            if viewModel.selectedCategory == nil {
+                wallOverlay
+            } else {
+                genreOverlay
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var wallOverlay: some View {
         if wallViewModel.isLoading {
             LoadingView(message: "Building your crate...")
         } else if let error = wallViewModel.errorMessage {
@@ -119,29 +182,20 @@ struct BrowseView: View {
                 }
                 .buttonStyle(.bordered)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.black)
         } else if wallViewModel.albums.isEmpty {
             EmptyStateView(
                 title: "Your crate is empty",
                 message: "We couldn't find any albums. Try again later."
             )
-        } else {
-            AlbumGridView(
-                albums: wallViewModel.albums,
-                isLoadingMore: wallViewModel.isLoadingMore,
-                onLoadMore: {
-                    Task {
-                        await wallViewModel.fetchMoreIfNeeded()
-                    }
-                },
-                topInset: topInset
-            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.black)
         }
     }
 
-    // MARK: - Genre Browse
-
     @ViewBuilder
-    private func genreBrowseContent(topInset: CGFloat) -> some View {
+    private var genreOverlay: some View {
         if viewModel.isLoading {
             LoadingView(message: "Loading albums...")
         } else if let error = viewModel.errorMessage {
@@ -149,22 +203,15 @@ struct BrowseView: View {
                 title: "Something went wrong",
                 message: error
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.black)
         } else if viewModel.albums.isEmpty && viewModel.selectedCategory != nil {
             EmptyStateView(
                 title: "No albums found",
                 message: "Try selecting a different genre or subcategory."
             )
-        } else {
-            AlbumGridView(
-                albums: viewModel.albums,
-                isLoadingMore: viewModel.isLoadingMore,
-                onLoadMore: {
-                    Task {
-                        await viewModel.fetchNextPageIfNeeded()
-                    }
-                },
-                topInset: topInset
-            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.black)
         }
     }
 }

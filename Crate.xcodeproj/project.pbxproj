@@ -99,6 +99,12 @@
 		CDA2C65DD97BCE4EF8C102B8 /* FeedDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41E72CBBDCB17B924FBA3774 /* FeedDiagnosticsView.swift */; };
 		F37D6AEC4B7D7AF6222FDC2B /* DislikeServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB1A9F1F05CA6AF0EFBF653 /* DislikeServiceTests.swift */; };
 		6D908916D87E55C6B086D33B /* FeedbackLoopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18B0D304B5F8925DFF3A7A9 /* FeedbackLoopTests.swift */; };
+		E2A1B3C4D5E6F7A8B9C0D2E1 /* GridTransitionConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B3C4D5E6F7A8B9C0D1E1 /* GridTransitionConstants.swift */; };
+		E2A1B3C4D5E6F7A8B9C0D3E1 /* GridTransitionConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B3C4D5E6F7A8B9C0D1E1 /* GridTransitionConstants.swift */; };
+		E2A1B3C4D5E6F7A8B9C0D2E2 /* GridTransitionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B3C4D5E6F7A8B9C0D1E2 /* GridTransitionCoordinator.swift */; };
+		E2A1B3C4D5E6F7A8B9C0D3E2 /* GridTransitionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B3C4D5E6F7A8B9C0D1E2 /* GridTransitionCoordinator.swift */; };
+		E2A1B3C4D5E6F7A8B9C0D2E3 /* AnimatedGridItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B3C4D5E6F7A8B9C0D1E3 /* AnimatedGridItemView.swift */; };
+		E2A1B3C4D5E6F7A8B9C0D3E3 /* AnimatedGridItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B3C4D5E6F7A8B9C0D1E3 /* AnimatedGridItemView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -180,6 +186,9 @@
 		41E72CBBDCB17B924FBA3774 /* FeedDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedDiagnosticsView.swift; sourceTree = "<group>"; };
 		BBB1A9F1F05CA6AF0EFBF653 /* DislikeServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DislikeServiceTests.swift; sourceTree = "<group>"; };
 		D18B0D304B5F8925DFF3A7A9 /* FeedbackLoopTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackLoopTests.swift; sourceTree = "<group>"; };
+		E2A1B3C4D5E6F7A8B9C0D1E1 /* GridTransitionConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridTransitionConstants.swift; sourceTree = "<group>"; };
+		E2A1B3C4D5E6F7A8B9C0D1E2 /* GridTransitionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridTransitionCoordinator.swift; sourceTree = "<group>"; };
+		E2A1B3C4D5E6F7A8B9C0D1E3 /* AnimatedGridItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedGridItemView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -227,6 +236,7 @@
 				1748BF975FFA0E81C5222D7B /* AuthViewModel.swift */,
 				1449F397DA9B96CAC8E27C35 /* BrowseViewModel.swift */,
 				A1B2C3D4E5F6A7B8C9D0E1F5 /* CrateWallViewModel.swift */,
+				E2A1B3C4D5E6F7A8B9C0D1E2 /* GridTransitionCoordinator.swift */,
 				0A7C8FA54276C4F9DDDCBEE2 /* PlaybackViewModel.swift */,
 			);
 			path = ViewModels;
@@ -235,8 +245,8 @@
 		330B5FDF2E8EFF5F653A9F19 /* Browse */ = {
 			isa = PBXGroup;
 			children = (
-
 				827F757E10301DFAA718FEDA /* AlbumGridView.swift */,
+				E2A1B3C4D5E6F7A8B9C0D1E3 /* AnimatedGridItemView.swift */,
 				C0EF38353AD0F9C87727F34F /* BrowseView.swift */,
 				3E568C4AF26CD6CCDF589FF4 /* GenreBarView.swift */,
 				A1B2C3D4E5F6A7B8C9D0E1F6 /* WallGridItemView.swift */,
@@ -257,6 +267,7 @@
 			children = (
 				A1B2C3D4E5F6A7B8C9D0E1F3 /* CrateDialStore.swift */,
 				2F9DC97E55FE86FA4EE14786 /* Genres.swift */,
+				E2A1B3C4D5E6F7A8B9C0D1E1 /* GridTransitionConstants.swift */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -557,6 +568,7 @@
 				C2B19AD45472E5483DACD1AF /* AlbumDetailViewModel.swift in Sources */,
 
 				92D68C10E94070B582B6DEE4 /* AlbumGridView.swift in Sources */,
+				E2A1B3C4D5E6F7A8B9C0D2E3 /* AnimatedGridItemView.swift in Sources */,
 				671D1F168FC648B79B3870A3 /* AuthView.swift in Sources */,
 				BE04C0C0ED7287525310E812 /* AuthViewModel.swift in Sources */,
 				EC661EB6958F1CD3FE1EB4C8 /* BrowseView.swift in Sources */,
@@ -580,6 +592,8 @@
 
 				6E7F913408719D1E35406669 /* GenreTaxonomy.swift in Sources */,
 				6D4DFDFF046D5C0791B30B36 /* Genres.swift in Sources */,
+				E2A1B3C4D5E6F7A8B9C0D2E2 /* GridTransitionCoordinator.swift in Sources */,
+				E2A1B3C4D5E6F7A8B9C0D2E1 /* GridTransitionConstants.swift in Sources */,
 				0054BD10545E6C1F0BE596FF /* LoadingView.swift in Sources */,
 
 				C3AC9AC41ADCE6FC84618514 /* MusicService.swift in Sources */,
@@ -603,6 +617,7 @@
 				18CFD0CE7EAFCD08F9A83182 /* AlbumDetailViewModel.swift in Sources */,
 
 				078B9C50128D289C7E910847 /* AlbumGridView.swift in Sources */,
+				E2A1B3C4D5E6F7A8B9C0D3E3 /* AnimatedGridItemView.swift in Sources */,
 				7A65201A04FA603815C45ED7 /* AuthView.swift in Sources */,
 				9F08B9A73370E0A7645F361A /* AuthViewModel.swift in Sources */,
 				B16A46F05C9280746E5EB116 /* BrowseView.swift in Sources */,
@@ -626,6 +641,8 @@
 
 				59909BB3E8CD831392EE3C5E /* GenreTaxonomy.swift in Sources */,
 				C0D9874A724C4067BFDF78F0 /* Genres.swift in Sources */,
+				E2A1B3C4D5E6F7A8B9C0D3E2 /* GridTransitionCoordinator.swift in Sources */,
+				E2A1B3C4D5E6F7A8B9C0D3E1 /* GridTransitionConstants.swift in Sources */,
 				F5D7EB85A00194FA95397A59 /* LoadingView.swift in Sources */,
 				6EFC38FEC56E797B26B1AEA8 /* MacCommands.swift in Sources */,
 

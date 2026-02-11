@@ -16,6 +16,7 @@ struct GenreBarView: View {
     var onHome: (() -> Void)? = nil
     var selectedSubcategoryIDs: Set<String> = []
     var onToggleSubcategory: ((String) -> Void)? = nil
+    var isDisabled: Bool = false
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -93,6 +94,8 @@ struct GenreBarView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 12)
+                .disabled(isDisabled)
+                .opacity(isDisabled ? 0.6 : 1.0)
                 .animation(.easeInOut(duration: 0.2), value: selectedCategory?.id)
             }
         }
