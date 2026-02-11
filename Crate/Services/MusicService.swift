@@ -38,6 +38,9 @@ protocol MusicServiceProtocol: Sendable {
     /// Rate an album (love or dislike) in Apple Music.
     func rateAlbum(id: MusicItemID, rating: LibraryRating) async throws
 
+    /// Mark an album as a Favorite in Apple Music (star icon, iOS 17.1+).
+    func favoriteAlbum(id: MusicItemID) async throws
+
     /// Fetch the user's heavy rotation albums.
     func fetchHeavyRotation(limit: Int) async throws -> [CrateAlbum]
 
@@ -213,6 +216,24 @@ struct MusicService: MusicServiceProtocol {
             "attributes": ["value": rating.rawValue]
         ]
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let request = MusicDataRequest(urlRequest: urlRequest)
+        _ = try await request.response()
+    }
+
+    func favoriteAlbum(id: MusicItemID) async throws {
+        var urlComponents = URLComponents()
+        urlComponents.scheme = "https"
+        urlComponents.host = "api.music.apple.com"
+        urlComponents.path = "/v1/me/favorites"
+        urlComponents.queryItems = [
+            URLQueryItem(name: "ids[albums]", value: id.rawValue),
+        ]
+
+        guard let url = urlComponents.url else { return }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
 
         let request = MusicDataRequest(urlRequest: urlRequest)
         _ = try await request.response()
