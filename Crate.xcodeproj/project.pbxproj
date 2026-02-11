@@ -9,6 +9,10 @@
 /* Begin PBXBuildFile section */
 		0054BD10545E6C1F0BE596FF /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0ECC591B10D4E551B6BA35 /* LoadingView.swift */; };
 		03734A18D75D0BB7375CF460 /* CrateApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65238F1C7C265996E715430E /* CrateApp.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E6B1 /* ArtworkColorExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E6A1 /* ArtworkColorExtractor.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E6C1 /* ArtworkColorExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E6A1 /* ArtworkColorExtractor.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E7B1 /* PlaybackProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E7A1 /* PlaybackProgressBar.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E7C1 /* PlaybackProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E7A1 /* PlaybackProgressBar.swift */; };
 
 		078B9C50128D289C7E910847 /* AlbumGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827F757E10301DFAA718FEDA /* AlbumGridView.swift */; };
 		0AE776891928B987A19910D2 /* Album.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6564F1160F7891E5A0EB0496 /* Album.swift */; };
@@ -189,6 +193,8 @@
 		E2A1B3C4D5E6F7A8B9C0D1E1 /* GridTransitionConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridTransitionConstants.swift; sourceTree = "<group>"; };
 		E2A1B3C4D5E6F7A8B9C0D1E2 /* GridTransitionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridTransitionCoordinator.swift; sourceTree = "<group>"; };
 		E2A1B3C4D5E6F7A8B9C0D1E3 /* AnimatedGridItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedGridItemView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E6A1 /* ArtworkColorExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkColorExtractor.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E7A1 /* PlaybackProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackProgressBar.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -258,6 +264,7 @@
 			isa = PBXGroup;
 			children = (
 				8EEADEB674B4516B5A57969B /* PlaybackFooterView.swift */,
+				A1B2C3D4E5F6A7B8C9D0E7A1 /* PlaybackProgressBar.swift */,
 			);
 			path = Playback;
 			sourceTree = "<group>";
@@ -362,6 +369,7 @@
 		E01EBAC3E70D0E285DD9172F /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				A1B2C3D4E5F6A7B8C9D0E6A1 /* ArtworkColorExtractor.swift */,
 				A1B2C3D4E5F6A7B8C9D0E1F4 /* CrateWallService.swift */,
 				D1A2B3C4E5F6A7B8C9D0E3A1 /* DislikeService.swift */,
 				F15F477BD91295217797621B /* FavoritesService.swift */,
@@ -563,6 +571,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0AE776891928B987A19910D2 /* Album.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E6B1 /* ArtworkColorExtractor.swift in Sources */,
 				4D89103F64DE6D3225AAA47B /* AlbumArtworkView.swift in Sources */,
 				7E458214B05AFC37C425A23C /* AlbumDetailView.swift in Sources */,
 				C2B19AD45472E5483DACD1AF /* AlbumDetailViewModel.swift in Sources */,
@@ -598,6 +607,7 @@
 
 				C3AC9AC41ADCE6FC84618514 /* MusicService.swift in Sources */,
 				E566A3840994EBAC19F5736F /* PlaybackFooterView.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E7B1 /* PlaybackProgressBar.swift in Sources */,
 				FC9CD7A007BEB38F2C7C465A /* PlaybackViewModel.swift in Sources */,
 				B1C2D3E4F5A6B7C8D9E0F1A7 /* SettingsView.swift in Sources */,
 				A8FFCBB26C049A9E649976BE /* TrackListView.swift in Sources */,
@@ -612,6 +622,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				92BABD2A527F4C55075A9E34 /* Album.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E6C1 /* ArtworkColorExtractor.swift in Sources */,
 				AC35A72E290198781D2BAF33 /* AlbumArtworkView.swift in Sources */,
 				E3E4C48987ADECA0A71AE5E6 /* AlbumDetailView.swift in Sources */,
 				18CFD0CE7EAFCD08F9A83182 /* AlbumDetailViewModel.swift in Sources */,
@@ -648,6 +659,7 @@
 
 				4792D0080DAB99B2DFA8C206 /* MusicService.swift in Sources */,
 				623E9FE563B6578E542D63C6 /* PlaybackFooterView.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E7C1 /* PlaybackProgressBar.swift in Sources */,
 				FC30E080F705109825E96B67 /* PlaybackViewModel.swift in Sources */,
 				C1D2E3F4A5B6C7D8E9F0A1B7 /* SettingsView.swift in Sources */,
 				34648EBE4FE7FE7809C734E9 /* TrackListView.swift in Sources */,

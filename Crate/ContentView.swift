@@ -8,7 +8,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            BrowseView()
+            BrowseView(navigationPath: $navigationPath)
         }
         .safeAreaInset(edge: .bottom) {
             PlaybackFooterOverlay(navigationPath: $navigationPath)

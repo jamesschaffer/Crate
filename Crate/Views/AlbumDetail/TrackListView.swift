@@ -7,6 +7,7 @@ struct TrackListView: View {
 
     let tracks: MusicItemCollection<Track>
     var album: CrateAlbum? = nil
+    var tintColor: Color = .accentColor
 
     @Environment(PlaybackViewModel.self) private var playbackViewModel
 
@@ -26,7 +27,7 @@ struct TrackListView: View {
                         if isCurrentlyPlaying(track: track) {
                             Image(systemName: "play.fill")
                                 .font(.caption)
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(tintColor)
                                 .frame(width: 16, alignment: .trailing)
                                 .padding(.trailing, 8)
                         } else {

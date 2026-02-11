@@ -8,6 +8,7 @@ import SwiftData
 /// 2. Filter row — dial label + genre pills, or selected genre ✕ + subcategories
 struct BrowseView: View {
 
+    @Binding var navigationPath: NavigationPath
     @State private var viewModel = BrowseViewModel()
     @State private var wallViewModel = CrateWallViewModel()
     @State private var coordinator = GridTransitionCoordinator()
@@ -54,6 +55,7 @@ struct BrowseView: View {
         return VStack(spacing: 0) {
             // Playback row (when something is playing)
             if playbackViewModel.hasQueue {
+                PlaybackProgressBar()
                 playbackRow
                 Divider()
             }
@@ -94,9 +96,14 @@ struct BrowseView: View {
     // MARK: - Playback Row
 
     private var playbackRow: some View {
-        PlaybackRowContent()
+        PlaybackRowContent(onTap: {
+            if let album = playbackViewModel.nowPlayingAlbum {
+                navigationPath.append(album)
+            }
+        })
             .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
     }
 
     // MARK: - Current Albums (reads from coordinator during transition, VMs during idle)
@@ -217,8 +224,9 @@ struct BrowseView: View {
 }
 
 #Preview {
+    @Previewable @State var path = NavigationPath()
     NavigationStack {
-        BrowseView()
+        BrowseView(navigationPath: $path)
     }
     .environment(PlaybackViewModel())
 }

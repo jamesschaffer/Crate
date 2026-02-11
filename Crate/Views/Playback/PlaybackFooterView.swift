@@ -9,6 +9,11 @@ struct PlaybackRowContent: View {
     var onTap: (() -> Void)? = nil
 
     var body: some View {
+        // Read stateChangeCounter so play/pause icon updates reactively.
+        // Needed because isPlaying reads from ApplicationMusicPlayer
+        // which isn't tracked by @Observable.
+        let _ = viewModel.stateChangeCounter
+
         HStack(spacing: 12) {
             // Tappable area: artwork + track info
             Group {
@@ -75,13 +80,14 @@ struct PlaybackFooterView: View {
         // Read stateChangeCounter to trigger re-renders on player state changes.
         let _ = viewModel.stateChangeCounter
 
-        PlaybackRowContent(onTap: onTap)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
-            .overlay(alignment: .top) {
-                Divider()
-            }
+        VStack(spacing: 0) {
+            PlaybackProgressBar()
+            PlaybackRowContent(onTap: onTap)
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
+        }
+        .background(.ultraThinMaterial)
     }
 }
 

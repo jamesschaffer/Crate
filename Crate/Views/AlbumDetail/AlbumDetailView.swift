@@ -8,6 +8,7 @@ struct AlbumDetailView: View {
     let album: CrateAlbum
 
     @State private var viewModel = AlbumDetailViewModel()
+    @State private var colorExtractor = ArtworkColorExtractor()
     @Environment(PlaybackViewModel.self) private var playbackViewModel
     @Environment(\.modelContext) private var modelContext
 
@@ -95,7 +96,7 @@ struct AlbumDetailView: View {
                             Image(systemName: isPlayingThisAlbum && playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
                                 .font(.title)
                                 .frame(width: 64, height: 64)
-                                .background(Color.black)
+                                .background(colorExtractor.colors.0)
                                 .foregroundStyle(.white)
                                 .clipShape(Circle())
                         }
@@ -117,7 +118,7 @@ struct AlbumDetailView: View {
                     if viewModel.isLoading {
                         LoadingView(message: "Loading tracks...")
                     } else if let tracks = viewModel.tracks {
-                        TrackListView(tracks: tracks, album: album)
+                        TrackListView(tracks: tracks, album: album, tintColor: colorExtractor.colors.0)
                     } else if let error = viewModel.errorMessage {
                         EmptyStateView(title: "Error", message: error)
                     }
@@ -132,6 +133,7 @@ struct AlbumDetailView: View {
         .task {
             viewModel.configure(modelContext: modelContext)
             await viewModel.loadAlbum(album)
+            await colorExtractor.extract(from: album.artwork)
         }
     }
 }

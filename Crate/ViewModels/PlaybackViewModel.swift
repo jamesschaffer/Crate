@@ -55,6 +55,9 @@ final class PlaybackViewModel {
         player.queue.currentEntry != nil
     }
 
+    /// Duration of the currently playing track in seconds.
+    var trackDuration: TimeInterval?
+
     /// Human-readable error if playback fails.
     var errorMessage: String?
 
@@ -62,6 +65,9 @@ final class PlaybackViewModel {
 
     private var stateObservation: AnyCancellable?
     private var queueObservation: AnyCancellable?
+
+    /// Tracks from the most recent play(tracks:) call, used to look up durations.
+    private var currentTracks: MusicItemCollection<Track>?
 
     // A counter that views can observe to trigger re-renders when player state changes.
     // This is needed because ApplicationMusicPlayer publishes via Combine,
@@ -81,6 +87,8 @@ final class PlaybackViewModel {
     /// Play a specific album starting from the first track (or a given track).
     func play(album: Album) async {
         errorMessage = nil
+        currentTracks = nil
+        trackDuration = nil
         do {
             player.queue = [album]
             try await player.play()
@@ -92,6 +100,8 @@ final class PlaybackViewModel {
     /// Play a collection of tracks (e.g., from an album's track list).
     func play(tracks: MusicItemCollection<Track>, startingAt index: Int = 0) async {
         errorMessage = nil
+        currentTracks = tracks
+        trackDuration = tracks[index].duration
         do {
             player.queue = ApplicationMusicPlayer.Queue(for: tracks, startingAt: tracks[index])
             try await player.play()
@@ -156,7 +166,19 @@ final class PlaybackViewModel {
         queueObservation = player.queue.objectWillChange.sink { [weak self] _ in
             Task { @MainActor in
                 self?.stateChangeCounter += 1
+                self?.syncTrackDuration()
             }
+        }
+    }
+
+    /// Match the current queue entry against stored tracks to update duration.
+    private func syncTrackDuration() {
+        guard let title = player.queue.currentEntry?.title,
+              let tracks = currentTracks else {
+            return
+        }
+        if let match = tracks.first(where: { $0.title == title }) {
+            trackDuration = match.duration
         }
     }
 }
