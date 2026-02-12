@@ -39,6 +39,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 124 | [Brand Identity: App Icon, Welcome Screen, and Brand Color](#adr-124-brand-identity-app-icon-welcome-screen-and-brand-color) | Accepted |
 | 125 | [Typed Navigation Path, Scrubber Relocation, and Footer Progress Toggle](#adr-125-typed-navigation-path-scrubber-relocation-and-footer-progress-toggle) | Accepted |
 | 126 | [Codebase Audit — MainActor Isolation, Guard Hardening, macOS Build Fix, Test Coverage, and Concurrency Cleanup](#adr-126-codebase-audit--mainactor-isolation-guard-hardening-macos-build-fix-test-coverage-and-concurrency-cleanup) | Accepted |
+| 127 | [Radio Selection for Crate Dial and Standardized Spinners](#adr-127-radio-selection-for-crate-dial-and-standardized-spinners) | Accepted |
 
 ---
 
@@ -1142,6 +1143,57 @@ An initial attempt to animate the pills using opacity and scaleEffect failed due
 - There are no remaining `try?` patterns in the codebase. All error paths are logged with `[Crate]` prefix.
 
 **What would change this:** If Swift introduced a better pattern for "configure after init" (e.g., if SwiftData's `@ModelContext` macro could be used in services), the `assertionFailure` guards could be removed in favor of compile-time safety. If Apple Music's rate limit became a concern, the parallel subcategory search could be throttled with a semaphore or limited task group concurrency. If the project adopted a dependency injection framework, `MockMusicService` could be replaced by the framework's mocking utilities.
+
+---
+
+## ADR-127: Radio Selection for Crate Dial and Standardized Spinners
+
+**Date:** 2026-02-12
+**Status:** Accepted
+**Refines:** ADR-115 (Crate Wall as Default Landing Experience), ADR-124 (Brand Identity: App Icon, Welcome Screen, and Brand Color)
+
+**Context:** Two UX issues prompted this change:
+
+1. **Slider was imprecise for 5 discrete positions.** The Crate Dial used a continuous `Slider` mapped to 5 discrete positions (My Crate, Curated, Mixed Crate, Deep Dig, Mystery Crate). Users had to drag to approximate positions and the UI converted the continuous value to discrete snap points. The slider obscured the available options -- users could not see all 5 positions at once, read their descriptions, or tap directly to a specific position. A debounce timer (1s) was required to avoid regenerating the wall during drag, adding latency to selection.
+
+2. **Spinners were inconsistent.** The 5 `ProgressView` instances across the app (AuthView x2, BrowseView, AlbumGridView, LoadingView) used different styles -- some were `.tint(.white)` with `.scaleEffect(1.5)`, others used system defaults. This created visual inconsistency and did not align with the brand identity established in ADR-124.
+
+**Decision:**
+
+1. **Replace the Slider with a radio selection list.** SettingsView now renders all 5 `CrateDialPosition.allCases` as tappable rows in a `ForEach`. Each row shows a filled/empty circle indicator (brandPink when selected, secondary when not) alongside the position's title and description. Selection immediately updates `CrateDialStore.position` and fires `onDialChanged` -- no debounce needed since tapping is a discrete action. A `@State selectedPosition` drives the UI because `CrateDialStore` is not `@Observable`. The section title was renamed from "Crate Dial" to "Crate Algorithm Settings" with spectrum labels ("My Personal Taste" at top, "Mystery Selections" at bottom) framing the radio list.
+
+2. **Expand the settings sheet.** The `.presentationDetents` on BrowseView changed from `.medium` to `.large` to accommodate the 5 radio rows with descriptions, which do not fit in a half-sheet.
+
+3. **Rename diagnostics toggle.** The toggle label changed from "Show Feed Diagnostics" / "Hide Diagnostics" to "Show Algorithm Settings" / "Hide Algorithm Settings" for consistency with the new section title.
+
+4. **Bump FeedDiagnosticsView font sizes.** All font sizes in FeedDiagnosticsView were increased one level for readability: `subheadline` to `body` for labels, `caption` to `subheadline` for values, `caption2` to `caption` for tertiary text.
+
+5. **Standardize all ProgressView spinners.** All 5 `ProgressView` instances across the app (AuthView x2, BrowseView, AlbumGridView, LoadingView) now use `.tint(.brandPink)` at the system default size. Removed `.tint(.white)` and `.scaleEffect(1.5)` overrides.
+
+**Alternatives Considered:**
+
+1. **Keep the Slider with better labels.** Adding tick marks or position labels around the slider would improve discoverability, but a slider is fundamentally the wrong control for 5 discrete options. Sliders communicate "continuous range" to users. A radio list communicates "pick one of these options" -- which is the actual interaction.
+
+2. **Segmented picker (`Picker` with `.segmentedStyle()`).** Compact and tappable, but 5 segments with text labels would be too cramped on iPhone. The labels would be truncated or require abbreviation, losing the descriptions that help users understand each position.
+
+3. **Menu picker (`Picker` with `.menuStyle()`).** Hides the options behind a dropdown, requiring a tap to reveal them. The radio list shows all options simultaneously, making the spectrum from "My Personal Taste" to "Mystery Selections" visible at a glance.
+
+**Rationale:**
+
+- A radio list makes all 5 positions visible simultaneously, with titles and descriptions. Users can immediately understand the full spectrum of options and tap directly to their preferred position. This is a better mapping for discrete selection than a continuous slider.
+- Removing the debounce timer eliminates the 1-second lag between selection and wall regeneration. Tapping a radio row is inherently discrete, so no debounce is needed.
+- Standardizing spinners to brandPink completes the brand color rollout from ADR-124. The root `.tint()` modifier does not reach `ProgressView` in all contexts (e.g., when inside sheets or overlays with their own tint), so explicit `.tint(.brandPink)` on each `ProgressView` ensures consistency.
+- The font size bump in FeedDiagnosticsView improves readability of the debug panel, which previously used caption-sized text that was difficult to read on smaller devices.
+- Renaming from "Feed Diagnostics" to "Algorithm Settings" in the toggle label aligns with the new "Crate Algorithm Settings" section title and uses language that is more meaningful to non-developers.
+
+**Consequences:**
+
+- The `sliderValue` state, `debounceTask`, and `onAppear` sync logic are removed from SettingsView. The view is simpler -- `@State selectedPosition` and `CrateDialStore` are the only state.
+- The settings sheet is now full-height (`.large`) on iOS. Users scroll if needed, but the radio list with 5 options, spectrum labels, and diagnostics toggle fits comfortably.
+- Wall regeneration is now immediate on radio tap rather than debounced by 1 second. If the wall generation API is slow, the user sees the loading state immediately after tapping.
+- All spinners across the app now share the same appearance. Any new `ProgressView` added in the future should include `.tint(.brandPink)` for consistency (the root tint may not propagate to all contexts).
+
+**What would change this:** If additional dial positions were added (more than 5), the radio list could become too long and a different control might be warranted (e.g., a picker wheel or segmented control with a separate description area). If `CrateDialStore` became `@Observable`, the `@State selectedPosition` workaround could be removed in favor of direct observation.
 
 ---
 
