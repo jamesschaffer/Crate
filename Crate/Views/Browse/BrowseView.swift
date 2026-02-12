@@ -32,7 +32,9 @@ struct BrowseView: View {
                     AlbumDetailView(album: album)
                 }
         }
+        #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
+        #endif
         .sheet(isPresented: $showingSettings) {
             SettingsView(onDialChanged: {
                 Task {

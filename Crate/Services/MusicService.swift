@@ -193,10 +193,14 @@ struct MusicService: MusicServiceProtocol {
     }
 
     func addToLibrary(albumID: MusicItemID) async throws {
+        #if os(iOS)
         let request = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
         let response = try await request.response()
         guard let album = response.items.first else { return }
         try await MusicLibrary.shared.add(album)
+        #else
+        print("[Crate] addToLibrary not available on macOS")
+        #endif
     }
 
     func rateAlbum(id: MusicItemID, rating: LibraryRating) async throws {

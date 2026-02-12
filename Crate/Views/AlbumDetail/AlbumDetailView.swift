@@ -12,6 +12,15 @@ struct AlbumDetailView: View {
     @Environment(PlaybackViewModel.self) private var playbackViewModel
     @Environment(\.modelContext) private var modelContext
 
+    /// Platform-appropriate background color.
+    private var backgroundColor: Color {
+        #if os(iOS)
+        Color(.systemBackground)
+        #else
+        Color(nsColor: .windowBackgroundColor)
+        #endif
+    }
+
     /// Whether the currently playing album matches this one.
     private var isPlayingThisAlbum: Bool {
         playbackViewModel.nowPlayingAlbum?.id == album.id
@@ -29,7 +38,7 @@ struct AlbumDetailView: View {
                 .ignoresSafeArea()
 
             // Dimming overlay — separate layer so it fills the full screen
-            Color(.systemBackground)
+            backgroundColor
                 .opacity(0.5)
                 .ignoresSafeArea()
 
@@ -97,7 +106,7 @@ struct AlbumDetailView: View {
                             Image(systemName: isPlayingThisAlbum && playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
                                 .font(.title)
                                 .frame(width: 64, height: 64)
-                                .background(colorExtractor.hasExtracted ? colorExtractor.colors.0 : Color(.systemBackground))
+                                .background(colorExtractor.hasExtracted ? colorExtractor.colors.0 : backgroundColor)
                                 .foregroundStyle(colorExtractor.hasExtracted ? .white : .primary)
                                 .clipShape(Circle())
                         }
