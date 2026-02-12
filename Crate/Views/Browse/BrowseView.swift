@@ -14,6 +14,7 @@ struct BrowseView: View {
     @State private var coordinator = GridTransitionCoordinator()
     @State private var showingSettings = false
     @State private var dialStore = CrateDialStore()
+    @State private var showControlBar = false
     @Environment(PlaybackViewModel.self) private var playbackViewModel
     @Environment(\.modelContext) private var modelContext
 
@@ -22,7 +23,10 @@ struct BrowseView: View {
             gridContent(topInset: geometry.safeAreaInsets.top)
                 .ignoresSafeArea(edges: .top)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    controlBar
+                    if showControlBar {
+                        controlBar(bottomSafeArea: geometry.safeAreaInsets.bottom)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
                 .navigationDestination(for: CrateAlbum.self) { album in
                     AlbumDetailView(album: album)
@@ -42,13 +46,19 @@ struct BrowseView: View {
             viewModel.loadDislikedIDs()
             wallViewModel.updateExcludedAlbums(viewModel.dislikedAlbumIDs)
             await wallViewModel.generateWallIfNeeded()
+            if !showControlBar {
+                try? await Task.sleep(for: .milliseconds(400))
+                withAnimation(.spring(duration: 0.5, bounce: 0.15)) {
+                    showControlBar = true
+                }
+            }
         }
         .environment(coordinator)
     }
 
     // MARK: - Unified Control Bar
 
-    private var controlBar: some View {
+    private func controlBar(bottomSafeArea: CGFloat) -> some View {
         // Read stateChangeCounter so playback row updates reactively.
         let _ = playbackViewModel.stateChangeCounter
 
@@ -90,6 +100,7 @@ struct BrowseView: View {
                 isDisabled: coordinator.isTransitioning
             )
         }
+        .padding(.bottom, bottomSafeArea)
         .background(.ultraThinMaterial.opacity(0.85))
     }
 
