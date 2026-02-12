@@ -27,7 +27,10 @@ final class FavoritesService {
         artistName: String,
         artworkURL: String?
     ) {
-        guard let ctx = modelContext else { return }
+        guard let ctx = modelContext else {
+            assertionFailure("[Crate] FavoritesService.addFavorite called before configure(modelContext:)")
+            return
+        }
 
         let favorite = FavoriteAlbum(
             albumID: albumID,
@@ -43,7 +46,10 @@ final class FavoritesService {
     /// Remove an album from favorites by its Apple Music ID.
     @MainActor
     func removeFavorite(albumID: String) {
-        guard let ctx = modelContext else { return }
+        guard let ctx = modelContext else {
+            assertionFailure("[Crate] FavoritesService.removeFavorite called before configure(modelContext:)")
+            return
+        }
 
         let predicate = #Predicate<FavoriteAlbum> { $0.albumID == albumID }
         let descriptor = FetchDescriptor(predicate: predicate)
@@ -60,7 +66,10 @@ final class FavoritesService {
     /// Check if an album is in favorites.
     @MainActor
     func isFavorite(albumID: String) -> Bool {
-        guard let ctx = modelContext else { return false }
+        guard let ctx = modelContext else {
+            assertionFailure("[Crate] FavoritesService.isFavorite called before configure(modelContext:)")
+            return false
+        }
 
         let predicate = #Predicate<FavoriteAlbum> { $0.albumID == albumID }
         let descriptor = FetchDescriptor(predicate: predicate)
@@ -72,7 +81,10 @@ final class FavoritesService {
     /// Fetch all favorite albums, newest first.
     @MainActor
     func fetchAll() -> [FavoriteAlbum] {
-        guard let ctx = modelContext else { return [] }
+        guard let ctx = modelContext else {
+            assertionFailure("[Crate] FavoritesService.fetchAll called before configure(modelContext:)")
+            return []
+        }
 
         var descriptor = FetchDescriptor<FavoriteAlbum>(
             sortBy: [SortDescriptor(\.dateAdded, order: .reverse)]

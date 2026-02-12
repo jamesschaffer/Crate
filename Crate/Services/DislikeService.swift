@@ -26,7 +26,10 @@ final class DislikeService {
         artistName: String,
         artworkURL: String?
     ) {
-        guard let ctx = modelContext else { return }
+        guard let ctx = modelContext else {
+            assertionFailure("[Crate] DislikeService.addDislike called before configure(modelContext:)")
+            return
+        }
 
         let disliked = DislikedAlbum(
             albumID: albumID,
@@ -42,7 +45,10 @@ final class DislikeService {
     /// Remove an album from the disliked list.
     @MainActor
     func removeDislike(albumID: String) {
-        guard let ctx = modelContext else { return }
+        guard let ctx = modelContext else {
+            assertionFailure("[Crate] DislikeService.removeDislike called before configure(modelContext:)")
+            return
+        }
 
         let predicate = #Predicate<DislikedAlbum> { $0.albumID == albumID }
         let descriptor = FetchDescriptor(predicate: predicate)
@@ -59,7 +65,10 @@ final class DislikeService {
     /// Check if an album is disliked.
     @MainActor
     func isDisliked(albumID: String) -> Bool {
-        guard let ctx = modelContext else { return false }
+        guard let ctx = modelContext else {
+            assertionFailure("[Crate] DislikeService.isDisliked called before configure(modelContext:)")
+            return false
+        }
 
         let predicate = #Predicate<DislikedAlbum> { $0.albumID == albumID }
         let descriptor = FetchDescriptor(predicate: predicate)
@@ -71,7 +80,10 @@ final class DislikeService {
     /// Fetch all disliked album IDs for efficient feed filtering.
     @MainActor
     func fetchAllDislikedIDs() -> Set<String> {
-        guard let ctx = modelContext else { return [] }
+        guard let ctx = modelContext else {
+            assertionFailure("[Crate] DislikeService.fetchAllDislikedIDs called before configure(modelContext:)")
+            return []
+        }
 
         let descriptor = FetchDescriptor<DislikedAlbum>()
         let items = (try? ctx.fetch(descriptor)) ?? []
