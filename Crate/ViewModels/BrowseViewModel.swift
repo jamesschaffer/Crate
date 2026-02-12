@@ -225,11 +225,11 @@ final class BrowseViewModel {
                 return results
             }
 
-            // Deduplicate against existing albums and within the batch.
-            // Also filter out disliked albums.
+            // Filter to selected genre, deduplicate, and exclude dislikes.
+            let genreFiltered = filterToSelectedGenre(allFetched)
             let dislikedMusicIDs = Set(dislikedAlbumIDs.map { MusicItemID($0) })
             var seen = Set(albums.map(\.id)).union(dislikedMusicIDs)
-            let unique = allFetched.filter { seen.insert($0.id).inserted }
+            let unique = genreFiltered.filter { seen.insert($0.id).inserted }
 
             if offset == 0 { albums = unique } else { albums.append(contentsOf: unique) }
             hasMorePages = allFetched.count >= perSubLimit
@@ -240,5 +240,18 @@ final class BrowseViewModel {
 
         isLoading = false
         isLoadingMore = false
+    }
+
+    /// Filter albums to those matching the selected parent genre or its subcategories.
+    /// Ensures search results don't leak cross-genre albums (e.g. "Classic Rock" in "Classic Soul").
+    private func filterToSelectedGenre(_ albums: [CrateAlbum]) -> [CrateAlbum] {
+        guard let genre = selectedCategory else { return albums }
+        let genreNameSet = Set([genre.name.lowercased()] + genre.subcategories.map { $0.name.lowercased() })
+        return albums.filter { album in
+            album.genreNames.contains { name in
+                genreNameSet.contains(name.lowercased()) ||
+                name.localizedCaseInsensitiveContains(genre.name)
+            }
+        }
     }
 }
