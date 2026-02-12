@@ -69,6 +69,7 @@ struct AlbumDetailView: View {
                         Text(album.artistName)
                             .font(.title3)
                             .foregroundStyle(.secondaryText)
+                            .multilineTextAlignment(.center)
                     }
 
                     // Transport controls: prev — play/pause — next
