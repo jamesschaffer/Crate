@@ -5,6 +5,7 @@ import Testing
 struct BrowseViewModelTests {
 
     @Test("Initial state has no selected category")
+    @MainActor
     func initialState() {
         let vm = BrowseViewModel()
         #expect(vm.selectedCategory == nil)
@@ -15,6 +16,7 @@ struct BrowseViewModelTests {
     }
 
     @Test("Toggling a subcategory adds and removes it")
+    @MainActor
     func subcategoryToggle() async {
         let vm = BrowseViewModel()
         // Toggling without a selected category won't fetch, but state should update.

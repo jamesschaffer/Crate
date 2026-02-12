@@ -6,6 +6,7 @@ import Observation
 ///
 /// Owned as `@State` on BrowseView so it persists within a session
 /// (survives navigation push/pop) but resets on cold launch.
+@MainActor
 @Observable
 final class CrateWallViewModel {
 

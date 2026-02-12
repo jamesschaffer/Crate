@@ -9,6 +9,7 @@ import SwiftData
 /// - **Parent genre** (no subcategories): multi-signal blended feed via GenreFeedService.
 /// - **Subcategories selected**: search albums via `/search` endpoint, one query
 ///   per subcategory, merged and deduplicated.
+@MainActor
 @Observable
 final class BrowseViewModel {
 
@@ -81,13 +82,11 @@ final class BrowseViewModel {
     // MARK: - Actions
 
     /// Load disliked album IDs (call once at view appear).
-    @MainActor
     func loadDislikedIDs() {
         dislikedAlbumIDs = dislikeService.fetchAllDislikedIDs()
     }
 
     /// Select a top-level genre category and fetch its albums.
-    @MainActor
     func selectCategory(_ category: GenreCategory) async {
         selectedCategory = category
         selectedSubcategoryIDs = []
@@ -95,7 +94,6 @@ final class BrowseViewModel {
     }
 
     /// Toggle a subcategory on/off and run a fresh query.
-    @MainActor
     func toggleSubcategory(_ subcategoryID: String) async {
         if selectedSubcategoryIDs.contains(subcategoryID) {
             selectedSubcategoryIDs.remove(subcategoryID)
@@ -117,7 +115,6 @@ final class BrowseViewModel {
     }
 
     /// Fetch the next page of albums (called when the user scrolls near the bottom).
-    @MainActor
     func fetchNextPageIfNeeded() async {
         guard !isLoadingMore, hasMorePages else { return }
         if !selectedSubcategoryIDs.isEmpty {
@@ -130,7 +127,6 @@ final class BrowseViewModel {
     // MARK: - Private
 
     /// Clear current albums and fetch from offset 0.
-    @MainActor
     private func resetAndFetch() async {
         albums = []
         existingIDs = []
@@ -148,7 +144,6 @@ final class BrowseViewModel {
     // MARK: - Genre Feed (blended multi-signal)
 
     /// Build a GenreFeedService for the current genre and settings.
-    @MainActor
     private func makeGenreFeedService() -> GenreFeedService? {
         guard let genre = selectedCategory else { return nil }
 
@@ -165,7 +160,6 @@ final class BrowseViewModel {
     }
 
     /// Fetch the initial genre feed (~50 albums).
-    @MainActor
     private func fetchGenreFeedInitial() async {
         guard let feedService = makeGenreFeedService() else {
             albums = []
@@ -183,7 +177,6 @@ final class BrowseViewModel {
     }
 
     /// Fetch more genre feed albums for infinite scroll (~25 albums).
-    @MainActor
     private func fetchGenreFeedPage() async {
         guard let feedService = makeGenreFeedService() else { return }
 
@@ -201,7 +194,6 @@ final class BrowseViewModel {
 
     /// Fetch albums by searching for each selected subcategory name.
     /// Runs one query per subcategory, merges and deduplicates results.
-    @MainActor
     private func fetchSubcategoryAlbums(offset: Int) async {
         let subcatNames = selectedSubcategoryIDs.compactMap {
             GenreTaxonomy.subcategory(withID: $0)?.name

@@ -4,6 +4,7 @@ import Observation
 import SwiftData
 
 /// Manages state for the Album Detail screen: tracks, favorite toggle, dislike toggle, metadata.
+@MainActor
 @Observable
 final class AlbumDetailViewModel {
 
@@ -55,7 +56,6 @@ final class AlbumDetailViewModel {
     // MARK: - Actions
 
     /// Load album details: tracks, favorite state, and dislike state.
-    @MainActor
     func loadAlbum(_ album: CrateAlbum) async {
         self.album = album
         isLoading = true
@@ -78,7 +78,6 @@ final class AlbumDetailViewModel {
     /// Toggle whether this album is a favorite.
     /// When favoriting: also adds to Apple Music library and rates as love.
     /// When unfavoriting: only removes from local SwiftData (non-destructive).
-    @MainActor
     func toggleFavorite() {
         guard let album else { return }
 
@@ -117,7 +116,6 @@ final class AlbumDetailViewModel {
     /// Toggle whether this album is disliked.
     /// When disliking: rates as dislike in Apple Music.
     /// When un-disliking: only removes from local SwiftData (non-destructive).
-    @MainActor
     func toggleDislike() {
         guard let album else { return }
 

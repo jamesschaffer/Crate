@@ -8,6 +8,7 @@ import Combine
 ///
 /// Injected into the environment at the app level so any view
 /// (mini-player, album detail, etc.) can observe and control playback.
+@MainActor
 @Observable
 final class PlaybackViewModel {
 

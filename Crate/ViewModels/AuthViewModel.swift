@@ -6,6 +6,7 @@ import Observation
 ///
 /// This is injected into the environment at the app level so any view
 /// can check whether the user has granted music access.
+@MainActor
 @Observable
 final class AuthViewModel {
 
