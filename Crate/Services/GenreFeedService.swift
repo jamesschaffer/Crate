@@ -71,7 +71,7 @@ struct GenreFeedService: Sendable {
                 group.addTask {
                     let offset = Int.random(in: 0...50)
                     let albums = await self.fetchChartsSafe(genreID: self.genre.appleMusicID, limit: trendingCount + 5, offset: offset)
-                    return (.trending, albums)
+                    return (.trending, self.filterToGenre(albums))
                 }
             }
 
@@ -79,7 +79,7 @@ struct GenreFeedService: Sendable {
             if newRelCount > 0 {
                 group.addTask {
                     let albums = await self.fetchNewReleasesSafe(genreID: self.genre.appleMusicID, limit: newRelCount + 5)
-                    return (.newReleases, albums)
+                    return (.newReleases, self.filterToGenre(albums))
                 }
             }
 
@@ -90,7 +90,7 @@ struct GenreFeedService: Sendable {
                 for subcat in subcats {
                     group.addTask {
                         let albums = await self.fetchChartsSafe(genreID: subcat.appleMusicID, limit: perSubcat, offset: 0)
-                        return (.subcategoryRotation, albums)
+                        return (.subcategoryRotation, self.filterToGenre(albums))
                     }
                 }
             }
@@ -115,7 +115,7 @@ struct GenreFeedService: Sendable {
                         } catch {
                             print("[Crate] GenreFeed fetchAlbumsByArtist failed for \(seed.artistName): \(error)")
                         }
-                        return (.seedExpansion, albums)
+                        return (.seedExpansion, self.filterToGenre(albums))
                     }
                 }
             }
