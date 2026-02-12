@@ -114,6 +114,12 @@ struct AlbumDetailView: View {
                     }
                     .padding(.vertical, 4)
 
+                    // Scrubber (only when playing this album)
+                    if isPlayingThisAlbum {
+                        PlaybackScrubber(gradientColors: colorExtractor.colors)
+                            .transition(.opacity)
+                    }
+
                     // Track list
                     if viewModel.isLoading {
                         LoadingView(message: "Loading tracks...")
@@ -124,6 +130,7 @@ struct AlbumDetailView: View {
                     }
                 }
                 .padding(12)
+                .animation(.easeInOut(duration: 0.35), value: isPlayingThisAlbum)
             }
         }
         .navigationTitle(album.title)

@@ -49,6 +49,8 @@
 		A1B2C3D4E5F6A7B8C9D0E6C1 /* ArtworkColorExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E6A1 /* ArtworkColorExtractor.swift */; };
 		A1B2C3D4E5F6A7B8C9D0E7B1 /* PlaybackProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E7A1 /* PlaybackProgressBar.swift */; };
 		A1B2C3D4E5F6A7B8C9D0E7C1 /* PlaybackProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E7A1 /* PlaybackProgressBar.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E8B1 /* PlaybackScrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E8A1 /* PlaybackScrubber.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E8C1 /* PlaybackScrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E8A1 /* PlaybackScrubber.swift */; };
 		A429358E5AC6E9F673DB8322 /* FavoritesServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFDE8244CA744240D6D8F64B /* FavoritesServiceTests.swift */; };
 		A8FFCBB26C049A9E649976BE /* TrackListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 975D9BBC7D1F9C9C2C703FB8 /* TrackListView.swift */; };
 		AC35A72E290198781D2BAF33 /* AlbumArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08D5F4EF8CD16C1AD3CAF1C6 /* AlbumArtworkView.swift */; };
@@ -166,6 +168,7 @@
 		A1B2C3D4E5F6A7B8C9D0E1F7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8C9D0E6A1 /* ArtworkColorExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkColorExtractor.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8C9D0E7A1 /* PlaybackProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackProgressBar.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E8A1 /* PlaybackScrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackScrubber.swift; sourceTree = "<group>"; };
 		B9812D56793559E3EE89FECB /* Crate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Crate.app; path = "Crate-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBB1A9F1F05CA6AF0EFBF653 /* DislikeServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DislikeServiceTests.swift; sourceTree = "<group>"; };
 		BFDE8244CA744240D6D8F64B /* FavoritesServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesServiceTests.swift; sourceTree = "<group>"; };
@@ -256,6 +259,7 @@
 			children = (
 				8EEADEB674B4516B5A57969B /* PlaybackFooterView.swift */,
 				A1B2C3D4E5F6A7B8C9D0E7A1 /* PlaybackProgressBar.swift */,
+				A1B2C3D4E5F6A7B8C9D0E8A1 /* PlaybackScrubber.swift */,
 			);
 			path = Playback;
 			sourceTree = "<group>";
@@ -597,6 +601,7 @@
 				C3AC9AC41ADCE6FC84618514 /* MusicService.swift in Sources */,
 				E566A3840994EBAC19F5736F /* PlaybackFooterView.swift in Sources */,
 				A1B2C3D4E5F6A7B8C9D0E7B1 /* PlaybackProgressBar.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E8B1 /* PlaybackScrubber.swift in Sources */,
 				FC9CD7A007BEB38F2C7C465A /* PlaybackViewModel.swift in Sources */,
 				B1C2D3E4F5A6B7C8D9E0F1A7 /* SettingsView.swift in Sources */,
 				A8FFCBB26C049A9E649976BE /* TrackListView.swift in Sources */,
@@ -646,6 +651,7 @@
 				4792D0080DAB99B2DFA8C206 /* MusicService.swift in Sources */,
 				623E9FE563B6578E542D63C6 /* PlaybackFooterView.swift in Sources */,
 				A1B2C3D4E5F6A7B8C9D0E7C1 /* PlaybackProgressBar.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E8C1 /* PlaybackScrubber.swift in Sources */,
 				FC30E080F705109825E96B67 /* PlaybackViewModel.swift in Sources */,
 				C1D2E3F4A5B6C7D8E9F0A1B7 /* SettingsView.swift in Sources */,
 				34648EBE4FE7FE7809C734E9 /* TrackListView.swift in Sources */,

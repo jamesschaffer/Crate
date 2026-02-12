@@ -4,7 +4,7 @@ import SwiftUI
 /// NavigationStack and overlays the persistent playback footer at the bottom.
 struct ContentView: View {
 
-    @State private var navigationPath = NavigationPath()
+    @State private var navigationPath: [CrateAlbum] = []
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -21,22 +21,23 @@ struct ContentView: View {
 private struct PlaybackFooterOverlay: View {
 
     @Environment(PlaybackViewModel.self) private var playbackViewModel
-    @Binding var navigationPath: NavigationPath
+    @Binding var navigationPath: [CrateAlbum]
 
     var body: some View {
         let _ = playbackViewModel.stateChangeCounter
 
         if playbackViewModel.hasQueue && !navigationPath.isEmpty {
-            PlaybackFooterView(onTap: navigateToNowPlaying)
+            let isViewingNowPlaying = navigationPath.last?.id == playbackViewModel.nowPlayingAlbum?.id
+            PlaybackFooterView(showProgressBar: !isViewingNowPlaying, onTap: navigateToNowPlaying)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .animation(.easeInOut(duration: 0.3), value: playbackViewModel.hasQueue)
         }
     }
 
     private func navigateToNowPlaying() {
-        if let album = playbackViewModel.nowPlayingAlbum {
-            navigationPath.append(album)
-        }
+        guard let album = playbackViewModel.nowPlayingAlbum,
+              navigationPath.last?.id != album.id else { return }
+        navigationPath.append(album)
     }
 }
 

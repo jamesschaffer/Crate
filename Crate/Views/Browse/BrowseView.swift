@@ -8,7 +8,7 @@ import SwiftData
 /// 2. Filter row — dial label + genre pills, or selected genre ✕ + subcategories
 struct BrowseView: View {
 
-    @Binding var navigationPath: NavigationPath
+    @Binding var navigationPath: [CrateAlbum]
     @State private var viewModel = BrowseViewModel()
     @State private var wallViewModel = CrateWallViewModel()
     @State private var coordinator = GridTransitionCoordinator()
@@ -235,7 +235,7 @@ struct BrowseView: View {
 }
 
 #Preview {
-    @Previewable @State var path = NavigationPath()
+    @Previewable @State var path: [CrateAlbum] = []
     NavigationStack {
         BrowseView(navigationPath: $path)
     }

@@ -74,6 +74,7 @@ struct PlaybackRowContent: View {
 struct PlaybackFooterView: View {
 
     @Environment(PlaybackViewModel.self) private var viewModel
+    var showProgressBar: Bool = true
     var onTap: () -> Void = {}
 
     var body: some View {
@@ -81,7 +82,9 @@ struct PlaybackFooterView: View {
         let _ = viewModel.stateChangeCounter
 
         VStack(spacing: 0) {
-            PlaybackProgressBar()
+            if showProgressBar {
+                PlaybackProgressBar()
+            }
             PlaybackRowContent(onTap: onTap)
                 .padding(.horizontal)
                 .padding(.top, 8)
