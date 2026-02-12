@@ -37,6 +37,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 122 | [Staggered Slide Animation for Genre Bar Pills](#adr-122-staggered-slide-animation-for-genre-bar-pills) | Accepted |
 | 123 | [Slide-Up Control Bar on Launch + AlbumCrate Rename](#adr-123-slide-up-control-bar-on-launch--albumcrate-rename) | Accepted |
 | 124 | [Brand Identity: App Icon, Welcome Screen, and Brand Color](#adr-124-brand-identity-app-icon-welcome-screen-and-brand-color) | Accepted |
+| 125 | [Typed Navigation Path, Scrubber Relocation, and Footer Progress Toggle](#adr-125-typed-navigation-path-scrubber-relocation-and-footer-progress-toggle) | Accepted |
 
 ---
 
@@ -1018,6 +1019,74 @@ An initial attempt to animate the pills using opacity and scaleEffect failed due
 - The `AuthView` now forces dark mode via `.preferredColorScheme(.dark)`. This is intentional for the welcome screen but does not affect the rest of the app (ContentView does not set a preferred color scheme).
 
 **What would change this:** If the brand identity evolves (different color, different logo), the changes are centralized: `AppColors.swift` for the color, Assets.xcassets for the icon and image assets, and `AuthView` for the welcome screen layout. No scatter across the codebase.
+
+---
+
+## ADR-125: Typed Navigation Path, Scrubber Relocation, and Footer Progress Toggle
+
+**Date:** 2026-02-12
+**Status:** Accepted
+**Refines:** ADR-121 (Now-Playing Progress Bar with Artwork-Derived Gradient), ADR-119 (ContentView Playback Observation Isolation)
+
+**Context:** Three related issues prompted this change:
+
+1. **Duplicate navigation.** `NavigationPath` is type-erased, making it impossible to inspect its contents. `PlaybackFooterOverlay.navigateToNowPlaying()` could push the same album onto the stack multiple times because there was no way to check whether the album was already at the top. Users tapping the footer while already viewing the now-playing album would stack duplicate detail views.
+
+2. **Footer scrubber was too small for reliable interaction.** The `PlaybackProgressBar` in the footer provided a 4pt-to-8pt drag target. On a mini-player row that competes with the play/pause button and track info tap target, the scrubber was difficult to hit consistently. The footer's primary job is showing progress at a glance and navigating to the album -- not precise scrubbing.
+
+3. **Duplicate progress bars.** When viewing the now-playing album's detail page, the footer progress bar was visible simultaneously with whatever progress UI appeared on the detail view. Two bars tracking the same playback felt redundant and cluttered.
+
+**Decision:**
+
+1. **Replace `NavigationPath` with a typed `[CrateAlbum]` array** in `ContentView` and `BrowseView`. This makes the path inspectable so `PlaybackFooterOverlay.navigateToNowPlaying()` can guard against pushing the same album by checking `navigationPath.last?.id`.
+
+2. **Create a dedicated `PlaybackScrubber` component** (`Crate/Views/Playback/PlaybackScrubber.swift`) and place it in `AlbumDetailView` between the transport controls and the track list. The scrubber uses the same artwork-derived gradient from `ArtworkColorExtractor` with rounded corners, a 54pt touch target height, and 6-to-12px visual height expansion on touch for tactile feedback. It only appears when the user is viewing the currently-playing album (`isPlayingThisAlbum`).
+
+3. **Make the footer progress bar visual-only.** Remove the `DragGesture` from `PlaybackProgressBar` so it serves purely as a non-interactive progress indicator. Scrubbing is now exclusively available on the Album Detail view where there is ample space.
+
+4. **Add a `showProgressBar` parameter to `PlaybackFooterView`** (defaults to `true`). When `AlbumDetailView` detects it is showing the now-playing album, the footer hides its progress bar to avoid the duplicate-bar problem.
+
+5. **Animate the scrubber appearance** with `.transition(.opacity)` and `.animation(.easeInOut(duration: 0.35))` scoped to `isPlayingThisAlbum`, so the scrubber fades in smoothly when the user navigates to the now-playing album.
+
+**Architecture:**
+
+- **Typed navigation path**: `ContentView` declares `@State private var navigationPath: [CrateAlbum] = []` instead of `NavigationPath()`. The `NavigationStack(path:)` binding uses this typed array. `BrowseView` accepts `@Binding var navigationPath: [CrateAlbum]`. `PlaybackFooterOverlay.navigateToNowPlaying()` checks `navigationPath.last?.id == album.id` before appending, preventing duplicate pushes.
+
+- **PlaybackScrubber** (`Crate/Views/Playback/PlaybackScrubber.swift`): A standalone view that accepts `PlaybackViewModel` and `ArtworkColorExtractor` and renders a scrub-capable progress bar. Uses `DragGesture` with a 54pt frame height for reliable touch targeting. The visual bar expands from 6pt to 12pt during active scrubbing with a spring animation. The gradient fill uses the same two-color artwork-derived gradient as the footer progress bar. On drag end, calls `PlaybackViewModel.seek(to:)`. Placed in `AlbumDetailView` between the transport controls row and `TrackListView`.
+
+- **PlaybackProgressBar simplification**: The `DragGesture`, scrub state (`isScrubbing`, `scrubProgress`), and haptic feedback code are removed from `PlaybackProgressBar`. It retains the gradient fill, 0.5s timer-driven progress updates, and artwork color extraction -- it simply no longer responds to touch.
+
+- **PlaybackFooterView `showProgressBar` parameter**: `PlaybackFooterView` accepts `showProgressBar: Bool = true`. When `false`, the `PlaybackProgressBar` is omitted from the VStack. `AlbumDetailView` (via `PlaybackFooterOverlay` or the parent view) passes `showProgressBar: false` when `isPlayingThisAlbum` is true.
+
+- **Scrubber animation**: The scrubber is wrapped in an `if isPlayingThisAlbum` conditional with `.transition(.opacity)` and `.animation(.easeInOut(duration: 0.35), value: isPlayingThisAlbum)`. This produces a smooth fade-in when the user navigates to the now-playing album and a fade-out when they navigate away.
+
+**Alternatives Considered:**
+
+1. **Keep `NavigationPath` and maintain a separate shadow array for dedup.** Would work but adds a parallel data structure that must be kept in sync with the actual navigation state. A typed array eliminates the need for a shadow copy -- the path itself is the source of truth.
+
+2. **Keep scrubbing in the footer but increase the touch target.** Expanding the footer's drag area would conflict with the play/pause button and track info row. The footer is spatially constrained. Moving scrubbing to the detail view provides a dedicated, full-width interaction area.
+
+3. **Always show the footer progress bar, even on the now-playing album page.** The two bars track identical progress and create visual noise. Hiding the footer bar when the detail scrubber is visible keeps the UI clean.
+
+4. **Use `matchedGeometryEffect` to morph the footer bar into the detail scrubber.** Visually interesting but adds significant complexity for a transition the user may not even notice. The simple hide/show approach is pragmatic.
+
+**Rationale:**
+
+- A typed `[CrateAlbum]` array provides compile-time safety and inspectability that `NavigationPath` cannot. The only trade-off is that the path can only contain `CrateAlbum` values, which is the only navigation destination in the app. If additional destination types are needed in the future, a typed enum can replace the array.
+- Relocating the scrubber to the Album Detail view gives it a full-width interaction area (minus side padding) instead of competing with the footer's compact layout. The 54pt touch target meets Apple's Human Interface Guidelines minimum of 44pt with room to spare.
+- Making the footer bar visual-only simplifies its implementation (no gesture handling, no scrub state) and clarifies its role: a progress-at-a-glance indicator, not an interaction surface.
+- The `showProgressBar` parameter is a minimal API change that keeps `PlaybackFooterView` reusable. Callers that do not pass the parameter get the default behavior (bar visible).
+- The 0.35s ease-in-out animation for scrubber appearance is subtle enough not to delay interaction but visible enough to signal the transition from "viewing an album" to "viewing the now-playing album."
+
+**Consequences:**
+
+- `NavigationPath` is no longer used anywhere. All navigation is through the typed `[CrateAlbum]` array. If the app later needs to navigate to non-album destinations (e.g., artist pages, playlists), the path type would need to change to an enum or `NavigationPath` would need to be reintroduced.
+- `PlaybackProgressBar` no longer handles touch. Any code that expected the footer bar to be scrubbable will find it is now display-only.
+- `PlaybackScrubber` is a new file that must be added to both iOS and macOS build phases in the Xcode project.
+- The footer progress bar is conditionally hidden on the now-playing album's detail page. If the user navigates to a different album's detail page while music is playing, the footer bar remains visible (since the detail view's scrubber only appears for the currently-playing album).
+- `BrowseView` now receives `@Binding var navigationPath: [CrateAlbum]` instead of `@Binding var navigationPath: NavigationPath`, which changes its initialization signature.
+
+**What would change this:** If the app introduced additional navigation destinations (artist pages, playlist views), the typed `[CrateAlbum]` array would need to become either an enum-based typed array or revert to `NavigationPath` with a separate dedup mechanism. If Apple improved `NavigationPath` to support content inspection in a future SwiftUI release, the typed array could be replaced. If user feedback indicated that scrubbing in the footer was important (e.g., for quick scrubbing without opening the detail view), a larger footer scrub target could be reconsidered.
 
 ---
 
