@@ -84,7 +84,10 @@ struct MusicService: MusicServiceProtocol {
             URLQueryItem(name: "types", value: "albums"),
         ]
 
-        guard let url = urlComponents.url else { return [] }
+        guard let url = urlComponents.url else {
+            print("[Crate] URL construction failed for \(urlComponents.path)")
+            return []
+        }
 
         let request = MusicDataRequest(urlRequest: URLRequest(url: url))
         let response = try await request.response()
@@ -112,7 +115,10 @@ struct MusicService: MusicServiceProtocol {
             URLQueryItem(name: "limit", value: "\(limit)"),
         ]
 
-        guard let url = urlComponents.url else { return [] }
+        guard let url = urlComponents.url else {
+            print("[Crate] URL construction failed for \(urlComponents.path)")
+            return []
+        }
 
         let request = MusicDataRequest(urlRequest: URLRequest(url: url))
         let response = try await request.response()
@@ -153,7 +159,10 @@ struct MusicService: MusicServiceProtocol {
             URLQueryItem(name: "offset", value: "\(offset)"),
         ]
 
-        guard let url = urlComponents.url else { return [] }
+        guard let url = urlComponents.url else {
+            print("[Crate] URL construction failed for \(urlComponents.path)")
+            return []
+        }
 
         let request = MusicDataRequest(urlRequest: URLRequest(url: url))
         let response = try await request.response()
@@ -209,7 +218,10 @@ struct MusicService: MusicServiceProtocol {
         urlComponents.host = "api.music.apple.com"
         urlComponents.path = "/v1/me/ratings/albums/\(id.rawValue)"
 
-        guard let url = urlComponents.url else { return }
+        guard let url = urlComponents.url else {
+            print("[Crate] URL construction failed for \(urlComponents.path)")
+            return
+        }
 
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "PUT"
@@ -234,7 +246,10 @@ struct MusicService: MusicServiceProtocol {
             URLQueryItem(name: "ids[albums]", value: id.rawValue),
         ]
 
-        guard let url = urlComponents.url else { return }
+        guard let url = urlComponents.url else {
+            print("[Crate] URL construction failed for \(urlComponents.path)")
+            return
+        }
 
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -252,7 +267,10 @@ struct MusicService: MusicServiceProtocol {
             URLQueryItem(name: "limit", value: "\(limit)"),
         ]
 
-        guard let url = urlComponents.url else { return [] }
+        guard let url = urlComponents.url else {
+            print("[Crate] URL construction failed for \(urlComponents.path)")
+            return []
+        }
 
         let request = MusicDataRequest(urlRequest: URLRequest(url: url))
         let response = try await request.response()
@@ -282,7 +300,10 @@ struct MusicService: MusicServiceProtocol {
             URLQueryItem(name: "include", value: "catalog"),
         ]
 
-        guard let url = urlComponents.url else { return [] }
+        guard let url = urlComponents.url else {
+            print("[Crate] URL construction failed for \(urlComponents.path)")
+            return []
+        }
 
         let request = MusicDataRequest(urlRequest: URLRequest(url: url))
         let response = try await request.response()
@@ -345,6 +366,7 @@ struct MusicService: MusicServiceProtocol {
         ]
 
         guard let url = urlComponents.url else {
+            print("[Crate] URL construction failed for \(urlComponents.path)")
             return []
         }
 

@@ -102,12 +102,18 @@ struct GenreFeedService: Sendable {
                     group.addTask {
                         var albums: [CrateAlbum] = []
                         // Fetch related albums
-                        if let related = try? await self.musicService.fetchRelatedAlbums(for: MusicItemID(seed.albumID)) {
+                        do {
+                            let related = try await self.musicService.fetchRelatedAlbums(for: MusicItemID(seed.albumID))
                             albums.append(contentsOf: related)
+                        } catch {
+                            print("[Crate] GenreFeed fetchRelatedAlbums failed for \(seed.albumID): \(error)")
                         }
                         // Fetch artist's other albums
-                        if let artistAlbums = try? await self.musicService.fetchAlbumsByArtist(name: seed.artistName, limit: 10) {
+                        do {
+                            let artistAlbums = try await self.musicService.fetchAlbumsByArtist(name: seed.artistName, limit: 10)
                             albums.append(contentsOf: artistAlbums)
+                        } catch {
+                            print("[Crate] GenreFeed fetchAlbumsByArtist failed for \(seed.artistName): \(error)")
                         }
                         return (.seedExpansion, albums)
                     }

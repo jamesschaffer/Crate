@@ -193,7 +193,7 @@ final class BrowseViewModel {
     // MARK: - Search Fetch (subcategories)
 
     /// Fetch albums by searching for each selected subcategory name.
-    /// Runs one query per subcategory, merges and deduplicates results.
+    /// Runs queries in parallel via TaskGroup, merges and deduplicates results.
     private func fetchSubcategoryAlbums(offset: Int) async {
         let subcatNames = selectedSubcategoryIDs.compactMap {
             GenreTaxonomy.subcategory(withID: $0)?.name
@@ -203,16 +203,26 @@ final class BrowseViewModel {
         if offset == 0 { isLoading = true } else { isLoadingMore = true }
 
         do {
-            var allFetched: [CrateAlbum] = []
             let perSubLimit = max(pageSize / subcatNames.count, 10)
 
-            for name in subcatNames {
-                let fetched = try await musicService.searchAlbums(
-                    term: name,
-                    limit: perSubLimit,
-                    offset: offset
-                )
-                allFetched.append(contentsOf: fetched)
+            // Capture locally to avoid MainActor serialization in @Sendable closures.
+            let service = musicService
+
+            let allFetched = try await withThrowingTaskGroup(of: [CrateAlbum].self) { group in
+                for name in subcatNames {
+                    group.addTask {
+                        try await service.searchAlbums(
+                            term: name,
+                            limit: perSubLimit,
+                            offset: offset
+                        )
+                    }
+                }
+                var results: [CrateAlbum] = []
+                for try await batch in group {
+                    results.append(contentsOf: batch)
+                }
+                return results
             }
 
             // Deduplicate against existing albums and within the batch.
