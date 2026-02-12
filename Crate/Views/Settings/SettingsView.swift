@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Settings screen with the Crate Dial slider and feed diagnostics.
+/// Settings screen with the Crate Algorithm radio selector and feed diagnostics.
 /// Presented as a sheet on iOS or via Cmd+, on macOS.
 struct SettingsView: View {
 
@@ -10,70 +10,57 @@ struct SettingsView: View {
     var onDialChanged: (() -> Void)?
 
     @State private var dialStore = CrateDialStore()
-    @State private var sliderValue: Double = 3
+    @State private var selectedPosition: CrateDialPosition = .mixedCrate
     @State private var showDiagnostics: Bool = false
-    @State private var debounceTask: Task<Void, Never>?
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Crate Dial")
-                            .font(.title3)
-                            .fontWeight(.semibold)
+                    Text("Crate Algorithm Settings")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .listRowSeparator(.hidden)
 
-                        HStack {
-                            Text("My Crate")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondaryText)
-                            Spacer()
-                            Text("Mystery")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondaryText)
-                        }
+                    Text("My Personal Taste")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .listRowSeparator(.hidden)
 
-                        Slider(
-                            value: $sliderValue,
-                            in: 1...5,
-                            step: 1
-                        ) {
-                            Text("Crate Dial")
-                        }
-                        .onChange(of: sliderValue) { _, newValue in
-                            if let position = CrateDialPosition(rawValue: Int(newValue)) {
-                                dialStore.position = position
-                            }
-                            debounceTask?.cancel()
-                            debounceTask = Task {
-                                try? await Task.sleep(for: .seconds(1))
-                                guard !Task.isCancelled else { return }
-                                onDialChanged?()
+                    ForEach(CrateDialPosition.allCases, id: \.rawValue) { position in
+                        Button {
+                            selectedPosition = position
+                            dialStore.position = position
+                            onDialChanged?()
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: selectedPosition == position ? "circle.fill" : "circle")
+                                    .foregroundStyle(selectedPosition == position ? Color.brandPink : .secondary)
+                                    .imageScale(.small)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(position.label)
+                                        .font(.headline)
+
+                                    Text(position.description)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
-
-                        // Current position label — fixed height to prevent layout jumping
-                        VStack(alignment: .leading, spacing: 4) {
-                            if let position = CrateDialPosition(rawValue: Int(sliderValue)) {
-                                Text(position.label)
-                                    .font(.body)
-                                    .fontWeight(.semibold)
-
-                                Text(position.description)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondaryText)
-                            }
-                        }
-                        .frame(height: 50, alignment: .topLeading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .buttonStyle(.plain)
                     }
-                    .padding(.vertical, 8)
+
+                    Text("Mystery Selections")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .listRowSeparator(.hidden)
                 }
 
-                // MARK: - Feed Diagnostics
+                // MARK: - Algorithm Diagnostics
 
                 Section {
-                    Button(showDiagnostics ? "Hide Diagnostics" : "Show Feed Diagnostics") {
+                    Button(showDiagnostics ? "Hide Algorithm Settings" : "Show Algorithm Settings") {
                         showDiagnostics.toggle()
                     }
                 } footer: {
@@ -81,7 +68,7 @@ struct SettingsView: View {
                 }
 
                 if showDiagnostics {
-                    FeedDiagnosticsView(modelContext: modelContext, dialPosition: dialStore.position)
+                    FeedDiagnosticsView(modelContext: modelContext, dialPosition: selectedPosition)
                 }
             }
             .navigationTitle("Settings")
@@ -90,7 +77,7 @@ struct SettingsView: View {
             #endif
         }
         .onAppear {
-            sliderValue = Double(dialStore.position.rawValue)
+            selectedPosition = dialStore.position
         }
     }
 }

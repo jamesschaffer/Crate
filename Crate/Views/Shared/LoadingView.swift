@@ -9,6 +9,7 @@ struct LoadingView: View {
         VStack(spacing: 12) {
             Spacer()
             ProgressView()
+                .tint(.brandPink)
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(.secondaryText)

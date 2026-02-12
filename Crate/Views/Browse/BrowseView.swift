@@ -41,7 +41,7 @@ struct BrowseView: View {
                     await wallViewModel.regenerate()
                 }
             })
-            .presentationDetents([.medium])
+            .presentationDetents([.large])
         }
         .task {
             viewModel.configure(modelContext: modelContext)
@@ -171,8 +171,7 @@ struct BrowseView: View {
         if coordinator.showWaitingSpinner {
             // Transition waiting spinner
             ProgressView()
-                .tint(.white)
-                .scaleEffect(1.5)
+                .tint(.brandPink)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(.black)
         } else if !coordinator.isTransitioning {

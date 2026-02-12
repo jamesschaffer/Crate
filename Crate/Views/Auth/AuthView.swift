@@ -53,7 +53,7 @@ struct AuthView: View {
 
         case .authorized:
             ProgressView()
-                .tint(.white)
+                .tint(.brandPink)
 
         @unknown default:
             Text("Unexpected authorization state")
@@ -62,7 +62,7 @@ struct AuthView: View {
 
         if authViewModel.isLoading {
             ProgressView()
-                .tint(.white)
+                .tint(.brandPink)
                 .padding(.top, 16)
         }
 

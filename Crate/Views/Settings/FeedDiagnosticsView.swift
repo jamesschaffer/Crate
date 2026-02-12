@@ -54,10 +54,10 @@ struct FeedDiagnosticsView: View {
                     ForEach(favorites, id: \.albumID) { fav in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(fav.title)
-                                .font(.subheadline)
+                                .font(.body)
                                 .fontWeight(.medium)
                             Text("\(fav.artistName) \u{2022} \(fav.albumID)")
-                                .font(.caption)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondaryText)
                         }
                     }
@@ -70,10 +70,10 @@ struct FeedDiagnosticsView: View {
                     ForEach(disliked, id: \.albumID) { item in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.title)
-                                .font(.subheadline)
+                                .font(.body)
                                 .fontWeight(.medium)
                             Text("\(item.artistName) \u{2022} \(item.albumID)")
-                                .font(.caption)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondaryText)
                         }
                     }
@@ -87,13 +87,13 @@ struct FeedDiagnosticsView: View {
                 ForEach(GenreFeedSignal.allCases, id: \.self) { signal in
                     HStack {
                         Text(signalLabel(signal))
-                            .font(.subheadline)
+                            .font(.body)
                         Spacer()
                         Text("\(Int((weights.values[signal] ?? 0) * 100))%")
-                            .font(.caption)
+                            .font(.subheadline)
                             .foregroundStyle(.secondaryText)
                         Text("(\(counts[signal, default: 0]) of 50)")
-                            .font(.caption2)
+                            .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -131,12 +131,12 @@ struct FeedDiagnosticsView: View {
         HStack {
             Image(systemName: pass ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .foregroundStyle(pass ? .green : .red)
-                .font(.caption)
-            Text(label)
                 .font(.subheadline)
+            Text(label)
+                .font(.body)
             Spacer()
             Text(value)
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondaryText)
         }
     }

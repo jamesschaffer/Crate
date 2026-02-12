@@ -50,6 +50,7 @@ struct AlbumGridView: View {
 
                     if isLoadingMore {
                         ProgressView()
+                            .tint(.brandPink)
                             .padding()
                     }
                 }
