@@ -36,6 +36,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 121 | [Now-Playing Progress Bar with Artwork-Derived Gradient](#adr-121-now-playing-progress-bar-with-artwork-derived-gradient) | Accepted |
 | 122 | [Staggered Slide Animation for Genre Bar Pills](#adr-122-staggered-slide-animation-for-genre-bar-pills) | Accepted |
 | 123 | [Slide-Up Control Bar on Launch + AlbumCrate Rename](#adr-123-slide-up-control-bar-on-launch--albumcrate-rename) | Accepted |
+| 124 | [Brand Identity: App Icon, Welcome Screen, and Brand Color](#adr-124-brand-identity-app-icon-welcome-screen-and-brand-color) | Accepted |
 
 ---
 
@@ -969,6 +970,54 @@ An initial attempt to animate the pills using opacity and scaleEffect failed due
 - The `GeometryReader` wrapping the BrowseView body was already present for `topInset`; it now also provides `bottomSafeArea` to the control bar, so no additional layout cost.
 
 **What would change this:** If the wall load became significantly slower (e.g., cold start on a poor network connection), we might show the control bar earlier with a skeleton/shimmer state, or show a dedicated loading screen before revealing the browse UI. If Apple fixes `safeAreaInset` to propagate safe area information to its content, the explicit `GeometryReader` padding could be replaced with `.ignoresSafeArea(edges: .bottom)` on the background.
+
+---
+
+## ADR-124: Brand Identity: App Icon, Welcome Screen, and Brand Color
+
+**Date:** 2026-02-12
+**Status:** Accepted
+**Refines:** ADR-123 (Slide-Up Control Bar on Launch + AlbumCrate Rename)
+
+**Context:** The app had no visual identity -- it used SF Symbols as a placeholder logo, the system default blue accent color, and a generic authorization prompt. With the display name settled as "AlbumCrate" (ADR-123), the app needed a cohesive brand: a recognizable icon, a branded welcome screen, and a consistent accent color replacing the default iOS blue.
+
+**Decision:**
+
+1. **App icon.** A magenta wireframe cube (the "crate") at all required iOS and macOS sizes (16x16 through 1024x1024) in `AppIcon.appiconset`.
+
+2. **Brand color.** Define `brandPink` (#df00b6, magenta) as a static `Color` extension in `AppColors.swift`. Apply it app-wide via `.tint(.brandPink)` on the root view in `CrateApp.swift`. Also set `AccentColor.colorset` to the same value as a fallback for system controls that read accent color directly. Replace all explicit `.accentColor` references in GenreBarView pill text and TrackListView's default `tintColor` with `.brandPink` for consistency.
+
+3. **Welcome screen.** Redesign `AuthView` from a generic authorization prompt into a branded welcome screen: black background, `AlbumCrateLogo` and `AlbumCrateWordmark` image assets centered vertically, "Link to Apple Music" button in brand magenta near the bottom. The view is refactored into extracted subviews (`bottomContent`, `connectButton`, `deniedContent`) for readability.
+
+**Architecture:**
+
+- **`AppColors.swift`**: `brandPink` is a static `ShapeStyle` extension on `Color`, computed from RGB (0.875, 0.0, 0.714). Centralizes the brand color so it can be referenced as `.brandPink` anywhere in the codebase.
+- **Root `.tint()` modifier**: Applied on the root view in `CrateApp.swift`, this sets the tint for all child views (buttons, toggles, navigation links, pickers) without requiring per-view overrides. The `AccentColor.colorset` in Assets.xcassets is set to the same value as a belt-and-suspenders fallback.
+- **Image assets**: `AlbumCrateLogo.imageset` (128x128 display, @1x/@2x/@3x) and `AlbumCrateWordmark.imageset` (300pt wide, @1x/@2x/@3x) are standard image sets in Assets.xcassets. AuthView references them by name string (`Image("AlbumCrateLogo")`).
+- **AuthView refactor**: The single large `body` is split into `bottomContent` (switch on auth status), `connectButton`, and `deniedContent` computed properties. The black background with `.preferredColorScheme(.dark)` ensures the welcome screen is always dark regardless of system appearance.
+
+**Alternatives Considered:**
+
+1. **Use `AccentColor.colorset` only (no `.tint()` or explicit `.brandPink` references).** The asset catalog accent color works for many system controls, but not all views read it -- particularly custom text styling in GenreBarView pills. The explicit `.brandPink` references ensure consistent color everywhere.
+
+2. **Define brand color in asset catalog only (no Swift constant).** Asset catalog colors require `Color("name")` string lookups, which are not compile-time checked. A static Swift extension is type-safe and autocompletes in Xcode.
+
+3. **Keep the welcome screen minimal (just a button).** The welcome screen is the user's first impression. A branded experience with logo and wordmark establishes identity before the user even sees album content.
+
+**Rationale:**
+
+- A single brand color applied via root `.tint()` creates visual consistency across all interactive elements (buttons, toggles, navigation) with one line of code, rather than per-view overrides.
+- The welcome screen is the only view the user sees before authorizing Apple Music. Making it branded and polished sets expectations for the rest of the app.
+- Defining the color as a Swift static extension (`.brandPink`) rather than only an asset catalog entry gives compile-time safety and Xcode autocompletion.
+- The app icon (magenta wireframe cube) reinforces the "crate" metaphor and uses the brand color, creating a consistent identity from the home screen through the welcome screen into the app.
+
+**Consequences:**
+
+- All UI elements that previously used the default blue accent color now appear in brand magenta. Any new interactive elements added in the future will automatically pick up the brand color via the root `.tint()` modifier.
+- Views that need a different tint (e.g., artwork-derived colors in AlbumDetailView) must explicitly override the tint, which they already do.
+- The `AuthView` now forces dark mode via `.preferredColorScheme(.dark)`. This is intentional for the welcome screen but does not affect the rest of the app (ContentView does not set a preferred color scheme).
+
+**What would change this:** If the brand identity evolves (different color, different logo), the changes are centralized: `AppColors.swift` for the color, Assets.xcassets for the icon and image assets, and `AuthView` for the welcome screen layout. No scatter across the codebase.
 
 ---
 

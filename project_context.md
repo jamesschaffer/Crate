@@ -8,10 +8,10 @@ AlbumCrate is a SwiftUI multiplatform app targeting iOS and macOS, powered by Mu
 
 ## Current Status
 
-**Active development.** Core features, Crate Wall, personalized genre feeds, grid transition animations, now-playing progress bar, and launch animation are implemented. Visual design polish is in progress.
+**Active development.** Core features, Crate Wall, personalized genre feeds, grid transition animations, now-playing progress bar, launch animation, and brand identity are implemented. Visual design polish is in progress.
 
 - PRD: Complete (Draft -- Architecture Complete, MusicKit Pivot)
-- Architecture decisions: 24 ADRs documented (ADR-100 through ADR-123)
+- Architecture decisions: 25 ADRs documented (ADR-100 through ADR-124)
 - Core app: Implemented (Browse, Album Detail, Playback, Auth, Favorites, Dislikes)
 - Crate Wall: Complete -- algorithm-driven landing experience with 5 blended signals, Crate Dial settings, enriched genre extraction (heavy rotation + library albums), dislike filtering, infinite scroll, graceful degradation
 - Genre feeds: Complete -- multi-signal blended genre feeds (6 signals: Personal History, Recommendations, Trending, New Releases, Subcategory Rotation, Seed Expansion), CrateDial-weighted, replaces single-source chart pagination
@@ -24,7 +24,8 @@ AlbumCrate is a SwiftUI multiplatform app targeting iOS and macOS, powered by Mu
 - Now-playing progress bar: Complete -- scrubbable progress bar with artwork-derived gradient, visible in both the playback footer and BrowseView control bar. ArtworkColorExtractor uses pure CoreGraphics (cross-platform, no UIKit/AppKit).
 - Control bar launch animation: Complete -- control bar hidden during initial wall load, slides up with spring animation (.spring(duration: 0.5, bounce: 0.15)) after albums appear + 400ms delay. Material background extends into home indicator safe area via explicit GeometryReader padding (safeAreaInset does not propagate safe area to children).
 - Display name: Set to "AlbumCrate" (codebase still uses "Crate" internally for project, targets, and module names)
-- Design: Visual design in progress (album detail and playback UI polished, other views pending)
+- Brand identity: Complete -- app icon (magenta wireframe cube), branded welcome screen (AlbumCrateLogo + AlbumCrateWordmark on black background, "Link to Apple Music" button), brand color `brandPink` (#df00b6) applied app-wide via root `.tint()` modifier, AccentColor.colorset set as fallback
+- Design: Visual design in progress (album detail, playback UI, and welcome screen polished; other views pending)
 
 **Note on history:** Crate was originally designed as a Spotify web app (Next.js + React). On 2026-02-09, the project pivoted to Apple Music + native SwiftUI. The original Spotify-era ADRs (001-014) are archived in git history. All current documentation reflects the Apple Music / MusicKit direction.
 
@@ -64,12 +65,12 @@ AlbumCrate is a SwiftUI multiplatform app targeting iOS and macOS, powered by Mu
 | Document | Path | Description |
 |----------|------|-------------|
 | PRD | [PRD.md](./PRD.md) | Full product requirements, UX specification, and architecture |
-| Decision Log | [DECISIONS.md](./DECISIONS.md) | 24 architectural decision records (ADR-100 through ADR-123) |
+| Decision Log | [DECISIONS.md](./DECISIONS.md) | 25 architectural decision records (ADR-100 through ADR-124) |
 | README | [README.md](./README.md) | Project overview and getting started |
 
 ## Architecture Summary
 
-The application has five view areas (Auth, Browse with Crate Wall, Album Detail, Playback Footer, Settings) and no backend. The Album Detail view uses a ZStack with blurred, scaled album artwork as an ambient background layer, a dimming overlay at 50% opacity for readability (reduced from 75% to let more artwork color bleed through), and the scrollable content on top. All Apple Music API calls are made directly from the app via MusicKit. Auth is handled by the system via a single MusicKit authorization dialog. ContentView isolates playback state observation into a child `PlaybackFooterOverlay` view so that `stateChangeCounter` updates only re-render the footer, not the entire NavigationStack.
+The application has five view areas (Auth/Welcome, Browse with Crate Wall, Album Detail, Playback Footer, Settings) and no backend. A brand color (`brandPink`, #df00b6) is defined in `AppColors.swift` and applied app-wide via `.tint(.brandPink)` on the root view in `CrateApp.swift`, replacing the default iOS blue accent on all interactive controls. The `AccentColor.colorset` is set to the same value as a fallback. The Auth/Welcome screen displays the AlbumCrate logo and wordmark on a black background with a magenta "Link to Apple Music" button. The Album Detail view uses a ZStack with blurred, scaled album artwork as an ambient background layer, a dimming overlay at 50% opacity for readability (reduced from 75% to let more artwork color bleed through), and the scrollable content on top. All Apple Music API calls are made directly from the app via MusicKit. Auth is handled by the system via a single MusicKit authorization dialog. ContentView isolates playback state observation into a child `PlaybackFooterOverlay` view so that `stateChangeCounter` updates only re-render the footer, not the entire NavigationStack.
 
 On launch, the control bar (genre filter pills + playback row) is hidden while the Crate Wall loads. After albums appear, the bar slides up from the bottom with a spring animation (0.5s, 0.15 bounce) after a 400ms polish delay. The bar's material background extends into the home indicator safe area via explicit `GeometryReader` padding -- `safeAreaInset` content does not propagate safe area information to its children, so `.ignoresSafeArea()` within it has no effect.
 
@@ -87,7 +88,7 @@ Playback uses `ApplicationMusicPlayer` with an independent queue, providing nati
 
 ## Open Items
 
-- **Visual design.** The PRD defines the UX and layout but not the visual design system (colors, typography, spacing). Album Detail and playback UI have been polished (blurred artwork background, artwork-derived color theming on play button and track list, progress bar with artwork gradient). Other views still need visual polish.
+- **Visual design.** The PRD defines the UX and layout but not the visual design system (colors, typography, spacing). Brand color (`brandPink` #df00b6) is established and applied app-wide. Album Detail, playback UI, and welcome screen have been polished. Other views (Browse grid, Settings) still need visual polish.
 - **Charts depth testing.** Apple does not document a maximum offset for the charts endpoint. Empirical testing is needed to determine how many albums per genre we can paginate through.
 - **Testing coverage.** Unit tests exist for MusicServiceTests, BrowseViewModelTests, GenreTaxonomyTests, FavoritesServiceTests, DislikeServiceTests (CRUD, dedup, fetchAllDislikedIDs), and FeedbackLoopTests (mutual exclusion, GenreFeedWeights correctness, weighted interleave). UI test stubs exist (BrowseFlowTests, PlaybackFlowTests). Tests use `@testable import Crate_iOS` (the iOS target's module name) and in-memory SwiftData containers. Tests need to be run on physical devices for MusicKit-dependent paths.
 - **CloudKit sync for favorites/dislikes.** Favorites and dislikes are currently device-local. Cross-device sync via CloudKit is a future consideration.

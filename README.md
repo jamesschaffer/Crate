@@ -2,7 +2,7 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, and launch animation complete. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, launch animation, and brand identity complete. Visual design polish in progress.
 
 ---
 
@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (24 ADRs, ADR-100 through ADR-123) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (25 ADRs, ADR-100 through ADR-124) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -109,7 +109,7 @@ Crate/
                                 # CrateWallService, GenreFeedService, WeightedInterleave,
                                 # ArtworkColorExtractor
     /Config                     # Genres.swift (static taxonomy), CrateDialStore.swift,
-                                # GridTransitionConstants.swift
+                                # GridTransitionConstants.swift, AppColors.swift (brand color)
     /Resources                  # Assets.xcassets
   Crate-iOS/                    # iOS entitlements, Info.plist
   Crate-macOS/                  # macOS entitlements, Info.plist, MacCommands.swift
