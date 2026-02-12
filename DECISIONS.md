@@ -38,6 +38,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 123 | [Slide-Up Control Bar on Launch + AlbumCrate Rename](#adr-123-slide-up-control-bar-on-launch--albumcrate-rename) | Accepted |
 | 124 | [Brand Identity: App Icon, Welcome Screen, and Brand Color](#adr-124-brand-identity-app-icon-welcome-screen-and-brand-color) | Accepted |
 | 125 | [Typed Navigation Path, Scrubber Relocation, and Footer Progress Toggle](#adr-125-typed-navigation-path-scrubber-relocation-and-footer-progress-toggle) | Accepted |
+| 126 | [Codebase Audit — MainActor Isolation, Guard Hardening, macOS Build Fix, Test Coverage, and Concurrency Cleanup](#adr-126-codebase-audit--mainactor-isolation-guard-hardening-macos-build-fix-test-coverage-and-concurrency-cleanup) | Accepted |
 
 ---
 
@@ -1087,6 +1088,60 @@ An initial attempt to animate the pills using opacity and scaleEffect failed due
 - `BrowseView` now receives `@Binding var navigationPath: [CrateAlbum]` instead of `@Binding var navigationPath: NavigationPath`, which changes its initialization signature.
 
 **What would change this:** If the app introduced additional navigation destinations (artist pages, playlist views), the typed `[CrateAlbum]` array would need to become either an enum-based typed array or revert to `NavigationPath` with a separate dedup mechanism. If Apple improved `NavigationPath` to support content inspection in a future SwiftUI release, the typed array could be replaced. If user feedback indicated that scrubbing in the footer was important (e.g., for quick scrubbing without opening the detail view), a larger footer scrub target could be reconsidered.
+
+---
+
+## ADR-126: Codebase Audit — MainActor Isolation, Guard Hardening, macOS Build Fix, Test Coverage, and Concurrency Cleanup
+
+**Date:** 2026-02-12
+**Status:** Accepted
+**Refines:** ADR-102 (MVVM with @Observable), ADR-111 (XCTest + Swift Testing for Test Strategy), ADR-118 (Personalized Genre Feeds with Feedback Loop), ADR-119 (Concurrency Isolation, Error Logging, and Dead Code Removal)
+
+**Context:** A systematic audit of the codebase after the Crate Wall, genre feeds, and playback scrubber features were complete revealed five categories of issues: incomplete concurrency isolation on view models, unconfigured-ModelContext guards that silently no-oped, a broken macOS build, thin test coverage, and remaining silent error patterns. These were addressed as five sequential commits.
+
+**Decision:** Five targeted changes:
+
+1. **`@MainActor` on all `@Observable` view model classes.** `BrowseViewModel`, `AlbumDetailViewModel`, `CrateWallViewModel`, `PlaybackViewModel`, and `AuthViewModel` were annotated with `@MainActor` at the class level. This ensures all property mutations (which drive SwiftUI view updates) occur on the main thread, eliminating data races. With class-level isolation in place, 12 redundant per-method `@MainActor` annotations were removed. `BrowseViewModelTests` was updated to use `@MainActor` on its test struct to match the new isolation.
+
+2. **`assertionFailure()` in ModelContext guard blocks.** `FavoritesService` and `DislikeService` each have `guard let ctx = modelContext else { return }` guards at the top of every method (8 guards total). These guards exist because the services are initialized with `nil` context and must have `configure(modelContext:)` called before use. In the previous state, if `configure()` was never called, all SwiftData operations silently did nothing -- a subtle bug that would be very difficult to trace. Added `assertionFailure("[Crate] modelContext is nil — did you forget to call configure()?")` inside each guard's else block. This crashes in DEBUG builds, making the misconfiguration immediately obvious during development, while remaining a safe no-op in production (RELEASE builds).
+
+3. **macOS build errors resolved.** Three platform-specific issues were preventing the macOS target from compiling:
+   - `Color(.systemBackground)` in `AlbumDetailView` -- `UIColor.systemBackground` is iOS-only. Replaced with `#if os(iOS) Color(.systemBackground) #else Color(nsColor: .windowBackgroundColor) #endif`.
+   - `MusicLibrary.shared.add()` in `MusicService` -- `MusicLibrary` is iOS-only. Wrapped the call in `#if os(iOS)`.
+   - `.toolbar(.hidden, for: .navigationBar)` in `BrowseView` -- `.navigationBar` toolbar placement is iOS-only. Wrapped in `#if os(iOS)`.
+
+4. **MockMusicService and expanded test coverage.** Created `MockMusicService` -- a configurable mock implementing `MusicServiceProtocol` that returns preset albums, tracks, and error states. Used it to expand test coverage:
+   - `CrateWallServiceTests` (new, 3 tests): validates wall generation, empty-signal handling, and dislike filtering.
+   - `BrowseViewModelTests` (expanded from 2 stub tests to 4 real tests): validates album loading via mock, empty state handling, genre selection, and subcategory search using `MockMusicService`.
+   - Fixed the macOS test target's `project.pbxproj` entries -- `DislikeServiceTests` and `FeedbackLoopTests` were missing from the macOS Sources build phase.
+
+5. **Parallelized subcategory search and error logging.** `BrowseViewModel.fetchSubcategoryAlbums()` was calling the search API sequentially in a for-loop across subcategory terms. Replaced with `withThrowingTaskGroup` so all subcategory searches run concurrently, reducing latency proportionally to the number of terms. Also replaced 2 silent `try?` patterns in `GenreFeedService` with `do/catch` blocks using `[Crate]`-prefixed logging. Added `[Crate]`-prefixed URL construction failure logging to all 8 `guard let url` blocks in `MusicService` that previously failed silently.
+
+**Rationale:**
+
+- **Class-level `@MainActor`** is the idiomatic Swift concurrency pattern for `@Observable` view models. Per-method annotations are error-prone (easy to forget on a new method) and redundant when the entire class should be main-actor-isolated. The 12 removed annotations were all on methods already inheriting class-level isolation.
+
+- **`assertionFailure` in guards** follows the "crash early in development, degrade gracefully in production" principle. The `configure()` pattern is a known footgun -- views must remember to call it in `.task`. A DEBUG crash at the guard makes the mistake obvious immediately, rather than manifesting as "favorites don't save" hours later. In production, the existing silent no-op behavior is preserved to avoid crashes for end users.
+
+- **macOS build fix** is straightforward platform correctness. The iOS-only APIs were introduced during rapid feature development when testing was focused on the iOS target. The `#if os()` conditionals follow the existing codebase pattern established by `ArtworkColorExtractor` (which already uses pure CoreGraphics to avoid platform branching).
+
+- **MockMusicService** enables real unit testing of business logic. The previous `BrowseViewModelTests` had 2 tests that used a minimal stub returning empty arrays -- they verified the test infrastructure worked but did not exercise meaningful behavior. With a configurable mock, tests can validate actual data flow (loading states, genre filtering, dislike exclusion, wall generation).
+
+- **Parallelized subcategory search** is a straightforward concurrency improvement. The sequential for-loop was an accidental bottleneck -- there was no data dependency between subcategory term searches, so running them concurrently is strictly better. The `withThrowingTaskGroup` pattern collects results as they arrive and handles errors per-task.
+
+- **Eliminating remaining `try?` patterns** completes the work started in ADR-119. Every `try` in the codebase now uses `do/catch` with `[Crate]`-prefixed logging, making the error logging policy fully consistent.
+
+**Consequences:**
+
+- All `@Observable` view models are now `@MainActor`-isolated. Any new methods added to these classes automatically inherit main-actor isolation. Non-main-actor work (e.g., background data processing) must be explicitly dispatched with `Task.detached` or `nonisolated` methods.
+- `FavoritesService` and `DislikeService` will crash in DEBUG if `configure(modelContext:)` is not called before use. This is intentional. Developers working on new views that use these services will see the crash immediately if they forget the configuration step.
+- The macOS target now compiles. It should be periodically built to catch future iOS-only API introductions early.
+- `MockMusicService` is available in `CrateTests/` for all future test files. It supports configurable albums, tracks, chart results, search results, and error injection.
+- `CrateWallServiceTests` and the expanded `BrowseViewModelTests` provide regression coverage for the wall generation and browse flows. Future changes to these areas will be caught by tests.
+- Subcategory search is now faster, especially for genres with many subcategory terms. The trade-off is slightly higher peak concurrency (multiple simultaneous API calls instead of sequential), which is well within Apple Music's rate limit of ~20 requests/second.
+- There are no remaining `try?` patterns in the codebase. All error paths are logged with `[Crate]` prefix.
+
+**What would change this:** If Swift introduced a better pattern for "configure after init" (e.g., if SwiftData's `@ModelContext` macro could be used in services), the `assertionFailure` guards could be removed in favor of compile-time safety. If Apple Music's rate limit became a concern, the parallel subcategory search could be throttled with a semaphore or limited task group concurrency. If the project adopted a dependency injection framework, `MockMusicService` could be replaced by the framework's mocking utilities.
 
 ---
 

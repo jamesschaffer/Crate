@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (26 ADRs, ADR-100 through ADR-125) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (27 ADRs, ADR-100 through ADR-126) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -114,9 +114,10 @@ Crate/
   Crate-iOS/                    # iOS entitlements, Info.plist
   Crate-macOS/                  # macOS entitlements, Info.plist, MacCommands.swift
   CrateTests/                   # Unit tests (Swift Testing): MusicServiceTests,
-                                # BrowseViewModelTests, GenreTaxonomyTests,
-                                # FavoritesServiceTests, DislikeServiceTests,
-                                # FeedbackLoopTests
+                                # BrowseViewModelTests, CrateWallServiceTests,
+                                # GenreTaxonomyTests, FavoritesServiceTests,
+                                # DislikeServiceTests, FeedbackLoopTests,
+                                # MockMusicService (shared test mock)
   CrateUITests/                 # UI tests (XCTest)
 ```
 
