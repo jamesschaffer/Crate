@@ -50,6 +50,7 @@ struct CrateApp: App {
                     AuthView()
                 }
             }
+            .tint(.brandPink)
             .environment(authViewModel)
             .environment(playbackViewModel)
             .task {

@@ -1,101 +1,128 @@
 import SwiftUI
 
-/// Displayed when the user has not yet authorized MusicKit access.
+/// Welcome screen shown before the user authorizes MusicKit access.
 ///
-/// Shows a welcome message and a button to trigger the system
-/// authorization prompt. Also handles the "denied" state with
-/// instructions to enable in Settings.
+/// Displays the AlbumCrate logo and wordmark centered on a black background,
+/// with a "Link to Apple Music" button near the bottom. Handles all
+/// authorization states: not determined, denied/restricted, and authorized.
 struct AuthView: View {
 
     @Environment(AuthViewModel.self) private var authViewModel
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        ZStack {
+            Color.black.ignoresSafeArea()
 
-            // App icon / branding area
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.tint)
+            VStack(spacing: 0) {
+                Spacer()
 
-            Text("Crate")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                // Logo + wordmark
+                VStack(spacing: 16) {
+                    Image("AlbumCrateLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 128, height: 128)
 
-            Text("Browse albums by genre.\nListen to full albums, front to back.")
-                .font(.body)
+                    Image("AlbumCrateWordmark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 300)
+                }
+
+                Spacer()
+
+                // Bottom section: auth button, errors, loading
+                bottomContent
+                    .padding(.bottom, 60)
+            }
+            .padding()
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    // MARK: - Bottom Content
+
+    @ViewBuilder
+    private var bottomContent: some View {
+        switch authViewModel.authorizationStatus {
+        case .notDetermined:
+            connectButton
+
+        case .denied, .restricted:
+            deniedContent
+
+        case .authorized:
+            ProgressView()
+                .tint(.white)
+
+        @unknown default:
+            Text("Unexpected authorization state")
+                .foregroundStyle(.secondaryText)
+        }
+
+        if authViewModel.isLoading {
+            ProgressView()
+                .tint(.white)
+                .padding(.top, 16)
+        }
+
+        if let error = authViewModel.errorMessage {
+            Text(error)
+                .font(.caption)
+                .foregroundStyle(.red)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+                .padding(.top, 8)
+        }
+    }
+
+    // MARK: - Connect Button
+
+    private var connectButton: some View {
+        Button {
+            Task {
+                await authViewModel.requestAuthorization()
+            }
+        } label: {
+            Label("Link to Apple Music", systemImage: "music.note")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.brandPink)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.horizontal, 32)
+    }
+
+    // MARK: - Denied State
+
+    private var deniedContent: some View {
+        VStack(spacing: 12) {
+            Text("Apple Music access is required")
+                .font(.headline)
+                .foregroundStyle(.white)
+
+            Text("Open Settings and enable Music access for AlbumCrate.")
+                .font(.subheadline)
                 .foregroundStyle(.secondaryText)
                 .multilineTextAlignment(.center)
 
-            Spacer()
-
-            // Authorization state
-            switch authViewModel.authorizationStatus {
-            case .notDetermined:
-                Button {
-                    Task {
-                        await authViewModel.requestAuthorization()
-                    }
-                } label: {
-                    Label("Connect Apple Music", systemImage: "music.note")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.accentColor)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+            #if os(iOS)
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
                 }
-                .padding(.horizontal, 32)
-
-            case .denied, .restricted:
-                VStack(spacing: 12) {
-                    Text("Apple Music access is required")
-                        .font(.headline)
-
-                    Text("Open Settings and enable Music access for Crate.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondaryText)
-                        .multilineTextAlignment(.center)
-
-                    #if os(iOS)
-                    Button("Open Settings") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    #else
-                    Text("System Preferences > Security & Privacy > Privacy > Media & Apple Music")
-                        .font(.caption)
-                        .foregroundStyle(.secondaryText)
-                    #endif
-                }
-                .padding(.horizontal, 32)
-
-            case .authorized:
-                // This state means we're about to transition to ContentView.
-                ProgressView("Loading...")
-
-            @unknown default:
-                Text("Unexpected authorization state")
-                    .foregroundStyle(.secondaryText)
             }
-
-            if authViewModel.isLoading {
-                ProgressView()
-                    .padding()
-            }
-
-            if let error = authViewModel.errorMessage {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal)
-            }
-
-            Spacer()
+            .buttonStyle(.bordered)
+            .tint(Color.brandPink)
+            #else
+            Text("System Preferences > Security & Privacy > Privacy > Media & Apple Music")
+                .font(.caption)
+                .foregroundStyle(.secondaryText)
+            #endif
         }
-        .padding()
+        .padding(.horizontal, 32)
     }
 }
 

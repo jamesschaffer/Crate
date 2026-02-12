@@ -842,7 +842,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = XWBF92D63J;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Albumcrate;
+				INFOPLIST_KEY_CFBundleDisplayName = AlbumCrate;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Crate needs access to Apple Music to browse albums and play music.";
 				INFOPLIST_KEY_UIBackgroundModes = audio;
@@ -887,7 +887,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = XWBF92D63J;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Albumcrate;
+				INFOPLIST_KEY_CFBundleDisplayName = AlbumCrate;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Crate needs access to Apple Music to browse albums and play music.";
 				INFOPLIST_KEY_UIBackgroundModes = audio;

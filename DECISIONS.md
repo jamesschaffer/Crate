@@ -35,6 +35,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 120 | [Scatter/Fade Grid Transition for Genre Switching](#adr-120-scatterfade-grid-transition-for-genre-switching) | Accepted |
 | 121 | [Now-Playing Progress Bar with Artwork-Derived Gradient](#adr-121-now-playing-progress-bar-with-artwork-derived-gradient) | Accepted |
 | 122 | [Staggered Slide Animation for Genre Bar Pills](#adr-122-staggered-slide-animation-for-genre-bar-pills) | Accepted |
+| 123 | [Slide-Up Control Bar on Launch + AlbumCrate Rename](#adr-123-slide-up-control-bar-on-launch--albumcrate-rename) | Accepted |
 
 ---
 
@@ -911,6 +912,63 @@ An initial attempt to animate the pills using opacity and scaleEffect failed due
 - Pills slide 60pt downward during exit. If the genre bar's vertical padding or height changes significantly, `slideDistance` may need to be adjusted to ensure pills are fully hidden when clipped.
 
 **What would change this:** If Apple resolves the Liquid Glass compositing limitations (animated opacity, uniform scaleEffect), the offset-based approach could be replaced with a more conventional opacity or scale animation. The dual-location offset application could also be simplified to a single outer offset. The `animateGenreBar` flag and stagger timing would remain unchanged.
+
+---
+
+## ADR-123: Slide-Up Control Bar on Launch + AlbumCrate Rename
+
+**Date:** 2026-02-12
+**Status:** Accepted
+**Refines:** ADR-115 (Crate Wall as Default Landing Experience), ADR-116 (Single-Row Transforming Filter Bar)
+
+**Context:** Two changes in this commit:
+
+1. **Control bar launch animation.** The control bar (genre filter pills + playback row) was visible from the moment the app launched, sitting on top of an empty/loading grid while the Crate Wall fetched albums. This created an awkward visual state -- interactive UI chrome sitting over content that was not ready yet. The bar also had a subtle opacity seam at the bottom edge where the material background ended at the safe area boundary, leaving the home indicator region without the frosted material fill.
+
+2. **Display name rename.** The app's display name (the label under the icon on the home screen) was changed from "Crate" to "AlbumCrate" via Xcode's Signing & Capabilities UI.
+
+**Decision:**
+
+1. Hide the control bar during initial wall load using a `@State private var showControlBar = false` boolean. After `wallViewModel.generateWallIfNeeded()` completes (albums are ready), wait 400ms, then animate the bar in with `.spring(duration: 0.5, bounce: 0.15)` using `.transition(.move(edge: .bottom).combined(with: .opacity))`. The result is that albums fill the screen first, then the control bar slides up from the bottom edge with a gentle spring.
+
+2. Extend the control bar's material background into the home indicator safe area by converting `controlBar` from a computed property to a function accepting `bottomSafeArea: CGFloat` from the enclosing `GeometryReader`. Apply `.padding(.bottom, bottomSafeArea)` to the control bar's content so the `.ultraThinMaterial` background stretches to the screen edge, eliminating the opacity seam.
+
+3. Set the display name to "AlbumCrate" via Xcode's UI. This is a build settings change in `project.pbxproj` -- it was done through Xcode, not by hand-editing the file.
+
+**Architecture:**
+
+- **`showControlBar` state on BrowseView**: A boolean defaulting to `false`. The `.task` modifier awaits wall generation, then after a 400ms `Task.sleep` delay, sets `showControlBar = true` inside a `withAnimation` block. The `safeAreaInset(edge: .bottom)` block conditionally renders the control bar only when `showControlBar` is true, with the `.transition(.move(edge: .bottom).combined(with: .opacity))` modifier providing the slide-up + fade-in effect.
+
+- **`controlBar(bottomSafeArea:)` function**: Accepts the bottom safe area inset from the `GeometryReader` that wraps the entire BrowseView body. Applies `.padding(.bottom, bottomSafeArea)` to the VStack content, then `.background(.ultraThinMaterial.opacity(0.85))` covers the full area including the padding, extending the frosted material into the home indicator region.
+
+**Lessons Learned:**
+
+- **Never hand-edit pbxproj for build settings.** The display name change was done through Xcode's UI (Signing & Capabilities). External edits to `project.pbxproj` can cause Xcode to get stuck showing raw XML source instead of the project editor. Build setting changes should always go through Xcode's GUI.
+
+- **`safeAreaInset` content does NOT propagate safe area information to children.** Applying `.ignoresSafeArea(edges: .bottom)` to a background within `safeAreaInset` content has no effect because the content does not know about the safe area it is inset from. The workaround is to read the safe area explicitly via `GeometryReader` and pass the value as explicit padding.
+
+**Alternatives Considered:**
+
+1. **Animate with opacity only (fade in).** A simple fade would work but feels less physical than a slide. The slide-up motion reinforces the "bar docking into place" metaphor and matches the bottom-anchored position of the control bar.
+
+2. **Show the control bar immediately with a loading indicator.** The bar would be visible during wall load, with a spinner or shimmer in the album grid behind it. This was the previous behavior and felt unpolished -- the bar appeared before there was meaningful content to interact with.
+
+3. **Use `.ignoresSafeArea(edges: .bottom)` on the material background.** The natural approach for extending a background into the safe area. Does not work within `safeAreaInset` content because the safe area information is not propagated to the inset view's children. Explicit `GeometryReader` padding is the correct workaround.
+
+**Rationale:**
+
+- Hiding the control bar during load creates a cleaner launch sequence: the screen fills with album art first, then the interactive chrome appears. This directs attention to the content (albums) rather than the controls.
+- The 400ms delay after wall load gives the user a moment to register the album grid before the bar slides in. Without the delay, the bar appears simultaneously with the albums, which feels rushed.
+- The spring animation (0.5s duration, 0.15 bounce) gives the slide-up a physical, slightly bouncy feel consistent with iOS interaction patterns.
+- Extending the material into the safe area eliminates a visible seam between the frosted bar and the unblurred content below it. On devices with a home indicator (iPhone X and later), this seam was particularly noticeable.
+
+**Consequences:**
+
+- The control bar is not interactive during the initial wall load. If the wall takes a long time to load (slow network), the user cannot access genre browsing or settings until the wall completes. This is acceptable because the wall is the default experience and the user has nothing to filter until content is present.
+- The `controlBar` is now a function rather than a computed property, which slightly changes the call site syntax but has no functional impact.
+- The `GeometryReader` wrapping the BrowseView body was already present for `topInset`; it now also provides `bottomSafeArea` to the control bar, so no additional layout cost.
+
+**What would change this:** If the wall load became significantly slower (e.g., cold start on a poor network connection), we might show the control bar earlier with a skeleton/shimmer state, or show a dedicated loading screen before revealing the browse UI. If Apple fixes `safeAreaInset` to propagate safe area information to its content, the explicit `GeometryReader` padding could be replaced with `.ignoresSafeArea(edges: .bottom)` on the background.
 
 ---
 

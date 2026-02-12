@@ -1,17 +1,17 @@
-# Project Context -- Crate
+# Project Context -- AlbumCrate
 
 ## Overview
 
-Crate is a single-purpose native app built on Apple Music that strips away playlists, podcasts, algorithmic feeds, and social features to deliver a focused album listening experience. Users browse a two-tier genre taxonomy (inspired by musicmap.info), see a grid of album cover art, pick an album, and listen to it start to finish. The interface is designed to feel like thumbing through records in a store, not using a software application.
+AlbumCrate (display name; codebase still uses "Crate" internally) is a single-purpose native app built on Apple Music that strips away playlists, podcasts, algorithmic feeds, and social features to deliver a focused album listening experience. Users browse a two-tier genre taxonomy (inspired by musicmap.info), see a grid of album cover art, pick an album, and listen to it start to finish. The interface is designed to feel like thumbing through records in a store, not using a software application.
 
-Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKit for Apple Music integration. There is no server or backend -- the app is fully client-side.
+AlbumCrate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKit for Apple Music integration. There is no server or backend -- the app is fully client-side.
 
 ## Current Status
 
-**Active development.** Core features, Crate Wall, personalized genre feeds, grid transition animations, and now-playing progress bar are implemented. Visual design polish is in progress.
+**Active development.** Core features, Crate Wall, personalized genre feeds, grid transition animations, now-playing progress bar, and launch animation are implemented. Visual design polish is in progress.
 
 - PRD: Complete (Draft -- Architecture Complete, MusicKit Pivot)
-- Architecture decisions: 23 ADRs documented (ADR-100 through ADR-122)
+- Architecture decisions: 24 ADRs documented (ADR-100 through ADR-123)
 - Core app: Implemented (Browse, Album Detail, Playback, Auth, Favorites, Dislikes)
 - Crate Wall: Complete -- algorithm-driven landing experience with 5 blended signals, Crate Dial settings, enriched genre extraction (heavy rotation + library albums), dislike filtering, infinite scroll, graceful degradation
 - Genre feeds: Complete -- multi-signal blended genre feeds (6 signals: Personal History, Recommendations, Trending, New Releases, Subcategory Rotation, Seed Expansion), CrateDial-weighted, replaces single-source chart pagination
@@ -22,6 +22,8 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 - Settings: Complete -- Crate Dial position control (half-sheet on iOS, Settings scene on macOS), dial changes regenerate the Crate Wall live with 1s debounce (no app restart required), Feed Diagnostics debug panel (validates favorites/dislikes persistence, mutual exclusion, weight correctness)
 - Album Detail: Redesigned with blurred artwork ambient background, now-playing track indicator, like/dislike buttons in side gutters flanking artwork, play button and track list tinted with artwork-derived colors, streamlined layout
 - Now-playing progress bar: Complete -- scrubbable progress bar with artwork-derived gradient, visible in both the playback footer and BrowseView control bar. ArtworkColorExtractor uses pure CoreGraphics (cross-platform, no UIKit/AppKit).
+- Control bar launch animation: Complete -- control bar hidden during initial wall load, slides up with spring animation (.spring(duration: 0.5, bounce: 0.15)) after albums appear + 400ms delay. Material background extends into home indicator safe area via explicit GeometryReader padding (safeAreaInset does not propagate safe area to children).
+- Display name: Set to "AlbumCrate" (codebase still uses "Crate" internally for project, targets, and module names)
 - Design: Visual design in progress (album detail and playback UI polished, other views pending)
 
 **Note on history:** Crate was originally designed as a Spotify web app (Next.js + React). On 2026-02-09, the project pivoted to Apple Music + native SwiftUI. The original Spotify-era ADRs (001-014) are archived in git history. All current documentation reflects the Apple Music / MusicKit direction.
@@ -54,18 +56,22 @@ Crate is a SwiftUI multiplatform app targeting iOS and macOS, powered by MusicKi
 - **Token management is automatic.** MusicKit handles developer tokens and user tokens at the system level. There are no tokens to store, refresh, or rotate. The ~6-month token expiry concern applies only to the REST API used from servers, not to native MusicKit apps.
 - **Apple ecosystem only.** No Android, no web, no Windows. The app requires an Apple device with iOS 17+ or macOS 14+. Cross-platform would require a separate effort (MusicKit.js for web, or a full rebuild for Android).
 - **No server needed.** MusicKit handles auth, API access, and playback on-device. No client secret, no OAuth flow, no API proxy. The entire app is client-side.
+- **Never hand-edit pbxproj for build settings.** Build setting changes (display name, version numbers, signing, etc.) must go through Xcode's UI. External edits to `project.pbxproj` can cause Xcode to get stuck showing raw XML source instead of the project editor.
+- **`safeAreaInset` does not propagate safe area to children.** Content rendered inside `.safeAreaInset(edge:)` does not receive safe area information. `.ignoresSafeArea()` on backgrounds within safeAreaInset content has no effect. Use explicit `GeometryReader` values with padding instead.
 
 ## Key Documents
 
 | Document | Path | Description |
 |----------|------|-------------|
 | PRD | [PRD.md](./PRD.md) | Full product requirements, UX specification, and architecture |
-| Decision Log | [DECISIONS.md](./DECISIONS.md) | 23 architectural decision records (ADR-100 through ADR-122) |
+| Decision Log | [DECISIONS.md](./DECISIONS.md) | 24 architectural decision records (ADR-100 through ADR-123) |
 | README | [README.md](./README.md) | Project overview and getting started |
 
 ## Architecture Summary
 
 The application has five view areas (Auth, Browse with Crate Wall, Album Detail, Playback Footer, Settings) and no backend. The Album Detail view uses a ZStack with blurred, scaled album artwork as an ambient background layer, a dimming overlay at 50% opacity for readability (reduced from 75% to let more artwork color bleed through), and the scrollable content on top. All Apple Music API calls are made directly from the app via MusicKit. Auth is handled by the system via a single MusicKit authorization dialog. ContentView isolates playback state observation into a child `PlaybackFooterOverlay` view so that `stateChangeCounter` updates only re-render the footer, not the entire NavigationStack.
+
+On launch, the control bar (genre filter pills + playback row) is hidden while the Crate Wall loads. After albums appear, the bar slides up from the bottom with a spring animation (0.5s, 0.15 bounce) after a 400ms polish delay. The bar's material background extends into the home indicator safe area via explicit `GeometryReader` padding -- `safeAreaInset` content does not propagate safe area information to its children, so `.ignoresSafeArea()` within it has no effect.
 
 The default landing experience is the Crate Wall -- an algorithm-driven grid of album art blending five signals (Listening History, Recommendations, Popular Charts, New Releases, Wild Card), weighted by a user-controllable "Crate Dial" slider persisted to UserDefaults. Genre extraction uses heavy rotation, library albums, and recently played for richer personalization. The wall persists within a session and regenerates on cold launch or when the user adjusts the Crate Dial (with a 1-second debounce to avoid thrashing during slider interaction).
 

@@ -7,7 +7,7 @@ struct TrackListView: View {
 
     let tracks: MusicItemCollection<Track>
     var album: CrateAlbum? = nil
-    var tintColor: Color = .accentColor
+    var tintColor: Color = .brandPink
 
     @Environment(PlaybackViewModel.self) private var playbackViewModel
 

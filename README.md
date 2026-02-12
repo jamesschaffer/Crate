@@ -1,16 +1,16 @@
-# Crate
+# AlbumCrate
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, and now-playing progress bar complete. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, and launch animation complete. Visual design polish in progress.
 
 ---
 
-## What is Crate?
+## What is AlbumCrate?
 
-Crate is a single-purpose native app for Apple Music that removes playlists, podcasts, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy (9 super-genres, ~50 subcategories). On launch, an algorithm-driven "Crate Wall" fills the screen with album art drawn from five blended signals -- listening history, recommendations, charts, new releases, and wild card picks -- controlled by a "Crate Dial" settings slider. The experience is designed to feel like browsing a record store, not using a streaming app.
+AlbumCrate is a single-purpose native app for Apple Music that removes playlists, podcasts, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy (9 super-genres, ~50 subcategories). On launch, an algorithm-driven "Crate Wall" fills the screen with album art, then a control bar slides up from the bottom with a spring animation once content is ready. The wall draws from five blended signals -- listening history, recommendations, charts, new releases, and wild card picks -- controlled by a "Crate Dial" settings slider. The experience is designed to feel like browsing a record store, not using a streaming app.
 
-Crate is a SwiftUI multiplatform app targeting **iOS** and **macOS** from a single codebase, powered by **MusicKit** for Apple Music integration. There is no server or backend -- the app is fully client-side.
+AlbumCrate is a SwiftUI multiplatform app targeting **iOS** and **macOS** from a single codebase, powered by **MusicKit** for Apple Music integration. There is no server or backend -- the app is fully client-side. The codebase still uses "Crate" internally for the project name, targets, and module names.
 
 For the full product specification, see the [PRD](./PRD.md).
 
@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (23 ADRs, ADR-100 through ADR-122) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (24 ADRs, ADR-100 through ADR-123) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
