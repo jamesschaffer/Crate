@@ -6,6 +6,7 @@ import MusicKit
 struct AlbumDetailView: View {
 
     let album: CrateAlbum
+    var gridContext: GridContext?
 
     @State private var viewModel = AlbumDetailViewModel()
     @State private var colorExtractor = ArtworkColorExtractor()
@@ -151,6 +152,13 @@ struct AlbumDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .task {
+            // Set grid context for auto-advance before any playback can start.
+            if let gridContext {
+                playbackViewModel.setGridContext(
+                    gridAlbums: gridContext.albums,
+                    tappedIndex: gridContext.tappedIndex
+                )
+            }
             viewModel.configure(modelContext: modelContext)
             await viewModel.loadAlbum(album)
             await colorExtractor.extract(from: album.artwork, artworkURL: album.artworkURL)

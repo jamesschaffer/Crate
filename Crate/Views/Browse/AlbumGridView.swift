@@ -11,7 +11,7 @@ struct AlbumGridView: View {
     let onLoadMore: () -> Void
     var topInset: CGFloat = 0
     var scrollToTopTrigger: Bool = false
-    var onAlbumTapped: ((Int) -> Void)?
+    var gridContext: [CrateAlbum]?
 
     private var columns: [GridItem] {
         #if os(iOS)
@@ -37,13 +37,13 @@ struct AlbumGridView: View {
 
                     LazyVGrid(columns: columns, spacing: 0) {
                         ForEach(Array(albums.enumerated()), id: \.element.id) { index, album in
-                            NavigationLink(value: CrateDestination.album(album)) {
+                            NavigationLink(value: CrateDestination.album(
+                                album,
+                                gridContext: gridContext.map { GridContext(albums: $0, tappedIndex: index) }
+                            )) {
                                 AnimatedGridItemView(album: album, index: index)
                             }
                             .buttonStyle(.plain)
-                            .simultaneousGesture(TapGesture().onEnded {
-                                onAlbumTapped?(index)
-                            })
                             .onAppear {
                                 if album == albums.last {
                                     onLoadMore()

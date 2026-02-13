@@ -30,8 +30,8 @@ struct BrowseView: View {
                 }
                 .navigationDestination(for: CrateDestination.self) { destination in
                     switch destination {
-                    case .album(let album):
-                        AlbumDetailView(album: album)
+                    case .album(let album, let gridContext):
+                        AlbumDetailView(album: album, gridContext: gridContext)
                     case .artist(let name, let albumID):
                         ArtistCatalogView(artistName: name, albumID: albumID)
                     }
@@ -162,12 +162,7 @@ struct BrowseView: View {
                 },
                 topInset: topInset,
                 scrollToTopTrigger: coordinator.scrollToTopTrigger,
-                onAlbumTapped: { index in
-                    playbackViewModel.setGridContext(
-                        gridAlbums: currentAlbums,
-                        tappedIndex: index
-                    )
-                }
+                gridContext: currentAlbums
             )
 
             // Overlay states

@@ -9,7 +9,6 @@ struct ArtistCatalogView: View {
 
     @State private var viewModel = ArtistCatalogViewModel()
     @State private var coordinator = GridTransitionCoordinator()
-    @Environment(PlaybackViewModel.self) private var playbackViewModel
 
     var body: some View {
         ZStack {
@@ -24,12 +23,7 @@ struct ArtistCatalogView: View {
                     albums: viewModel.albums,
                     isLoadingMore: false,
                     onLoadMore: {},
-                    onAlbumTapped: { index in
-                        playbackViewModel.setGridContext(
-                            gridAlbums: viewModel.albums,
-                            tappedIndex: index
-                        )
-                    }
+                    gridContext: viewModel.albums
                 )
             }
         }

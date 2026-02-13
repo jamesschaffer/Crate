@@ -30,7 +30,7 @@ private struct PlaybackFooterOverlay: View {
             let nowPlayingID = playbackViewModel.nowPlayingAlbum?.id
             let isViewingNowPlaying: Bool = {
                 guard let last = navigationPath.last else { return false }
-                if case .album(let album) = last { return album.id == nowPlayingID }
+                if case .album(let album, _) = last { return album.id == nowPlayingID }
                 return false
             }()
             PlaybackFooterView(showProgressBar: !isViewingNowPlaying, onTap: navigateToNowPlaying)
@@ -41,7 +41,7 @@ private struct PlaybackFooterOverlay: View {
 
     private func navigateToNowPlaying() {
         guard let album = playbackViewModel.nowPlayingAlbum else { return }
-        if case .album(let current) = navigationPath.last, current.id == album.id { return }
+        if case .album(let current, _) = navigationPath.last, current.id == album.id { return }
         navigationPath.append(.album(album))
     }
 }
