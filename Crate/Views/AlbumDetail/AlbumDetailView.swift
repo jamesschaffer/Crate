@@ -75,10 +75,12 @@ struct AlbumDetailView: View {
                             .fontWeight(.bold)
                             .multilineTextAlignment(.center)
 
-                        Text(album.artistName)
-                            .font(.title3)
-                            .foregroundStyle(.secondaryText)
-                            .multilineTextAlignment(.center)
+                        NavigationLink(value: CrateDestination.artist(name: album.artistName, albumID: album.id)) {
+                            Text(album.artistName)
+                                .font(.title3)
+                                .foregroundStyle(.secondaryText)
+                                .multilineTextAlignment(.center)
+                        }
                     }
 
                     // Transport controls: prev — play/pause — next

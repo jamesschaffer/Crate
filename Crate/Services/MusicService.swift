@@ -52,6 +52,12 @@ protocol MusicServiceProtocol: Sendable {
 
     /// Fetch albums by an artist (via search).
     func fetchAlbumsByArtist(name: String, limit: Int) async throws -> [CrateAlbum]
+
+    /// Look up the artist ID from an album's catalog entry.
+    func fetchArtistID(forAlbumID albumID: MusicItemID) async throws -> MusicItemID?
+
+    /// Fetch all albums by an artist from the catalog.
+    func fetchArtistAlbums(artistID: MusicItemID) async throws -> [CrateAlbum]
 }
 
 /// Rating to apply to a library item.
@@ -343,6 +349,50 @@ struct MusicService: MusicServiceProtocol {
         try await searchAlbums(term: name, limit: limit, offset: 0)
     }
 
+    func fetchArtistID(forAlbumID albumID: MusicItemID) async throws -> MusicItemID? {
+        var request = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
+        request.properties = [.artists]
+        let response = try await request.response()
+        return response.items.first?.artists?.first?.id
+    }
+
+    func fetchArtistAlbums(artistID: MusicItemID) async throws -> [CrateAlbum] {
+        let countryCode = try await MusicDataRequest.currentCountryCode
+
+        var urlComponents = URLComponents()
+        urlComponents.scheme = "https"
+        urlComponents.host = "api.music.apple.com"
+        urlComponents.path = "/v1/catalog/\(countryCode)/artists/\(artistID.rawValue)/albums"
+        urlComponents.queryItems = [
+            URLQueryItem(name: "limit", value: "100"),
+        ]
+
+        guard let url = urlComponents.url else {
+            print("[Crate] URL construction failed for \(urlComponents.path)")
+            return []
+        }
+
+        let request = MusicDataRequest(urlRequest: URLRequest(url: url))
+        let response = try await request.response()
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+
+        let decoded = try JSONDecoder().decode(ArtistAlbumsResponse.self, from: response.data)
+        return decoded.data.map { item in
+            let releaseDate = item.attributes.releaseDate.flatMap { dateFormatter.date(from: $0) }
+            return CrateAlbum(
+                id: MusicItemID(item.id),
+                title: item.attributes.name,
+                artistName: item.attributes.artistName,
+                artworkURL: item.attributes.artwork?.url,
+                releaseDate: releaseDate,
+                genreNames: item.attributes.genreNames ?? []
+            )
+        }
+    }
+
     // MARK: - Private Helpers
 
     /// Shared chart-fetching logic for both most-played and new-releases.
@@ -541,4 +591,23 @@ private struct LibraryCatalogRelationship: Codable {
 private struct LibraryCatalogItem: Codable {
     let id: String
     let attributes: ChartAlbumAttributes?
+}
+
+// MARK: - Artist Albums Response Decoding
+
+private struct ArtistAlbumsResponse: Codable {
+    let data: [ArtistAlbumItem]
+}
+
+private struct ArtistAlbumItem: Codable {
+    let id: String
+    let attributes: ArtistAlbumAttributes
+}
+
+private struct ArtistAlbumAttributes: Codable {
+    let name: String
+    let artistName: String
+    let artwork: ChartArtwork?
+    let releaseDate: String?
+    let genreNames: [String]?
 }

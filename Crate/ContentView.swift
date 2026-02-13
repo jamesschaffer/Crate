@@ -4,7 +4,7 @@ import SwiftUI
 /// NavigationStack and overlays the persistent playback footer at the bottom.
 struct ContentView: View {
 
-    @State private var navigationPath: [CrateAlbum] = []
+    @State private var navigationPath: [CrateDestination] = []
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -21,13 +21,18 @@ struct ContentView: View {
 private struct PlaybackFooterOverlay: View {
 
     @Environment(PlaybackViewModel.self) private var playbackViewModel
-    @Binding var navigationPath: [CrateAlbum]
+    @Binding var navigationPath: [CrateDestination]
 
     var body: some View {
         let _ = playbackViewModel.stateChangeCounter
 
         if playbackViewModel.hasQueue && !navigationPath.isEmpty {
-            let isViewingNowPlaying = navigationPath.last?.id == playbackViewModel.nowPlayingAlbum?.id
+            let nowPlayingID = playbackViewModel.nowPlayingAlbum?.id
+            let isViewingNowPlaying: Bool = {
+                guard let last = navigationPath.last else { return false }
+                if case .album(let album) = last { return album.id == nowPlayingID }
+                return false
+            }()
             PlaybackFooterView(showProgressBar: !isViewingNowPlaying, onTap: navigateToNowPlaying)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .animation(.easeInOut(duration: 0.3), value: playbackViewModel.hasQueue)
@@ -35,9 +40,9 @@ private struct PlaybackFooterOverlay: View {
     }
 
     private func navigateToNowPlaying() {
-        guard let album = playbackViewModel.nowPlayingAlbum,
-              navigationPath.last?.id != album.id else { return }
-        navigationPath.append(album)
+        guard let album = playbackViewModel.nowPlayingAlbum else { return }
+        if case .album(let current) = navigationPath.last, current.id == album.id { return }
+        navigationPath.append(.album(album))
     }
 }
 
@@ -45,3 +50,4 @@ private struct PlaybackFooterOverlay: View {
     ContentView()
         .environment(PlaybackViewModel())
 }
+

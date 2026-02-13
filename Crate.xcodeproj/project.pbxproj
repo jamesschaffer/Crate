@@ -112,6 +112,12 @@
 		A1B2C3D4E5F6A7B8C9D0F2C1 /* CrateWallServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0F2A1 /* CrateWallServiceTests.swift */; };
 		A1B2C3D4E5F6A7B8C9D0F3C1 /* DislikeServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB1A9F1F05CA6AF0EFBF653 /* DislikeServiceTests.swift */; };
 		A1B2C3D4E5F6A7B8C9D0F4C1 /* FeedbackLoopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18B0D304B5F8925DFF3A7A9 /* FeedbackLoopTests.swift */; };
+		F2A3B4C5D6E7F8A9B0C1D2B1 /* CrateDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A3B4C5D6E7F8A9B0C1D2A1 /* CrateDestination.swift */; };
+		F2A3B4C5D6E7F8A9B0C1D2C1 /* CrateDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A3B4C5D6E7F8A9B0C1D2A1 /* CrateDestination.swift */; };
+		F3A4B5C6D7E8F9A0B1C2D3B1 /* ArtistCatalogViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A4B5C6D7E8F9A0B1C2D3A1 /* ArtistCatalogViewModel.swift */; };
+		F3A4B5C6D7E8F9A0B1C2D3C1 /* ArtistCatalogViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A4B5C6D7E8F9A0B1C2D3A1 /* ArtistCatalogViewModel.swift */; };
+		F4A5B6C7D8E9F0A1B2C3D4B1 /* ArtistCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A5B6C7D8E9F0A1B2C3D4A1 /* ArtistCatalogView.swift */; };
+		F4A5B6C7D8E9F0A1B2C3D4C1 /* ArtistCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A5B6C7D8E9F0A1B2C3D4A1 /* ArtistCatalogView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -198,6 +204,9 @@
 		F15F477BD91295217797621B /* FavoritesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesService.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6F7A8B9C0D1E4 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 		F67D2942E083C422FD657DC4 /* MacCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacCommands.swift; sourceTree = "<group>"; };
+		F2A3B4C5D6E7F8A9B0C1D2A1 /* CrateDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrateDestination.swift; sourceTree = "<group>"; };
+		F3A4B5C6D7E8F9A0B1C2D3A1 /* ArtistCatalogViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistCatalogViewModel.swift; sourceTree = "<group>"; };
+		F4A5B6C7D8E9F0A1B2C3D4A1 /* ArtistCatalogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistCatalogView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -243,6 +252,7 @@
 			isa = PBXGroup;
 			children = (
 				178A2E61284F45CF7AA7DECA /* AlbumDetailViewModel.swift */,
+				F3A4B5C6D7E8F9A0B1C2D3A1 /* ArtistCatalogViewModel.swift */,
 				1748BF975FFA0E81C5222D7B /* AuthViewModel.swift */,
 				1449F397DA9B96CAC8E27C35 /* BrowseViewModel.swift */,
 				A1B2C3D4E5F6A7B8C9D0E1F5 /* CrateWallViewModel.swift */,
@@ -289,6 +299,7 @@
 			isa = PBXGroup;
 			children = (
 				992AA9777D4BCDCDA0804761 /* AlbumDetail */,
+				F4A5B6C7D8E9F0A1B2C3D4D1 /* ArtistCatalog */,
 				F1D8C60350853B57FB8AE99B /* Auth */,
 				330B5FDF2E8EFF5F653A9F19 /* Browse */,
 				37442C68798B988F91A519A4 /* Playback */,
@@ -316,11 +327,20 @@
 			path = AlbumDetail;
 			sourceTree = "<group>";
 		};
+		F4A5B6C7D8E9F0A1B2C3D4D1 /* ArtistCatalog */ = {
+			isa = PBXGroup;
+			children = (
+				F4A5B6C7D8E9F0A1B2C3D4A1 /* ArtistCatalogView.swift */,
+			);
+			path = ArtistCatalog;
+			sourceTree = "<group>";
+		};
 		A423C5756A13CD7CD5B26A75 /* Models */ = {
 			isa = PBXGroup;
 			children = (
 				6564F1160F7891E5A0EB0496 /* Album.swift */,
 				A1B2C3D4E5F6A7B8C9D0E1F2 /* CrateDial.swift */,
+				F2A3B4C5D6E7F8A9B0C1D2A1 /* CrateDestination.swift */,
 				D1A2B3C4E5F6A7B8C9D0E1A1 /* DislikedAlbum.swift */,
 				77A5003AD0F52B54EA13B311 /* FavoriteAlbum.swift */,
 				0CB271E8593086FE76B920B4 /* Genre.swift */,
@@ -587,6 +607,8 @@
 				C2B19AD45472E5483DACD1AF /* AlbumDetailViewModel.swift in Sources */,
 				92D68C10E94070B582B6DEE4 /* AlbumGridView.swift in Sources */,
 				E2A1B3C4D5E6F7A8B9C0D2E3 /* AnimatedGridItemView.swift in Sources */,
+				F4A5B6C7D8E9F0A1B2C3D4B1 /* ArtistCatalogView.swift in Sources */,
+				F3A4B5C6D7E8F9A0B1C2D3B1 /* ArtistCatalogViewModel.swift in Sources */,
 				671D1F168FC648B79B3870A3 /* AuthView.swift in Sources */,
 				BE04C0C0ED7287525310E812 /* AuthViewModel.swift in Sources */,
 				EC661EB6958F1CD3FE1EB4C8 /* BrowseView.swift in Sources */,
@@ -594,6 +616,7 @@
 				1D4BC14548ABE22E18C26181 /* ContentView.swift in Sources */,
 				03734A18D75D0BB7375CF460 /* CrateApp.swift in Sources */,
 				B1C2D3E4F5A6B7C8D9E0F1A2 /* CrateDial.swift in Sources */,
+				F2A3B4C5D6E7F8A9B0C1D2B1 /* CrateDestination.swift in Sources */,
 				B1C2D3E4F5A6B7C8D9E0F1A3 /* CrateDialStore.swift in Sources */,
 				B1C2D3E4F5A6B7C8D9E0F1A4 /* CrateWallService.swift in Sources */,
 				B1C2D3E4F5A6B7C8D9E0F1A5 /* CrateWallViewModel.swift in Sources */,
@@ -636,6 +659,8 @@
 				18CFD0CE7EAFCD08F9A83182 /* AlbumDetailViewModel.swift in Sources */,
 				078B9C50128D289C7E910847 /* AlbumGridView.swift in Sources */,
 				E2A1B3C4D5E6F7A8B9C0D3E3 /* AnimatedGridItemView.swift in Sources */,
+				F4A5B6C7D8E9F0A1B2C3D4C1 /* ArtistCatalogView.swift in Sources */,
+				F3A4B5C6D7E8F9A0B1C2D3C1 /* ArtistCatalogViewModel.swift in Sources */,
 				7A65201A04FA603815C45ED7 /* AuthView.swift in Sources */,
 				9F08B9A73370E0A7645F361A /* AuthViewModel.swift in Sources */,
 				B16A46F05C9280746E5EB116 /* BrowseView.swift in Sources */,
@@ -643,6 +668,7 @@
 				8C61835E7F742DDB1147B30C /* ContentView.swift in Sources */,
 				FCD1828A1BC38F07DCDC7FCB /* CrateApp.swift in Sources */,
 				C1D2E3F4A5B6C7D8E9F0A1B2 /* CrateDial.swift in Sources */,
+				F2A3B4C5D6E7F8A9B0C1D2C1 /* CrateDestination.swift in Sources */,
 				C1D2E3F4A5B6C7D8E9F0A1B3 /* CrateDialStore.swift in Sources */,
 				C1D2E3F4A5B6C7D8E9F0A1B4 /* CrateWallService.swift in Sources */,
 				C1D2E3F4A5B6C7D8E9F0A1B5 /* CrateWallViewModel.swift in Sources */,

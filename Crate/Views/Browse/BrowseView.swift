@@ -8,7 +8,7 @@ import SwiftData
 /// 2. Filter row — dial label + genre pills, or selected genre ✕ + subcategories
 struct BrowseView: View {
 
-    @Binding var navigationPath: [CrateAlbum]
+    @Binding var navigationPath: [CrateDestination]
     @State private var viewModel = BrowseViewModel()
     @State private var wallViewModel = CrateWallViewModel()
     @State private var coordinator = GridTransitionCoordinator()
@@ -28,8 +28,13 @@ struct BrowseView: View {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
-                .navigationDestination(for: CrateAlbum.self) { album in
-                    AlbumDetailView(album: album)
+                .navigationDestination(for: CrateDestination.self) { destination in
+                    switch destination {
+                    case .album(let album):
+                        AlbumDetailView(album: album)
+                    case .artist(let name, let albumID):
+                        ArtistCatalogView(artistName: name, albumID: albumID)
+                    }
                 }
         }
         #if os(iOS)
@@ -111,7 +116,7 @@ struct BrowseView: View {
     private var playbackRow: some View {
         PlaybackRowContent(onTap: {
             if let album = playbackViewModel.nowPlayingAlbum {
-                navigationPath.append(album)
+                navigationPath.append(.album(album))
             }
         })
             .padding(.horizontal)
@@ -236,7 +241,7 @@ struct BrowseView: View {
 }
 
 #Preview {
-    @Previewable @State var path: [CrateAlbum] = []
+    @Previewable @State var path: [CrateDestination] = []
     NavigationStack {
         BrowseView(navigationPath: $path)
     }

@@ -36,7 +36,7 @@ struct AlbumGridView: View {
 
                     LazyVGrid(columns: columns, spacing: 0) {
                         ForEach(Array(albums.enumerated()), id: \.element.id) { index, album in
-                            NavigationLink(value: album) {
+                            NavigationLink(value: CrateDestination.album(album)) {
                                 AnimatedGridItemView(album: album, index: index)
                             }
                             .buttonStyle(.plain)
