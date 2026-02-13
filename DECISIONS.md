@@ -1317,6 +1317,29 @@ The core challenge is that MusicKit's `ApplicationMusicPlayer` operates on a sin
 
 **Separate fix (same commit):** Separated `initialFetchTask` from `prefetchTask` in `PlaybackViewModel`. The 1-album anchor batch immediately set `shouldPrefetch = true`, which triggered `handleTrackChange` to start a pre-fetch that cancelled the in-flight initial fetch. Two independent task variables prevent this cancellation.
 
+### Revision: 2026-02-13 -- Load full queue before playback to eliminate glitches
+
+**Problem:** The original "consume-then-extend" pattern played the anchor album immediately and fetched remaining batch albums in the background. When the background fetch completed, the MusicKit queue was rebuilt mid-playback (stop, reconstruct queue, resume at saved position). This caused three observable problems:
+
+1. **Audible restarts.** The queue rebuild interrupted audio playback. Even though the code saved and restored the playback position, the brief stop-and-restart was audible as a stutter or click.
+2. **UI flickering.** The control bar (PlaybackRowContent) re-rendered when the queue was replaced, causing a visible flicker in the playback footer.
+3. **Broken auto-advance.** The queue rebuild sometimes failed to preserve the correct playback position, especially when track titles matched across albums (e.g., "Intro"), causing auto-advance to lose its place.
+
+Additionally, `stateChangeCounter` was being read directly in `AlbumDetailView.body`, which meant every playback state change re-rendered the entire view -- including the expensive blur background. This was wasted work.
+
+**Fix:** Replaced the "play immediately, rebuild later" strategy with "load everything, then play once."
+
+- **Full batch fetch before playback.** `PlaybackViewModel.play(tracks:)` now fetches ALL batch albums' tracks upfront (anchor tracks are already loaded; remaining albums are fetched sequentially with 500ms throttle). Only after all tracks are ready does it build a single complete MusicKit queue and call `player.play()`. No mid-playback queue rebuilds, no race conditions.
+- **Loading spinner on play button.** A new `isPreparingQueue` property on `PlaybackViewModel` drives a `ProgressView` spinner in place of the play button while batch tracks are loading. The user sees clear feedback that something is happening.
+- **`nowPlayingAlbum` set after playback starts.** Previously set before `play()`, which caused the footer and scrubber to appear prematurely during loading. Now set after `play()` completes, so the UI transitions cleanly.
+- **`fetchAndAppendBatch` removed.** The 100+ line method that handled background fetching, queue rebuilding, position saving, and resume logic is deleted. The fetch loop is now inline in `play(tracks:)` -- simpler and easier to follow.
+- **`initialFetchTask` removed.** No longer needed since batch fetching is synchronous (awaited before playback). Only `prefetchTask` remains for pre-fetching the next batch.
+- **`AlbumTransportControls` child view.** Transport controls (prev/play-pause/next) extracted from `AlbumDetailView` into a private `AlbumTransportControls` struct. This child view reads `stateChangeCounter`, so playback state changes only re-render the buttons -- not the blur background, scrubber, or track list. Same isolation pattern as `PlaybackFooterOverlay` in ContentView.
+- **`ShaderWarmUpView` in ContentView.** An invisible 1x1 `Color.gray` with `scaleEffect(3)` and `blur(radius: 60)` in the background of ContentView. Forces Metal to pre-compile the blur and scale shaders at launch, preventing a visible stutter the first time AlbumDetailView pushes onto the navigation stack. Renders once, costs nothing ongoing.
+- **Scrubber lazy scroll view retry.** `ScrubGestureUIView` re-checks for its parent `UIScrollView` on the first gesture if it was nil at `didMoveToWindow` time. On first launch, the UIKit hosting hierarchy may not be fully assembled when the view moves to the window.
+
+**Trade-off:** The user now waits 1-2 seconds (for a 5-album batch with 500ms throttle) before hearing music, versus the previous instant-play approach. In practice, this is a good trade: a brief spinner followed by seamless playback is far better than instant audio that stutters, flickers, and sometimes breaks. The anchor album's tracks are already loaded (fetched by `AlbumDetailViewModel`), so the wait only covers the remaining 4 albums.
+
 ---
 
 *End of Decision Records*

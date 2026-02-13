@@ -91,7 +91,7 @@ Crate/
   Crate.xcodeproj
   Crate/                        # Shared code (iOS + macOS)
     CrateApp.swift              # App entry point
-    ContentView.swift           # Root view (auth gate) + PlaybackFooterOverlay
+    ContentView.swift           # Root view (auth gate) + PlaybackFooterOverlay + ShaderWarmUpView
     /Models                     # CrateAlbum, CrateDestination, Genre, GenreTaxonomy,
                                 # FavoriteAlbum, DislikedAlbum, CrateDial,
                                 # GenreFeedSignal, GenreFeedWeights
@@ -100,7 +100,7 @@ Crate/
     /Views
       /Browse                   # BrowseView, AlbumGridView, AlbumGridItemView,
                                 # WallGridItemView, AnimatedGridItemView, GenreBarView
-      /AlbumDetail              # AlbumDetailView, TrackListView
+      /AlbumDetail              # AlbumDetailView, AlbumTransportControls, TrackListView
       /ArtistCatalog            # ArtistCatalogView (artist discography grid)
       /Auth                     # AuthView
       /Playback                 # PlaybackFooterView, PlaybackRowContent,
