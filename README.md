@@ -2,13 +2,13 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, and artist catalog browsing complete. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, and auto-advance album playback complete. Visual design polish in progress.
 
 ---
 
 ## What is AlbumCrate?
 
-AlbumCrate is a single-purpose native app for Apple Music that removes playlists, podcasts, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy (9 super-genres, ~50 subcategories). On launch, an algorithm-driven "Crate Wall" fills the screen with album art, then a control bar slides up from the bottom with a spring animation once content is ready. The wall draws from five blended signals -- listening history, recommendations, charts, new releases, and wild card picks -- controlled by a "Crate Dial" radio selector in settings. The experience is designed to feel like browsing a record store, not using a streaming app.
+AlbumCrate is a single-purpose native app for Apple Music that removes playlists, podcasts, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy (9 super-genres, ~50 subcategories). On launch, an algorithm-driven "Crate Wall" fills the screen with album art, then a control bar slides up from the bottom with a spring animation once content is ready. The wall draws from five blended signals -- listening history, recommendations, charts, new releases, and wild card picks -- controlled by a "Crate Dial" radio selector in settings. When you play an album from any grid, playback automatically continues through the remaining albums -- no need to manually pick the next record. The experience is designed to feel like browsing a record store, not using a streaming app.
 
 AlbumCrate is a SwiftUI multiplatform app targeting **iOS** and **macOS** from a single codebase, powered by **MusicKit** for Apple Music integration. There is no server or backend -- the app is fully client-side. The codebase still uses "Crate" internally for the project name, targets, and module names.
 
@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (29 ADRs, ADR-100 through ADR-128) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (30 ADRs, ADR-100 through ADR-129) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -105,11 +105,12 @@ Crate/
       /Auth                     # AuthView
       /Playback                 # PlaybackFooterView, PlaybackRowContent,
                                 # PlaybackProgressBar, PlaybackScrubber
-      /Settings                 # SettingsView (Crate Algorithm radio selector), FeedDiagnosticsView
+      /Settings                 # SettingsView (Crate Algorithm radio selector),
+                                # FeedDiagnosticsView, QueueDiagnosticsView
       /Shared                   # AlbumArtworkView, LoadingView, EmptyStateView
     /Services                   # MusicService, FavoritesService, DislikeService,
                                 # CrateWallService, GenreFeedService, WeightedInterleave,
-                                # ArtworkColorExtractor
+                                # ArtworkColorExtractor, AlbumQueueManager
     /Config                     # Genres.swift (static taxonomy), CrateDialStore.swift,
                                 # GridTransitionConstants.swift, AppColors.swift (brand color)
     /Resources                  # Assets.xcassets
@@ -119,6 +120,7 @@ Crate/
                                 # BrowseViewModelTests, CrateWallServiceTests,
                                 # GenreTaxonomyTests, FavoritesServiceTests,
                                 # DislikeServiceTests, FeedbackLoopTests,
+                                # AlbumQueueManagerTests,
                                 # MockMusicService (shared test mock)
   CrateUITests/                 # UI tests (XCTest)
 ```

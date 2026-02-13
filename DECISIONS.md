@@ -41,6 +41,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 126 | [Codebase Audit — MainActor Isolation, Guard Hardening, macOS Build Fix, Test Coverage, and Concurrency Cleanup](#adr-126-codebase-audit--mainactor-isolation-guard-hardening-macos-build-fix-test-coverage-and-concurrency-cleanup) | Accepted |
 | 127 | [Radio Selection for Crate Dial and Standardized Spinners](#adr-127-radio-selection-for-crate-dial-and-standardized-spinners) | Accepted |
 | 128 | [Artist Catalog View with Typed Navigation Destinations](#adr-128-artist-catalog-view-with-typed-navigation-destinations) | Accepted |
+| 129 | [Auto-Advance Album Playback from Grid Context](#adr-129-auto-advance-album-playback-from-grid-context) | Accepted |
 
 ---
 
@@ -1244,6 +1245,62 @@ An initial attempt to animate the pills using opacity and scaleEffect failed due
 - The artist albums endpoint returns up to 100 albums per request. For artists with very large catalogs (100+ albums), pagination would need to be added. This is sufficient for the vast majority of artists.
 
 **What would change this:** If we needed more destination types frequently, a protocol-based approach (each destination type conforms to a `Routable` protocol) might scale better than a growing enum. But for 2-3 destination types, the enum is simpler and more readable. If artist catalogs needed richer features (filtering by album type, sorting options), `ArtistCatalogView` would evolve but the navigation architecture would remain the same.
+
+---
+
+## ADR-129: Auto-Advance Album Playback from Grid Context
+
+**Date:** 2026-02-13
+**Status:** Accepted
+**Refines:** ADR-114 (Album-Sequential Playback with No Shuffle)
+
+**Context:** When a user plays an album from the Crate Wall, a genre feed, or an artist catalog grid, playback stops after the last track of that album. The user must manually tap another album to keep listening. This creates friction -- especially on a grid-browsing surface designed to feel like digging through records. In a record store, you pull one album after another. In Crate, the music just stopped.
+
+The core challenge is that MusicKit's `ApplicationMusicPlayer` operates on a single queue. Once that queue finishes, playback ends. To continue through a grid of albums, the app needs to manage multi-album queuing, track fetching (which requires API calls per album), and batch transitions -- all without blocking the initial play action or hitting Apple Music rate limits.
+
+**Decision:**
+
+1. **Introduce `AlbumQueueManager` as a pure logic class.** This manager tracks the grid context (ordered album list + current index), composes batches, maps tracks back to their source albums, and determines when the next batch should be pre-fetched. It has no MusicKit dependency, making it fully unit-testable.
+
+2. **Use queue rebuild over `insert()`.** When background-fetched tracks are ready, the entire MusicKit queue is rebuilt with all known tracks (anchor album + remaining batch), preserving the current playback position. This follows Apple's guidance ("set the queue as completely as you can") and avoids `insert()`, which creates transient entries that can silently fail to play.
+
+3. **Batch albums in groups of 5.** The anchor album (tapped by the user) plays immediately. The remaining 4 albums in the batch are fetched in the background with a 500ms throttle between API requests to avoid Apple Music rate limits. When the user reaches the last album of the current batch, the next 5 albums are pre-fetched.
+
+4. **Separate task variables for initial fetch vs. pre-fetch.** `PlaybackViewModel` maintains two independent background task references: `initialFetchTask` (fetches the remaining albums in the current batch after the anchor plays) and `prefetchTask` (pre-fetches the next batch when nearing the end of the current one). This separation prevents the pre-fetch logic from cancelling the initial fetch -- a bug that caused batch requests to be silently cancelled.
+
+5. **Consume-then-extend pattern.** `consumePendingQueue()` starts playback of the anchor album immediately (no waiting for batch fetching), giving the user instant response. Background fetching extends the queue once tracks are available.
+
+6. **Track-to-album mapping uses forward search.** When determining which album a playing track belongs to (for UI updates, batch boundary detection), the manager searches forward through the track list. This handles duplicate track titles (e.g., multiple albums with a track called "Intro") by relying on track ordering within the queue rather than title matching alone.
+
+**Alternatives Considered:**
+
+1. **`insert()` to append tracks to the existing queue.** MusicKit provides `ApplicationMusicPlayer.shared.queue.insert(_, position: .afterCurrentEntry)` for adding entries. In practice, entries inserted this way become "transient" and can silently fail -- the player advances past them without playing. Apple's own guidance recommends setting the queue as completely as possible rather than incrementally inserting. Queue rebuild is more reliable.
+
+2. **Fetch all grid albums upfront before playing.** This would avoid the complexity of batching and background fetching, but it means the user waits for potentially 30+ API calls before hearing any music. The consume-then-extend pattern gives instant playback.
+
+3. **Single background task for both initial fetch and pre-fetch.** Simpler code, but a single task variable means starting a pre-fetch cancels the in-progress initial fetch (Swift structured concurrency cancels the previous task when you assign a new one). This was the root cause of a critical bug during development.
+
+4. **Fetch all tracks for the entire grid at once.** For a 50-album grid, this would mean 50 sequential API calls with throttling -- a 25-second wait. Batching keeps the fetch window small (4 albums, ~2 seconds) while still providing seamless continuity.
+
+**Rationale:**
+
+- The pure-logic `AlbumQueueManager` follows the same pattern used elsewhere in the codebase (business logic separated from framework dependencies, testable via protocols). 23 unit tests validate batch composition, track mapping, boundary detection, and edge cases.
+- Queue rebuild is the more reliable MusicKit pattern. Apple's documentation and developer forums consistently recommend setting the queue completely rather than using insert().
+- 500ms throttle is conservative. Apple Music allows ~20 requests/second, but throttling avoids bursts that could trigger transient rate limiting during heavy browsing sessions.
+- Batch size of 5 balances responsiveness (user hears music in <1 second) with continuity (20+ minutes of music queued before the next fetch is needed).
+- The two-task pattern (`initialFetchTask` / `prefetchTask`) is explicit about lifecycle and prevents the cancellation bug. The extra variable is a small cost for correctness.
+
+**Consequences:**
+
+- `AlbumGridView`, `BrowseView`, and `ArtistCatalogView` now pass grid context (album list + tapped index) to `PlaybackViewModel` when starting playback, so the queue manager knows the full grid.
+- `PlaybackViewModel` owns both the `AlbumQueueManager` instance and the two background task references. It coordinates between the manager (pure logic) and `ApplicationMusicPlayer` (framework).
+- A `QueueDiagnosticsView` is available in Settings for debugging queue state, batch composition, track-to-album mapping, and pre-fetch status.
+- `AlbumDetailViewModel` now includes retry logic for transient track fetch failures.
+- `PlaybackScrubber` sets `currentTime` immediately on drag end instead of waiting for the 0.5s timer tick, improving scrubber responsiveness.
+- `AlbumDetailView` adds 80pt bottom padding to the ScrollView so the last track is not obscured by the playback footer.
+- Adding new grid surfaces in the future (e.g., search results grid, playlist grid) only requires passing the grid context to `PlaybackViewModel` -- the batching, fetching, and queue management are fully generic.
+
+**What would change this:** If Apple improves `insert()` to be reliable (no transient entry issues), the queue rebuild approach could be simplified to incremental insertion. If Apple Music tightens rate limits, the throttle delay would need to increase or the batch size would need to decrease. If users want to reorder or skip albums within the queue (not just auto-advance), `AlbumQueueManager` would need shuffle/skip-ahead logic.
 
 ---
 
