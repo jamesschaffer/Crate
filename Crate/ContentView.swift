@@ -13,6 +13,7 @@ struct ContentView: View {
         .safeAreaInset(edge: .bottom) {
             PlaybackFooterOverlay(navigationPath: $navigationPath)
         }
+        .background { ShaderWarmUpView() }
     }
 }
 
@@ -43,6 +44,21 @@ private struct PlaybackFooterOverlay: View {
         guard let album = playbackViewModel.nowPlayingAlbum else { return }
         if case .album(let current, _) = navigationPath.last, current.id == album.id { return }
         navigationPath.append(.album(album))
+    }
+}
+
+/// Invisible 1×1 view that forces Metal to compile the blur + scale shaders
+/// at launch. Without this, the first AlbumDetailView push stutters while
+/// the GPU compiles shaders on-demand. Renders once, costs nothing ongoing.
+private struct ShaderWarmUpView: View {
+    var body: some View {
+        Color.gray
+            .frame(width: 1, height: 1)
+            .scaleEffect(3)
+            .blur(radius: 60)
+            .opacity(0)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 

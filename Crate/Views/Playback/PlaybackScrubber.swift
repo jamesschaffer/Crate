@@ -228,6 +228,12 @@ final class ScrubGestureUIView: UIView {
         guard bounds.width > 0 else { return }
         let fraction = min(max(gesture.location(in: self).x / bounds.width, 0), 1)
 
+        // Lazy retry: on first launch the UIKit hosting hierarchy may not
+        // be assembled when didMoveToWindow fires. Re-check on first gesture.
+        if parentScrollView == nil {
+            parentScrollView = findParentScrollView()
+        }
+
         switch gesture.state {
         case .began:
             parentScrollView?.panGestureRecognizer.isEnabled = false

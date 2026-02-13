@@ -28,9 +28,6 @@ struct AlbumDetailView: View {
     }
 
     var body: some View {
-        // Read stateChangeCounter so play/pause state updates reactively.
-        let _ = playbackViewModel.stateChangeCounter
-
         ZStack {
             // Blurred album art background
             AlbumArtworkView(artwork: album.artwork, size: 400, artworkURL: album.artworkURL, cornerRadius: 0)
@@ -84,48 +81,15 @@ struct AlbumDetailView: View {
                         }
                     }
 
-                    // Transport controls: prev — play/pause — next
-                    HStack(spacing: 40) {
-                        Button {
-                            Task { await playbackViewModel.skipToPrevious() }
-                        } label: {
-                            Image(systemName: "backward.fill")
-                                .font(.title2)
-                                .foregroundStyle(.primary)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!playbackViewModel.hasQueue)
-
-                        Button {
-                            Task {
-                                if isPlayingThisAlbum {
-                                    await playbackViewModel.togglePlayPause()
-                                } else if let tracks = viewModel.tracks {
-                                    playbackViewModel.nowPlayingAlbum = album
-                                    await playbackViewModel.play(tracks: tracks)
-                                }
-                            }
-                        } label: {
-                            Image(systemName: isPlayingThisAlbum && playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.title)
-                                .frame(width: 64, height: 64)
-                                .background(colorExtractor.hasExtracted ? colorExtractor.colors.0 : backgroundColor)
-                                .foregroundStyle(colorExtractor.hasExtracted ? .white : .primary)
-                                .clipShape(Circle())
-                        }
-                        .disabled(viewModel.tracks == nil)
-
-                        Button {
-                            Task { await playbackViewModel.skipToNext() }
-                        } label: {
-                            Image(systemName: "forward.fill")
-                                .font(.title2)
-                                .foregroundStyle(.primary)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!playbackViewModel.hasQueue)
-                    }
-                    .padding(.vertical, 4)
+                    // Transport controls — isolated into child view so
+                    // stateChangeCounter re-renders only the buttons,
+                    // not the expensive blur background or scrubber.
+                    AlbumTransportControls(
+                        album: album,
+                        tracks: viewModel.tracks,
+                        accentColor: colorExtractor.hasExtracted ? colorExtractor.colors.0 : backgroundColor,
+                        accentForeground: colorExtractor.hasExtracted ? .white : .primary
+                    )
 
                     // Scrubber (only when playing this album)
                     if isPlayingThisAlbum {
@@ -163,6 +127,80 @@ struct AlbumDetailView: View {
             await viewModel.loadAlbum(album)
             await colorExtractor.extract(from: album.artwork, artworkURL: album.artworkURL)
         }
+    }
+}
+
+/// Isolates stateChangeCounter observation so only the transport buttons
+/// re-render on playback state changes — not the entire AlbumDetailView
+/// (which includes an expensive blur background).
+/// Same pattern as PlaybackFooterOverlay in ContentView.
+private struct AlbumTransportControls: View {
+
+    let album: CrateAlbum
+    let tracks: MusicItemCollection<Track>?
+    let accentColor: Color
+    let accentForeground: Color
+
+    @Environment(PlaybackViewModel.self) private var playbackViewModel
+
+    private var isPlayingThisAlbum: Bool {
+        playbackViewModel.nowPlayingAlbum?.id == album.id
+    }
+
+    var body: some View {
+        let _ = playbackViewModel.stateChangeCounter
+
+        HStack(spacing: 40) {
+            Button {
+                Task { await playbackViewModel.skipToPrevious() }
+            } label: {
+                Image(systemName: "backward.fill")
+                    .font(.title2)
+                    .foregroundStyle(.primary)
+            }
+            .buttonStyle(.plain)
+            .disabled(!playbackViewModel.hasQueue)
+
+            if playbackViewModel.isPreparingQueue {
+                ProgressView()
+                    .tint(accentForeground)
+                    .frame(width: 64, height: 64)
+                    .background(accentColor)
+                    .clipShape(Circle())
+            } else {
+                Button {
+                    Task {
+                        if isPlayingThisAlbum {
+                            await playbackViewModel.togglePlayPause()
+                        } else if let tracks {
+                            await playbackViewModel.play(tracks: tracks)
+                            // Set nowPlayingAlbum after playback starts so the
+                            // footer and scrubber don't appear during loading.
+                            playbackViewModel.nowPlayingAlbum = album
+                        }
+                    }
+                } label: {
+                    Image(systemName: isPlayingThisAlbum && playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.title)
+                        .frame(width: 64, height: 64)
+                        .background(accentColor)
+                        .foregroundStyle(accentForeground)
+                        .clipShape(Circle())
+                }
+                .disabled(tracks == nil)
+            }
+
+            Button {
+                Task { await playbackViewModel.skipToNext() }
+            } label: {
+                Image(systemName: "forward.fill")
+                    .font(.title2)
+                    .foregroundStyle(.primary)
+            }
+            .buttonStyle(.plain)
+            .disabled(!playbackViewModel.hasQueue)
+        }
+        .padding(.vertical, 4)
     }
 }
 
