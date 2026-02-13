@@ -2,7 +2,7 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, and brand identity complete. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, and artist catalog browsing complete. Visual design polish in progress.
 
 ---
 
@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (28 ADRs, ADR-100 through ADR-127) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (29 ADRs, ADR-100 through ADR-128) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -92,14 +92,16 @@ Crate/
   Crate/                        # Shared code (iOS + macOS)
     CrateApp.swift              # App entry point
     ContentView.swift           # Root view (auth gate) + PlaybackFooterOverlay
-    /Models                     # CrateAlbum, Genre, GenreTaxonomy, FavoriteAlbum, DislikedAlbum,
-                                # CrateDial, GenreFeedSignal, GenreFeedWeights
-    /ViewModels                 # Browse, AlbumDetail, Playback, Auth, CrateWall,
-                                # GridTransitionCoordinator
+    /Models                     # CrateAlbum, CrateDestination, Genre, GenreTaxonomy,
+                                # FavoriteAlbum, DislikedAlbum, CrateDial,
+                                # GenreFeedSignal, GenreFeedWeights
+    /ViewModels                 # Browse, AlbumDetail, ArtistCatalog, Playback, Auth,
+                                # CrateWall, GridTransitionCoordinator
     /Views
       /Browse                   # BrowseView, AlbumGridView, AlbumGridItemView,
                                 # WallGridItemView, AnimatedGridItemView, GenreBarView
       /AlbumDetail              # AlbumDetailView, TrackListView
+      /ArtistCatalog            # ArtistCatalogView (artist discography grid)
       /Auth                     # AuthView
       /Playback                 # PlaybackFooterView, PlaybackRowContent,
                                 # PlaybackProgressBar, PlaybackScrubber

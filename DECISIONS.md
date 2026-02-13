@@ -40,6 +40,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 125 | [Typed Navigation Path, Scrubber Relocation, and Footer Progress Toggle](#adr-125-typed-navigation-path-scrubber-relocation-and-footer-progress-toggle) | Accepted |
 | 126 | [Codebase Audit — MainActor Isolation, Guard Hardening, macOS Build Fix, Test Coverage, and Concurrency Cleanup](#adr-126-codebase-audit--mainactor-isolation-guard-hardening-macos-build-fix-test-coverage-and-concurrency-cleanup) | Accepted |
 | 127 | [Radio Selection for Crate Dial and Standardized Spinners](#adr-127-radio-selection-for-crate-dial-and-standardized-spinners) | Accepted |
+| 128 | [Artist Catalog View with Typed Navigation Destinations](#adr-128-artist-catalog-view-with-typed-navigation-destinations) | Accepted |
 
 ---
 
@@ -1194,6 +1195,55 @@ An initial attempt to animate the pills using opacity and scaleEffect failed due
 - All spinners across the app now share the same appearance. Any new `ProgressView` added in the future should include `.tint(.brandPink)` for consistency (the root tint may not propagate to all contexts).
 
 **What would change this:** If additional dial positions were added (more than 5), the radio list could become too long and a different control might be warranted (e.g., a picker wheel or segmented control with a separate description area). If `CrateDialStore` became `@Observable`, the `@State selectedPosition` workaround could be removed in favor of direct observation.
+
+---
+
+## ADR-128: Artist Catalog View with Typed Navigation Destinations
+
+**Date:** 2026-02-12
+**Status:** Accepted
+**Refines:** ADR-125 (Typed Navigation Path, Scrubber Relocation, and Footer Progress Toggle)
+
+**Context:** Two related needs motivated this change:
+
+1. **Artist discovery from Album Detail.** When a user is viewing an album and wants to explore more of the artist's work, they had no in-app path. The only option was to leave Crate entirely and find the artist in the Apple Music app. For an album-focused listening experience, browsing an artist's full discography is a natural next step.
+
+2. **Navigation path supported only one destination type.** The NavigationStack used a `[CrateAlbum]` path array (ADR-125), which worked when the only destination was album detail. Adding artist catalog as a second destination type required a more flexible navigation model -- the path needed to support heterogeneous destination types.
+
+**Decision:**
+
+1. **Introduce `CrateDestination` enum for typed navigation.** Replace the `[CrateAlbum]` navigation path with `[CrateDestination]`, where `CrateDestination` is an enum with cases `.album(CrateAlbum)` and `.artist(name: String, albumID: MusicItemID)`. This supports multiple destination types in a single NavigationStack while keeping the path inspectable (not type-erased).
+
+2. **Add artist catalog view.** `ArtistCatalogView` displays a full-bleed grid of all albums by an artist, sorted oldest-first (chronological discography order). It reuses `AlbumGridView` for the grid layout. `ArtistCatalogViewModel` handles the two-step fetch: resolve the artist ID from the album, then fetch all albums by that artist.
+
+3. **Add two new MusicService methods.** `fetchArtistID(forAlbumID:)` uses `MusicCatalogResourceRequest<Album>` with the `.artists` relationship property to resolve the artist. `fetchArtistAlbums(artistID:)` uses `MusicDataRequest` against `/v1/catalog/{storefront}/artists/{id}/albums` with a limit of 100. Both are on the `MusicServiceProtocol`, so they are mockable in tests.
+
+4. **Wire artist navigation from AlbumDetailView.** The artist name text in AlbumDetailView is wrapped in a `NavigationLink(value: .artist(...))`, making it tappable. BrowseView's `.navigationDestination(for: CrateDestination.self)` switches on the enum to route to either `AlbumDetailView` or `ArtistCatalogView`.
+
+**Alternatives Considered:**
+
+1. **Type-erased `NavigationPath`.** SwiftUI provides `NavigationPath` as a type-erased heterogeneous path. This would avoid the enum but loses inspectability -- the footer overlay's duplicate-push guard (`navigationPath.last`) needs to pattern-match on the path to check if the user is already viewing the now-playing album. Type erasure would prevent this check.
+
+2. **Separate NavigationStack for artist browsing.** Presenting the artist catalog in a sheet or a secondary NavigationStack. This would keep the path type simple but break the navigation metaphor -- users expect to push/pop within a single stack, not jump between stacks. It would also prevent navigating from an artist catalog album into that album's detail view using the same back stack.
+
+3. **AnyHashable wrapper.** Wrapping different destination types in `AnyHashable` and using multiple `.navigationDestination(for:)` modifiers. This is more fragile and less readable than a single enum with pattern matching.
+
+**Rationale:**
+
+- The `CrateDestination` enum is the standard SwiftUI pattern for multi-destination NavigationStacks. It keeps the path typed and inspectable while supporting any number of destination types in the future (e.g., playlist, search results).
+- Oldest-first sorting matches how discographies are conventionally presented (chronological order). Users scanning an artist's catalog want to see the progression from early work to recent releases.
+- The two-step fetch (album -> artist ID -> artist albums) is necessary because the navigation originates from an album context, not an artist context. MusicKit's `MusicCatalogResourceRequest` with `.artists` relationship is the correct way to resolve the artist from an album.
+- Reusing `AlbumGridView` in `ArtistCatalogView` maintains visual consistency with the rest of the app and avoids duplicating grid layout code.
+
+**Consequences:**
+
+- The navigation path type changed from `[CrateAlbum]` to `[CrateDestination]` in ContentView, PlaybackFooterOverlay, and BrowseView. All `navigationPath.append()` and `navigationPath.last` call sites now use the enum (e.g., `.append(.album(album))`, `case .album(let a) = navigationPath.last`).
+- `AlbumGridView`'s NavigationLink values changed from raw `CrateAlbum` to `CrateDestination.album(album)`.
+- Adding future navigation destinations (e.g., a playlist view, a search result detail) requires only adding a new case to `CrateDestination` and a corresponding `case` in BrowseView's `navigationDestination` switch.
+- `ArtistCatalogViewModel` follows the established pattern: `@MainActor @Observable`, error handling with `[Crate]`-prefixed logging, `MusicServiceProtocol` dependency injection.
+- The artist albums endpoint returns up to 100 albums per request. For artists with very large catalogs (100+ albums), pagination would need to be added. This is sufficient for the vast majority of artists.
+
+**What would change this:** If we needed more destination types frequently, a protocol-based approach (each destination type conforms to a `Routable` protocol) might scale better than a growing enum. But for 2-3 destination types, the enum is simpler and more readable. If artist catalogs needed richer features (filtering by album type, sorting options), `ArtistCatalogView` would evolve but the navigation architecture would remain the same.
 
 ---
 
