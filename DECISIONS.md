@@ -1302,6 +1302,21 @@ The core challenge is that MusicKit's `ApplicationMusicPlayer` operates on a sin
 
 **What would change this:** If Apple improves `insert()` to be reliable (no transient entry issues), the queue rebuild approach could be simplified to incremental insertion. If Apple Music tightens rate limits, the throttle delay would need to increase or the batch size would need to decrease. If users want to reorder or skip albums within the queue (not just auto-advance), `AlbumQueueManager` would need shuffle/skip-ahead logic.
 
+### Revision: 2026-02-13 -- Grid context passed through navigation instead of gesture
+
+**Problem:** The original implementation used `simultaneousGesture(TapGesture())` on `NavigationLink` in `AlbumGridView` to call `setGridContext` before navigation. SwiftUI's built-in tap handling on `NavigationLink` swallowed the simultaneous gesture, so `setGridContext` never fired. Without grid context, auto-advance never activated -- the user played one album and playback stopped.
+
+**Fix:** Replaced the gesture-based approach with a `GridContext` struct embedded directly in `CrateDestination.album`. The navigation destination now carries the grid context (album list + tapped index) as data rather than relying on a side-effect gesture.
+
+- **New `GridContext` struct** in `CrateDestination.swift` containing `albums: [CrateAlbum]` and `tappedIndex: Int`.
+- **`CrateDestination.album`** now takes an optional `gridContext: GridContext?` parameter.
+- **`AlbumGridView`** passes `gridContext` through the `NavigationLink` destination instead of using an `onAlbumTapped` closure.
+- **`AlbumDetailView`** receives the grid context from its `CrateDestination` and calls `setGridContext` in `.task` -- deterministic, no race condition.
+- **`ArtistCatalogView`** no longer needs `@Environment(PlaybackViewModel.self)` since context flows through navigation rather than environment-based gestures.
+- **`ContentView`** pattern matching updated for `.album(let album, _)` syntax.
+
+**Separate fix (same commit):** Separated `initialFetchTask` from `prefetchTask` in `PlaybackViewModel`. The 1-album anchor batch immediately set `shouldPrefetch = true`, which triggered `handleTrackChange` to start a pre-fetch that cancelled the in-flight initial fetch. Two independent task variables prevent this cancellation.
+
 ---
 
 *End of Decision Records*
