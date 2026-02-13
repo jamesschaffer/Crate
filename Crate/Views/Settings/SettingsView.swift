@@ -6,12 +6,14 @@ import SwiftData
 struct SettingsView: View {
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(PlaybackViewModel.self) private var playbackViewModel
 
     var onDialChanged: (() -> Void)?
 
     @State private var dialStore = CrateDialStore()
     @State private var selectedPosition: CrateDialPosition = .mixedCrate
     @State private var showDiagnostics: Bool = false
+    @State private var showQueueDiagnostics: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -70,6 +72,20 @@ struct SettingsView: View {
                 if showDiagnostics {
                     FeedDiagnosticsView(modelContext: modelContext, dialPosition: selectedPosition)
                 }
+
+                // MARK: - Queue Diagnostics
+
+                Section {
+                    Button(showQueueDiagnostics ? "Hide Queue Diagnostics" : "Show Queue Diagnostics") {
+                        showQueueDiagnostics.toggle()
+                    }
+                } footer: {
+                    Text("Debug info for auto-advance album queue.")
+                }
+
+                if showQueueDiagnostics {
+                    QueueDiagnosticsView(diagnostics: playbackViewModel.queueManager.diagnostics)
+                }
             }
             .navigationTitle("Settings")
             #if os(iOS)
@@ -84,4 +100,5 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
+        .environment(PlaybackViewModel())
 }

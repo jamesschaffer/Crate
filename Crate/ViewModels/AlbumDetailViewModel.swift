@@ -65,11 +65,16 @@ final class AlbumDetailViewModel {
         isFavorite = favoritesService.isFavorite(albumID: album.id.rawValue)
         isDisliked = dislikeService.isDisliked(albumID: album.id.rawValue)
 
-        // Load tracks
+        // Load tracks (retry once on failure — rate limits from batch pre-fetch can cause transient errors).
         do {
             tracks = try await musicService.fetchAlbumTracks(albumID: album.id)
         } catch {
-            errorMessage = "Could not load tracks: \(error.localizedDescription)"
+            try? await Task.sleep(for: .seconds(1))
+            do {
+                tracks = try await musicService.fetchAlbumTracks(albumID: album.id)
+            } catch {
+                errorMessage = "Could not load tracks: \(error.localizedDescription)"
+            }
         }
 
         isLoading = false

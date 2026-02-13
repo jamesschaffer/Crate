@@ -161,7 +161,13 @@ struct BrowseView: View {
                     }
                 },
                 topInset: topInset,
-                scrollToTopTrigger: coordinator.scrollToTopTrigger
+                scrollToTopTrigger: coordinator.scrollToTopTrigger,
+                onAlbumTapped: { index in
+                    playbackViewModel.setGridContext(
+                        gridAlbums: currentAlbums,
+                        tappedIndex: index
+                    )
+                }
             )
 
             // Overlay states

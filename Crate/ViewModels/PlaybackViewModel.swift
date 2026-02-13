@@ -16,6 +16,10 @@ final class PlaybackViewModel {
 
     private let player = ApplicationMusicPlayer.shared
 
+    // MARK: - Dependencies
+
+    private let musicService: MusicServiceProtocol
+
     // MARK: - Playback State
 
     /// The CrateAlbum that's currently playing (set when playback starts).
@@ -62,6 +66,26 @@ final class PlaybackViewModel {
     /// Human-readable error if playback fails.
     var errorMessage: String?
 
+    // MARK: - Auto-Advance
+
+    /// Manages queue logic for auto-advancing through grid albums.
+    let queueManager = AlbumQueueManager()
+
+    /// True when the user explicitly stopped playback (prevents auto-advance).
+    private var userDidStop = false
+
+    /// True while we're in the process of swapping to the next batch.
+    private var isAdvancing = false
+
+    /// Background task for fetching remaining albums in the initial batch (anchor + remaining).
+    private var initialFetchTask: Task<Void, Never>?
+
+    /// Background task for pre-fetching the NEXT batch of album tracks.
+    private var prefetchTask: Task<Void, Never>?
+
+    /// Actual MusicKit Track objects for the next batch, ready to load into the player.
+    private var readyBatchTracks: [Track] = []
+
     // MARK: - State Observation
 
     private var stateObservation: AnyCancellable?
@@ -75,7 +99,9 @@ final class PlaybackViewModel {
     // and @Observable tracks only direct property mutations.
     var stateChangeCounter: Int = 0
 
-    init() {
+    init(musicService: MusicServiceProtocol = MusicService()) {
+        self.musicService = musicService
+
         // Always disable shuffle — Crate is about intentional album listening.
         player.state.shuffleMode = .off
         player.state.repeatMode = MusicPlayer.RepeatMode.none
@@ -83,11 +109,21 @@ final class PlaybackViewModel {
         observePlayerState()
     }
 
+    // MARK: - Grid Context
+
+    /// Called by grid views when the user taps an album tile.
+    /// Stores the grid context so auto-advance activates when playback starts.
+    func setGridContext(gridAlbums: [CrateAlbum], tappedIndex: Int) {
+        print("[Crate][Queue] setGridContext: \(gridAlbums.count) albums, tapped index \(tappedIndex)")
+        queueManager.setPendingQueue(gridAlbums: gridAlbums, tappedIndex: tappedIndex)
+    }
+
     // MARK: - Transport Controls
 
     /// Play a specific album starting from the first track (or a given track).
     func play(album: Album) async {
         errorMessage = nil
+        resetAutoAdvance()
         currentTracks = nil
         trackDuration = nil
         do {
@@ -101,13 +137,54 @@ final class PlaybackViewModel {
     /// Play a collection of tracks (e.g., from an album's track list).
     func play(tracks: MusicItemCollection<Track>, startingAt index: Int = 0) async {
         errorMessage = nil
-        currentTracks = tracks
-        trackDuration = tracks[index].duration
-        do {
-            player.queue = ApplicationMusicPlayer.Queue(for: tracks, startingAt: tracks[index])
-            try await player.play()
-        } catch {
-            errorMessage = "Playback failed: \(error.localizedDescription)"
+        userDidStop = false
+
+        if queueManager.hasPendingQueue {
+            // Auto-advance mode: play anchor album immediately, fetch remaining in background.
+            print("[Crate][Queue] play(tracks:) — pending queue ACTIVE, entering auto-advance mode")
+            let (anchor, remaining) = queueManager.consumePendingQueue()
+            print("[Crate][Queue] Anchor: \(anchor.title), remaining: \(remaining.map(\.title))")
+
+            // Register the anchor album's tracks with the manager.
+            queueManager.registerBatchTracks([
+                (albumID: anchor.id, titles: tracks.map(\.title))
+            ])
+            print("[Crate][Queue] Registered \(tracks.count) anchor tracks, trackMap count: \(queueManager.trackMap.count)")
+
+            // Play the anchor album.
+            currentTracks = tracks
+            trackDuration = tracks[index].duration
+            do {
+                player.queue = ApplicationMusicPlayer.Queue(for: tracks, startingAt: tracks[index])
+                try await player.play()
+            } catch {
+                errorMessage = "Playback failed: \(error.localizedDescription)"
+                queueManager.reset()
+                return
+            }
+
+            // Background: fetch remaining batch albums' tracks and rebuild the queue.
+            if !remaining.isEmpty {
+                print("[Crate][Queue] Kicking off background fetch for \(remaining.count) remaining albums")
+                initialFetchTask?.cancel()
+                initialFetchTask = Task { [weak self] in
+                    await self?.fetchAndAppendBatch(albums: remaining)
+                }
+            } else {
+                print("[Crate][Queue] No remaining albums — single-album batch")
+            }
+        } else {
+            // Normal play — reset any active auto-advance.
+            print("[Crate][Queue] play(tracks:) — NO pending queue, normal playback")
+            resetAutoAdvance()
+            currentTracks = tracks
+            trackDuration = tracks[index].duration
+            do {
+                player.queue = ApplicationMusicPlayer.Queue(for: tracks, startingAt: tracks[index])
+                try await player.play()
+            } catch {
+                errorMessage = "Playback failed: \(error.localizedDescription)"
+            }
         }
     }
 
@@ -149,25 +226,31 @@ final class PlaybackViewModel {
 
     /// Stop playback and clear the queue.
     func stop() {
+        userDidStop = true
+        resetAutoAdvance()
         player.stop()
         player.queue = []
     }
 
-    // MARK: - Private
+    // MARK: - Private — Observation
 
     private func observePlayerState() {
         // Observe player state changes via Combine and bump a counter
         // so @Observable-backed views re-render.
         stateObservation = player.state.objectWillChange.sink { [weak self] _ in
             Task { @MainActor in
-                self?.stateChangeCounter += 1
+                guard let self else { return }
+                self.stateChangeCounter += 1
+                self.checkBatchExhausted()
             }
         }
 
         queueObservation = player.queue.objectWillChange.sink { [weak self] _ in
             Task { @MainActor in
-                self?.stateChangeCounter += 1
-                self?.syncTrackDuration()
+                guard let self else { return }
+                self.stateChangeCounter += 1
+                self.syncTrackDuration()
+                self.handleTrackChange()
             }
         }
     }
@@ -181,5 +264,266 @@ final class PlaybackViewModel {
         if let match = tracks.first(where: { $0.title == title }) {
             trackDuration = match.duration
         }
+    }
+
+    // MARK: - Private — Auto-Advance
+
+    /// Check if the current batch is exhausted and advance to the next one.
+    /// Handles two MusicKit behaviors:
+    /// 1. Classic: player stopped with empty queue (currentEntry == nil).
+    /// 2. Queue wrap: MusicKit wraps back to the first entry and pauses instead of stopping.
+    ///    Detected by checking if we were on the last track and the current entry can't be
+    ///    found forward in the trackMap (it wrapped backwards).
+    private func checkBatchExhausted() {
+        guard !isAdvancing,
+              !userDidStop,
+              !queueManager.currentBatch.isEmpty else { return }
+
+        let status = player.state.playbackStatus
+
+        // Classic case: player stopped with empty queue.
+        if status == .stopped && player.queue.currentEntry == nil {
+            triggerBatchAdvance()
+            return
+        }
+
+        // MusicKit wrap case: player paused/stopped while we were on the last track.
+        // If the current entry title can't be found forward from the last position,
+        // the queue wrapped — batch is done.
+        // Note: if the user manually paused on the last track, trackDidChange finds
+        // it at the same position (found: true) so no false trigger.
+        if status != .playing && queueManager.isAtLastTrack {
+            if let title = player.queue.currentEntry?.title {
+                let result = queueManager.trackDidChange(to: title)
+                if !result.found {
+                    triggerBatchAdvance()
+                }
+            }
+        }
+    }
+
+    /// Fetch tracks for remaining batch albums, then rebuild the MusicKit queue
+    /// with all tracks (anchor + remaining) to avoid transient-entry issues with insert().
+    /// Apple docs: "You should always aim to set the queue initially as completely as you can."
+    private func fetchAndAppendBatch(albums: [CrateAlbum]) async {
+        print("[Crate][Queue] fetchAndAppendBatch START — fetching \(albums.count) albums: \(albums.map(\.title))")
+        var tracksByAlbum: [(albumID: MusicItemID, titles: [String])] = []
+        var allNewTracks: [Track] = []
+
+        for (index, album) in albums.enumerated() {
+            guard !Task.isCancelled else {
+                print("[Crate][Queue] fetchAndAppendBatch CANCELLED at album index \(index)")
+                return
+            }
+
+            // Throttle: wait between requests to avoid rate limiting.
+            if index > 0 {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else {
+                    print("[Crate][Queue] fetchAndAppendBatch CANCELLED after throttle at index \(index)")
+                    return
+                }
+            }
+
+            do {
+                let tracks = try await musicService.fetchAlbumTracks(albumID: album.id)
+                tracksByAlbum.append((albumID: album.id, titles: tracks.map(\.title)))
+                allNewTracks.append(contentsOf: tracks)
+                print("[Crate][Queue] Fetched \(tracks.count) tracks for '\(album.title)' — total so far: \(allNewTracks.count)")
+            } catch {
+                print("[Crate][Queue] FAILED to fetch tracks for '\(album.title)': \(error)")
+            }
+        }
+
+        guard !Task.isCancelled else {
+            print("[Crate][Queue] fetchAndAppendBatch CANCELLED after all fetches")
+            return
+        }
+        guard !allNewTracks.isEmpty else {
+            print("[Crate][Queue] fetchAndAppendBatch — no tracks fetched, bailing")
+            return
+        }
+
+        print("[Crate][Queue] All fetches done — \(allNewTracks.count) new tracks from \(tracksByAlbum.count) albums")
+        print("[Crate][Queue] Manager state: currentBatch.isEmpty=\(queueManager.currentBatch.isEmpty), batchExhausted=\(queueManager.batchExhausted)")
+
+        if !queueManager.currentBatch.isEmpty && !queueManager.batchExhausted {
+            // Anchor still playing — merge into batch and rebuild the queue.
+            queueManager.appendToBatch(albums: albums, tracksByAlbum: tracksByAlbum)
+            print("[Crate][Queue] appendToBatch done — currentBatch: \(queueManager.currentBatch.count) albums, trackMap: \(queueManager.trackMap.count) tracks")
+
+            // Build complete track list: anchor tracks + remaining tracks.
+            let anchorTracks = Array(currentTracks ?? MusicItemCollection([]))
+            let fullTrackList = anchorTracks + allNewTracks
+            currentTracks = MusicItemCollection(fullTrackList)
+            print("[Crate][Queue] Full track list: \(anchorTracks.count) anchor + \(allNewTracks.count) new = \(fullTrackList.count) total")
+
+            // Find the currently playing track so we can resume at the same position.
+            let currentTitle = player.queue.currentEntry?.title
+            let wasPlaying = player.state.playbackStatus == .playing
+            let savedTime = player.playbackTime
+            print("[Crate][Queue] Current state: title='\(currentTitle ?? "nil")', playing=\(wasPlaying), time=\(savedTime)")
+
+            // Rebuild the queue with all tracks.
+            if let currentTitle,
+               let resumeTrack = anchorTracks.first(where: { $0.title == currentTitle }) {
+                print("[Crate][Queue] Rebuilding queue starting at '\(currentTitle)'")
+                player.queue = ApplicationMusicPlayer.Queue(for: fullTrackList, startingAt: resumeTrack)
+            } else {
+                print("[Crate][Queue] Rebuilding queue from beginning (couldn't find current track)")
+                player.queue = ApplicationMusicPlayer.Queue(for: fullTrackList)
+            }
+
+            // Resume playback at the saved position.
+            do {
+                if wasPlaying {
+                    try await player.play()
+                    player.playbackTime = savedTime
+                    print("[Crate][Queue] Queue rebuilt and resumed playing at \(savedTime)s")
+                } else {
+                    try await player.prepareToPlay()
+                    player.playbackTime = savedTime
+                    print("[Crate][Queue] Queue rebuilt (paused) at \(savedTime)s")
+                }
+            } catch {
+                print("[Crate][Queue] FAILED to rebuild queue: \(error)")
+            }
+
+            // Clear the initial fetch task so pre-fetch logic can activate.
+            initialFetchTask = nil
+        } else {
+            // Anchor already finished — store as ready batch and trigger advance.
+            print("[Crate][Queue] Anchor already finished — storing as ready batch (\(allNewTracks.count) tracks)")
+            initialFetchTask = nil
+            queueManager.registerNextBatch(albums: albums, tracksByAlbum: tracksByAlbum)
+            readyBatchTracks = allNewTracks
+
+            if !isAdvancing {
+                triggerBatchAdvance()
+            }
+        }
+    }
+
+    /// Fetch tracks for a set of albums and store as the ready batch (for pre-fetch of future batches).
+    /// Includes a delay between requests to avoid Apple Music API rate limits.
+    private func fetchReadyBatch(albums: [CrateAlbum]) async {
+        var tracksByAlbum: [(albumID: MusicItemID, titles: [String])] = []
+        var allTracks: [Track] = []
+
+        for (index, album) in albums.enumerated() {
+            guard !Task.isCancelled else { return }
+
+            // Throttle: wait between requests to avoid rate limiting.
+            if index > 0 {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+            }
+
+            do {
+                let tracks = try await musicService.fetchAlbumTracks(albumID: album.id)
+                tracksByAlbum.append((albumID: album.id, titles: tracks.map(\.title)))
+                allTracks.append(contentsOf: tracks)
+            } catch {
+                print("[Crate] Failed to fetch tracks for batch album \(album.title): \(error)")
+            }
+        }
+
+        guard !Task.isCancelled else { return }
+        queueManager.registerNextBatch(albums: albums, tracksByAlbum: tracksByAlbum)
+        readyBatchTracks = allTracks
+    }
+
+    /// Swap in the next batch and start playing.
+    private func playNextBatch() async {
+        guard queueManager.advanceToNextBatch() else {
+            // Grid exhausted — no more albums.
+            queueManager.reset()
+            return
+        }
+
+        guard !readyBatchTracks.isEmpty else {
+            print("[Crate] Next batch has no tracks")
+            queueManager.reset()
+            return
+        }
+
+        let tracks = readyBatchTracks
+        readyBatchTracks = []
+        let collection = MusicItemCollection(tracks)
+        currentTracks = collection
+        trackDuration = tracks.first?.duration
+        nowPlayingAlbum = queueManager.currentAlbum
+
+        do {
+            player.queue = ApplicationMusicPlayer.Queue(for: collection)
+            try await player.play()
+        } catch {
+            print("[Crate] Failed to play next batch: \(error)")
+            queueManager.reset()
+        }
+    }
+
+    /// Handle track changes from the queue observer — update album tracking and trigger pre-fetch.
+    private func handleTrackChange() {
+        guard !queueManager.currentBatch.isEmpty else { return }
+
+        // If currentEntry became nil, check for batch exhaustion.
+        guard let title = player.queue.currentEntry?.title else {
+            if queueManager.isAtLastTrack && !isAdvancing && !userDidStop {
+                triggerBatchAdvance()
+            }
+            return
+        }
+
+        let result = queueManager.trackDidChange(to: title)
+
+        // Queue wrap detection: track not found forward + we were on the last track.
+        // MusicKit wraps the queue to the first entry instead of clearing it,
+        // so this is how we detect "album/batch finished."
+        if !result.found && queueManager.isAtLastTrack && !isAdvancing && !userDidStop {
+            triggerBatchAdvance()
+            return
+        }
+
+        if result.albumChanged, let newAlbum = result.newAlbum {
+            nowPlayingAlbum = newAlbum
+        }
+
+        // If we're on the last album of the batch, pre-fetch the next batch.
+        // Skip if the initial batch fetch is still running (single-album batch triggers
+        // shouldPrefetch immediately, but the full batch isn't loaded yet).
+        if queueManager.shouldPrefetch && queueManager.nextBatch == nil && initialFetchTask == nil {
+            prefetchTask?.cancel()
+            prefetchTask = Task { [weak self] in
+                await self?.prefetchNextBatch()
+            }
+        }
+    }
+
+    /// Trigger the batch advance sequence.
+    private func triggerBatchAdvance() {
+        queueManager.markBatchExhausted()
+        isAdvancing = true
+
+        Task { [weak self] in
+            await self?.playNextBatch()
+            self?.isAdvancing = false
+        }
+    }
+
+    /// Pre-fetch the next batch of albums from the grid.
+    private func prefetchNextBatch() async {
+        guard let nextAlbums = queueManager.computeNextBatch() else { return }
+        await fetchReadyBatch(albums: nextAlbums)
+    }
+
+    /// Reset all auto-advance state.
+    private func resetAutoAdvance() {
+        initialFetchTask?.cancel()
+        initialFetchTask = nil
+        prefetchTask?.cancel()
+        prefetchTask = nil
+        readyBatchTracks = []
+        queueManager.reset()
     }
 }

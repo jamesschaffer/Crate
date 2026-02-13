@@ -99,4 +99,14 @@ final class MockMusicService: MusicServiceProtocol, @unchecked Sendable {
         if let error = errorToThrow { throw error }
         return Array(artistAlbums.prefix(limit))
     }
+
+    func fetchArtistID(forAlbumID albumID: MusicItemID) async throws -> MusicItemID? {
+        if let error = errorToThrow { throw error }
+        return nil
+    }
+
+    func fetchArtistAlbums(artistID: MusicItemID) async throws -> [CrateAlbum] {
+        if let error = errorToThrow { throw error }
+        return artistAlbums
+    }
 }

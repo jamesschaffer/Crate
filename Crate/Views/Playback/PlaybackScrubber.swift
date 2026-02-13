@@ -54,7 +54,9 @@ struct PlaybackScrubber: View {
                     .onEnded { value in
                         let finalProgress = min(max(value.location.x / width, 0), 1)
                         if let duration = viewModel.trackDuration, duration > 0 {
-                            viewModel.seek(to: finalProgress * duration)
+                            let seekTime = finalProgress * duration
+                            currentTime = seekTime
+                            viewModel.seek(to: seekTime)
                         }
                         isDragging = false
                     }

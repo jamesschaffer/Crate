@@ -11,6 +11,7 @@ struct AlbumGridView: View {
     let onLoadMore: () -> Void
     var topInset: CGFloat = 0
     var scrollToTopTrigger: Bool = false
+    var onAlbumTapped: ((Int) -> Void)?
 
     private var columns: [GridItem] {
         #if os(iOS)
@@ -40,6 +41,9 @@ struct AlbumGridView: View {
                                 AnimatedGridItemView(album: album, index: index)
                             }
                             .buttonStyle(.plain)
+                            .simultaneousGesture(TapGesture().onEnded {
+                                onAlbumTapped?(index)
+                            })
                             .onAppear {
                                 if album == albums.last {
                                     onLoadMore()
