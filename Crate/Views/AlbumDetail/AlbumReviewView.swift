@@ -1,9 +1,12 @@
 import SwiftUI
 
-/// Displays an AI-generated album review or a generate button.
+/// Displays an AI-generated album review, using the artwork-extracted
+/// color for all accent elements (rating, badge, bullets, regenerate).
 struct AlbumReviewView: View {
 
     let album: CrateAlbum
+    let recordLabel: String?
+    let tintColor: Color
 
     @State private var viewModel = AlbumReviewViewModel()
     @Environment(\.modelContext) private var modelContext
@@ -17,48 +20,19 @@ struct AlbumReviewView: View {
             } else if let error = viewModel.errorMessage {
                 errorState(error)
             } else {
-                emptyState
+                // Shown briefly while .onAppear fires and kicks off generation
+                LoadingView(message: "Generating review...")
             }
         }
-        .task {
+        .onAppear {
             viewModel.configure(modelContext: modelContext)
             viewModel.loadCachedReview(albumID: album.id.rawValue)
-        }
-    }
-
-    // MARK: - Empty State
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-
-            Image(systemName: "text.document")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondaryText)
-
-            Text("No review yet")
-                .font(.headline)
-
-            Text("Generate an AI-powered review based on critical reception, cultural impact, and musical merit.")
-                .font(.subheadline)
-                .foregroundStyle(.secondaryText)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-
-            Button {
-                Task { await viewModel.generateReview(for: album) }
-            } label: {
-                Text("Generate Review")
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 10)
+            if viewModel.review == nil && !viewModel.isGenerating && viewModel.errorMessage == nil {
+                Task {
+                    await viewModel.generateReview(for: album, recordLabel: recordLabel)
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.brandPink)
-
-            Spacer()
         }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Review Content
@@ -69,6 +43,7 @@ struct AlbumReviewView: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(String(format: "%.1f", review.rating))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundStyle(tintColor)
 
                 Text("/ 10")
                     .font(.title3)
@@ -81,8 +56,8 @@ struct AlbumReviewView: View {
                     .fontWeight(.semibold)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .background(.brandPink.opacity(0.15))
-                    .foregroundStyle(.brandPink)
+                    .background(tintColor.opacity(0.15))
+                    .foregroundStyle(tintColor)
                     .clipShape(Capsule())
             }
 
@@ -90,17 +65,17 @@ struct AlbumReviewView: View {
             Text(review.contextSummary)
                 .font(.body)
 
-            // Bullets
+            // Bullets — same font as summary, artwork color dots
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(review.contextBullets, id: \.self) { bullet in
                     HStack(alignment: .top, spacing: 8) {
                         Circle()
-                            .fill(.brandPink)
+                            .fill(tintColor)
                             .frame(width: 6, height: 6)
-                            .padding(.top, 6)
+                            .padding(.top, 7)
 
                         Text(bullet)
-                            .font(.subheadline)
+                            .font(.body)
                     }
                 }
             }
@@ -116,21 +91,23 @@ struct AlbumReviewView: View {
                 if viewModel.isRegenerating {
                     ProgressView()
                         .controlSize(.small)
-                        .tint(.brandPink)
+                        .tint(tintColor)
                 } else {
                     Button {
-                        Task { await viewModel.generateReview(for: album) }
+                        Task {
+                            await viewModel.generateReview(for: album, recordLabel: recordLabel)
+                        }
                     } label: {
                         Label("Regenerate", systemImage: "arrow.clockwise")
                             .font(.caption)
-                            .foregroundStyle(.brandPink)
+                            .foregroundStyle(tintColor)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.top, 4)
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal)
     }
 
     // MARK: - Error State
@@ -153,7 +130,9 @@ struct AlbumReviewView: View {
                 .padding(.horizontal, 32)
 
             Button {
-                Task { await viewModel.generateReview(for: album) }
+                Task {
+                    await viewModel.generateReview(for: album, recordLabel: recordLabel)
+                }
             } label: {
                 Text("Try Again")
                     .fontWeight(.semibold)
@@ -161,7 +140,7 @@ struct AlbumReviewView: View {
                     .padding(.vertical, 10)
             }
             .buttonStyle(.borderedProminent)
-            .tint(.brandPink)
+            .tint(tintColor)
 
             Spacer()
         }

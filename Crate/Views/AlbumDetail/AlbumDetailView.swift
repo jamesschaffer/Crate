@@ -125,7 +125,7 @@ struct AlbumDetailView: View {
                             EmptyStateView(title: "Error", message: error)
                         }
                     case .review:
-                        AlbumReviewView(album: album)
+                        AlbumReviewView(album: album, recordLabel: viewModel.recordLabel, tintColor: colorExtractor.colors.0)
                     }
                 }
                 .padding(12)

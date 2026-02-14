@@ -22,6 +22,9 @@ final class AlbumDetailViewModel {
     /// Tracks belonging to this album.
     var tracks: MusicItemCollection<Track>?
 
+    /// Record label from full album detail (pre-fetched for reviews).
+    var recordLabel: String?
+
     /// Whether this album is in the user's favorites.
     var isFavorite: Bool = false
 
@@ -65,7 +68,9 @@ final class AlbumDetailViewModel {
         isFavorite = favoritesService.isFavorite(albumID: album.id.rawValue)
         isDisliked = dislikeService.isDisliked(albumID: album.id.rawValue)
 
-        // Load tracks (retry once on failure — rate limits from batch pre-fetch can cause transient errors).
+        // Load tracks and record label concurrently.
+        // Retry tracks once on failure — rate limits from batch pre-fetch can cause transient errors.
+        async let detailResult = musicService.fetchAlbumDetail(id: album.id)
         do {
             tracks = try await musicService.fetchAlbumTracks(albumID: album.id)
         } catch {
@@ -75,6 +80,11 @@ final class AlbumDetailViewModel {
             } catch {
                 errorMessage = "Could not load tracks: \(error.localizedDescription)"
             }
+        }
+
+        // Extract record label (non-critical — don't fail if unavailable)
+        if let detail = try? await detailResult {
+            recordLabel = detail.recordLabelName
         }
 
         isLoading = false

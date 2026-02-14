@@ -46,7 +46,7 @@ final class AlbumReviewViewModel {
     }
 
     /// Generate a new review via the Cloud Function and cache it.
-    func generateReview(for album: CrateAlbum) async {
+    func generateReview(for album: CrateAlbum, recordLabel: String?) async {
         let isRegenerate = review != nil
         if isRegenerate {
             isRegenerating = true
@@ -56,13 +56,19 @@ final class AlbumReviewViewModel {
         errorMessage = nil
 
         do {
-            let newReview = try await reviewService.generateReview(for: album)
+            let newReview = try await reviewService.generateReview(for: album, recordLabel: recordLabel)
             reviewService.saveReview(newReview)
             review = newReview
+            print("[Crate] Review saved to cache for album: \(album.id.rawValue)")
         } catch {
-            print("[Crate] Review generation failed: \(error)")
-            errorMessage = (error as? ReviewError)?.errorDescription
-                ?? "Something went wrong. Please try again."
+            print("[Crate] Review generation failed — type: \(type(of: error)), error: \(error)")
+            if let reviewError = error as? ReviewError {
+                print("[Crate] ReviewError case: \(reviewError)")
+                errorMessage = reviewError.errorDescription
+            } else {
+                print("[Crate] Non-ReviewError: \(error.localizedDescription)")
+                errorMessage = "Something went wrong. Please try again."
+            }
         }
 
         isGenerating = false

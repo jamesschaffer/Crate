@@ -1,6 +1,5 @@
 import Foundation
 import FirebaseFunctions
-import MusicKit
 import SwiftData
 
 /// Errors that can occur during review generation.
@@ -37,12 +36,10 @@ final class ReviewService {
     // MARK: - Dependencies
 
     var modelContext: ModelContext?
-    private let musicService: MusicServiceProtocol
     private lazy var functions = Functions.functions()
 
-    init(modelContext: ModelContext? = nil, musicService: MusicServiceProtocol = MusicService()) {
+    init(modelContext: ModelContext? = nil) {
         self.modelContext = modelContext
-        self.musicService = musicService
     }
 
     // MARK: - Cache
@@ -92,16 +89,20 @@ final class ReviewService {
 
     // MARK: - Review Generation
 
+    /// Gemini's training data cutoff. Albums released before this date
+    /// can skip Google Search grounding for faster responses.
+    private static let searchCutoffDate: Date = {
+        DateComponents(calendar: .current, year: 2024, month: 7, day: 1).date!
+    }()
+
     /// Generate a review for the given album via the Cloud Function.
-    /// Fetches the record label from MusicKit, builds the prompt, calls Gemini, and returns the result.
-    func generateReview(for album: CrateAlbum) async throws -> AlbumReview {
-        // Fetch record label from full album detail
-        let recordLabel: String
-        if let detail = try? await musicService.fetchAlbumDetail(id: album.id) {
-            recordLabel = detail.recordLabelName ?? "Unknown"
-        } else {
-            recordLabel = "Unknown"
-        }
+    /// Record label is pre-fetched by AlbumDetailViewModel to avoid a redundant API call.
+    /// If search grounding causes a truncation error, retries without search.
+    func generateReview(for album: CrateAlbum, recordLabel: String?) async throws -> AlbumReview {
+        print("[Crate] ========== REVIEW GENERATION START ==========")
+        print("[Crate] Album: \(album.title) by \(album.artistName) (ID: \(album.id.rawValue))")
+
+        let label = recordLabel ?? "Unknown"
 
         // Build release year from date
         let releaseYear: String
@@ -111,25 +112,61 @@ final class ReviewService {
             releaseYear = "Unknown"
         }
 
+        // Enable search grounding only for albums released after Gemini's training cutoff
+        let useSearch: Bool
+        if let releaseDate = album.releaseDate {
+            useSearch = releaseDate >= Self.searchCutoffDate
+        } else {
+            useSearch = true  // Unknown date → use search to be safe
+        }
+
+        let genres = album.genreNames.joined(separator: ", ")
+        print("[Crate] Metadata — year: \(releaseYear), genres: \(genres), label: \(label)")
+
         let prompt = Self.buildPrompt(
             artistName: album.artistName,
             albumTitle: album.title,
             releaseYear: releaseYear,
-            genres: album.genreNames.joined(separator: ", "),
-            recordLabel: recordLabel
+            genres: genres,
+            recordLabel: label
         )
+        print("[Crate] Prompt built (\(prompt.count) chars)")
 
-        // Call Cloud Function
+        // Try with search first; if it fails (truncation from token limits),
+        // retry without search as a fallback.
+        if useSearch {
+            print("[Crate] Search grounding: ON (post-cutoff)")
+            do {
+                return try await callCloudFunction(prompt: prompt, useSearch: true, albumID: album.id.rawValue)
+            } catch {
+                print("[Crate] Search attempt failed — retrying without search grounding")
+            }
+        }
+
+        print("[Crate] Search grounding: OFF")
+        return try await callCloudFunction(prompt: prompt, useSearch: false, albumID: album.id.rawValue)
+    }
+
+    /// Call the Cloud Function and parse the response.
+    private func callCloudFunction(prompt: String, useSearch: Bool, albumID: String) async throws -> AlbumReview {
         let data: [String: Any] = [
             "prompt": prompt,
-            "useSearch": true
+            "useSearch": useSearch
         ]
 
+        print("[Crate] Calling generateReviewGemini (useSearch: \(useSearch), timeout: 120s)...")
+        let callStart = Date()
         let result: HTTPSCallableResult
         do {
-            result = try await functions.httpsCallable("generateReviewGemini").call(data)
+            let callable = functions.httpsCallable("generateReviewGemini")
+            callable.timeoutInterval = 120  // Match server-side timeout
+            result = try await callable.call(data)
+            let elapsed = Date().timeIntervalSince(callStart)
+            print("[Crate] Cloud Function returned in \(String(format: "%.1f", elapsed))s")
         } catch let error as NSError {
-            print("[Crate] Cloud Function error: \(error)")
+            let elapsed = Date().timeIntervalSince(callStart)
+            print("[Crate] Cloud Function failed after \(String(format: "%.1f", elapsed))s")
+            print("[Crate] Error — domain: \(error.domain), code: \(error.code), description: \(error.localizedDescription)")
             if error.domain == FunctionsErrorDomain {
                 let code = FunctionsErrorCode(rawValue: error.code)
                 switch code {
@@ -149,6 +186,11 @@ final class ReviewService {
               let success = resultData["success"] as? Bool,
               success,
               let openAIData = resultData["data"] as? [String: Any] else {
+            print("[Crate] FAILED at top-level parse (success/data extraction)")
+            if let rawDict = result.data as? [String: Any] {
+                print("[Crate] Top-level keys: \(Array(rawDict.keys))")
+                if let errorMsg = rawDict["error"] { print("[Crate] error = \(errorMsg)") }
+            }
             throw ReviewError.invalidResponse
         }
 
@@ -156,10 +198,22 @@ final class ReviewService {
               let firstChoice = choices.first,
               let message = firstChoice["message"] as? [String: Any],
               let content = message["content"] as? String else {
+            print("[Crate] FAILED at choices/message/content extraction")
             throw ReviewError.invalidResponse
         }
 
-        let cleanedText = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip markdown code fences if present (Gemini sometimes wraps JSON)
+        var cleanedText = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanedText.hasPrefix("```") {
+            if let firstNewline = cleanedText.firstIndex(of: "\n") {
+                cleanedText = String(cleanedText[cleanedText.index(after: firstNewline)...])
+            }
+            if cleanedText.hasSuffix("```") {
+                cleanedText = String(cleanedText.dropLast(3))
+            }
+            cleanedText = cleanedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
         guard let jsonData = cleanedText.data(using: .utf8) else {
             throw ReviewError.invalidJSON
         }
@@ -167,13 +221,16 @@ final class ReviewService {
         let parsed: ReviewResponse
         do {
             parsed = try JSONDecoder().decode(ReviewResponse.self, from: jsonData)
+            print("[Crate] Review parsed — rating: \(parsed.rating), recommendation: \(parsed.recommendation)")
         } catch {
-            print("[Crate] Review JSON parsing error: \(error)")
+            print("[Crate] JSON decode FAILED: \(error)")
+            print("[Crate] Content: \(cleanedText.prefix(500))")
             throw ReviewError.invalidJSON
         }
 
+        print("[Crate] ========== REVIEW GENERATION COMPLETE ==========")
         return AlbumReview(
-            albumID: album.id.rawValue,
+            albumID: albumID,
             contextSummary: parsed.contextSummary,
             contextBullets: parsed.contextBullets,
             rating: parsed.rating,
@@ -271,7 +328,8 @@ final class ReviewService {
       "context_summary": "string",
       "context_bullets": ["string", "string", "string"],
       "rating": number,
-      "recommendation": "string (exactly as written above)"
+      "recommendation": "string (exactly as written above)",
+      "key_tracks": ["string", "string", "string"]
     }
     """
     // swiftlint:enable line_length
@@ -285,11 +343,13 @@ private struct ReviewResponse: Codable {
     let contextBullets: [String]
     let rating: Double
     let recommendation: String
+    let keyTracks: [String]?  // Required by Cloud Function validation but unused in UI
 
     enum CodingKeys: String, CodingKey {
         case contextSummary = "context_summary"
         case contextBullets = "context_bullets"
         case rating
         case recommendation
+        case keyTracks = "key_tracks"
     }
 }
