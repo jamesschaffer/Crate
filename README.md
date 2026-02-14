@@ -2,7 +2,7 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, and AI album reviews complete. Both iOS and macOS targets are buildable and testable. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, and AI album reviews complete. Review UI polished with auto-generation on tab tap, artwork-themed accents, and Cloud Function reliability improvements. Both iOS and macOS targets are buildable and testable. Visual design polish in progress.
 
 ---
 
@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (32 ADRs, ADR-100 through ADR-131) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (33 ADRs, ADR-100 through ADR-132) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -28,7 +28,7 @@ For the full product specification, see the [PRD](./PRD.md).
 - **Architecture:** MVVM with `@Observable` (iOS 17+ / macOS 14+)
 - **Music Integration:** MusicKit (Apple Music)
 - **Playback:** `ApplicationMusicPlayer`
-- **AI Reviews:** Firebase Cloud Functions (Gemini) + App Check
+- **AI Reviews:** Firebase Cloud Functions (Gemini) + App Check + retry fallback
 - **Local Persistence:** SwiftData (favorites, dislikes, reviews)
 - **Testing:** XCTest (UI tests) + Swift Testing (unit tests)
 - **Deployment:** App Store + Mac App Store, TestFlight for beta
@@ -85,7 +85,7 @@ For the full product specification, see the [PRD](./PRD.md).
 - **Bundle version build settings required.** `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` must be set in all build configurations. Without them, MusicKit silently rejects all personalized API calls (`/v1/me/*`).
 - **Apple Music subscription required.** The app requires an active Apple Music subscription for playback. Non-subscribers can browse but cannot play.
 - **Apple ecosystem only.** iOS 17+ and macOS 14+ (Sonoma). No Android, no web.
-- **Mostly client-side.** MusicKit handles auth, API access, and playback on-device. The one exception is AI album reviews, which call a Firebase Cloud Function (Gemini). If the function is unavailable, reviews fail gracefully; all other features work offline.
+- **Mostly client-side.** MusicKit handles auth, API access, and playback on-device. The one exception is AI album reviews, which call a Firebase Cloud Function (Gemini) with dynamic search grounding and retry-without-search fallback. If the function is unavailable, reviews fail gracefully with retry; all other features work offline.
 
 ## Project Structure
 

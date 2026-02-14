@@ -44,6 +44,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 129 | [Auto-Advance Album Playback from Grid Context](#adr-129-auto-advance-album-playback-from-grid-context) | Accepted |
 | 130 | [macOS Target: Buildable, Testable, and Platform-Specific Fixes](#adr-130-macos-target-buildable-testable-and-platform-specific-fixes) | Accepted |
 | 131 | [AI Album Reviews via Firebase Cloud Functions](#adr-131-ai-album-reviews-via-firebase-cloud-functions) | Accepted |
+| 132 | [Review UI Polish and Cloud Function Reliability](#adr-132-review-ui-polish-and-cloud-function-reliability) | Accepted |
 
 ---
 
@@ -1448,15 +1449,15 @@ A sibling project (Album Scan, Firebase project `albumscan-18308`) already has a
 
 2. **AlbumReview SwiftData model.** A `@Model` class with `@Attribute(.unique) albumID`, `contextSummary`, `contextBullets: [String]`, `rating: Double`, `recommendation: String`, and `dateGenerated`. Added to the SwiftData schema in `CrateApp.init()` alongside `FavoriteAlbum` and `DislikedAlbum`.
 
-3. **ReviewService.** Handles three responsibilities: (a) SwiftData cache reads/writes with `@MainActor` isolation on cache methods, (b) Cloud Function calls via `Functions.functions().httpsCallable("generateReviewGemini")`, and (c) prompt construction using the same template as Album Scan (`buildPrompt` is a static method for testability). The record label is fetched on-demand from MusicKit via `musicService.fetchAlbumDetail(id:)` since `CrateAlbum` does not carry label data. The service is NOT `@MainActor` at the class level so it can be stored in `@Observable` view models without isolation conflicts.
+3. **ReviewService.** Handles three responsibilities: (a) SwiftData cache reads/writes with `@MainActor` isolation on cache methods, (b) Cloud Function calls via `Functions.functions().httpsCallable("generateReviewGemini")`, and (c) prompt construction using the same template as Album Scan (`buildPrompt` is a static method for testability). The record label is pre-fetched by `AlbumDetailViewModel` concurrently with tracks and passed to the review generation call (see ADR-132). The service is NOT `@MainActor` at the class level so it can be stored in `@Observable` view models without isolation conflicts.
 
 4. **AlbumReviewViewModel.** `@MainActor @Observable` view model managing `review`, `isGenerating`, `isRegenerating`, and `errorMessage` state. Follows the existing `configure(modelContext:)` pattern used by other view models. Regeneration reuses the same `generateReview` method but sets `isRegenerating` instead of `isGenerating` for distinct UI feedback.
 
-5. **AlbumReviewView.** Four states: empty (generate button), loading (spinner), content (rating with /10, tier badge in branded capsule, summary paragraph, bullet points, relative timestamp, regenerate button), and error (message + retry). Uses `brandPink` consistently for the generate button, tier badge background, bullet markers, and regenerate button.
+5. **AlbumReviewView.** Three states: loading (spinner, auto-triggered on tab tap), content (rating with /10, tier badge in capsule, summary paragraph, bullet points, relative timestamp, regenerate button), and error (message + retry). Uses artwork-extracted `tintColor` for all accent elements (see ADR-132).
 
 6. **Firebase integration.** `FirebaseCore`, `FirebaseAppCheck`, and `FirebaseFunctions` added via SPM and linked to both iOS and macOS targets in the Xcode project. `CrateApp.init()` configures App Check before `FirebaseApp.configure()`. App Check uses App Attest in iOS production, debug tokens in DEBUG builds and on macOS (macOS does not support App Attest). `GoogleService-Info.plist` added to the project for Firebase configuration.
 
-7. **Review prompt.** Uses a detailed music critic prompt template requesting structured JSON output: `context_summary` (2-3 sentence overview), `context_bullets` (3-5 evidence-based bullets with scores/awards/chart data), `rating` (0-10 scale), and `recommendation` (one of ~24 tier labels across 8 tiers from "Essential Classic" to "Avoid Entirely"). The prompt explicitly deprioritizes monetary value and focuses on artistic merit. `useSearch: true` enables Gemini web search grounding for current critical data.
+7. **Review prompt.** Uses a detailed music critic prompt template requesting structured JSON output: `context_summary` (2-3 sentence overview), `context_bullets` (3-5 evidence-based bullets with scores/awards/chart data), `rating` (0-10 scale), `recommendation` (one of ~24 tier labels across 8 tiers from "Essential Classic" to "Avoid Entirely"), and `key_tracks` (3 standout tracks, required by Cloud Function validation). The prompt explicitly deprioritizes monetary value and focuses on artistic merit. `useSearch` is dynamically set based on the album's release date relative to Gemini's training cutoff (see ADR-132).
 
 8. **Tests.** 5 unit tests covering model initialization, cache miss, save/retrieve round-trip, upsert behavior, and prompt placeholder substitution. Uses in-memory SwiftData containers. Cloud Function calls are not unit-tested (requires live backend).
 
@@ -1490,6 +1491,66 @@ A sibling project (Album Scan, Firebase project `albumscan-18308`) already has a
 - **The review prompt is embedded in the client.** If the prompt needs to change, an app update is required. Moving the prompt to a remote config (Firebase Remote Config or the Cloud Function itself) would allow server-side updates without app releases.
 
 **What would change this:** If Apple ships on-device LLMs with web search grounding (making evidence-based reviews possible without a server), the Firebase dependency could be removed entirely. If review needs diverge from Album Scan's (e.g., different prompt, different model), a dedicated Cloud Function should be created. If cross-device review sync becomes important, migrating from SwiftData to CloudKit or Firestore would be needed.
+
+---
+
+## ADR-132: Review UI Polish and Cloud Function Reliability
+
+**Date:** 2026-02-14
+**Status:** Accepted
+**Amends:** ADR-131
+
+**Context:** After shipping AI album reviews (ADR-131), real-world usage revealed two categories of issues: (1) the review UI required a double-tap to generate (empty state with a "Generate Review" button, then waiting for results), which felt like unnecessary friction, and (2) Cloud Function calls were failing for some albums due to token truncation when Gemini's web search grounding returned too much context, plus the client was timing out before the server could respond. The review UI also used the global `brandPink` accent color rather than the artwork-derived color used elsewhere on the album detail page, creating a visual disconnect.
+
+**Decision:** Polish the review UI for auto-generation and unified theming, and add reliability improvements to the Cloud Function integration.
+
+**Key changes:**
+
+1. **Auto-generate on tab tap.** The empty state (generate button) is removed. When the user taps the "Review" tab and no cached review exists, generation starts automatically with a loading spinner. This eliminates the double-tap friction -- one tap to the Review tab is all it takes. `.onAppear` triggers generation instead of requiring an explicit button tap.
+
+2. **Artwork color as unified accent.** All review accent elements -- the numeric rating, tier badge background/text, bullet dot markers, regenerate button, loading spinner, and error retry button -- now use the artwork-extracted `tintColor` (from `ArtworkColorExtractor`) instead of the global `brandPink`. This makes the review tab visually consistent with the track list, play button, scrubber, and now-playing indicator, which already use artwork color. The `tintColor` is passed from `AlbumDetailView` through `AlbumReviewView` as a parameter.
+
+3. **Pre-fetch record label concurrently with tracks.** Previously, `ReviewService` fetched the record label on-demand via its own `MusicService` dependency when generating a review. Now, `AlbumDetailViewModel.loadAlbumData()` fetches the album detail (which includes the record label) concurrently with tracks using `async let`. The label is stored on the view model and passed to the review generation call, eliminating a redundant API call and removing `ReviewService`'s `MusicService` dependency entirely.
+
+4. **Dynamic search grounding based on release date.** Gemini's training data has a cutoff around July 2024. Albums released before this date have critical reception, chart data, and cultural context already baked into the model's knowledge -- web search grounding adds latency and token overhead without meaningful benefit. Albums released after the cutoff need search grounding to access recent reviews and chart data. `ReviewService` now compares the album's `releaseDate` against a static `searchCutoffDate` (July 1, 2024) and sets `useSearch` accordingly. Albums with unknown release dates default to search enabled (safe fallback).
+
+5. **Retry without search on Cloud Function failure.** When search grounding is enabled and the Cloud Function call fails (typically due to token truncation from excessive search context), the client automatically retries with `useSearch: false`. This fallback uses Gemini's training knowledge alone, which produces a slightly less current but still useful review. The retry is transparent to the user -- they see a single loading spinner. This pattern means post-cutoff albums get two chances: first with search for maximum accuracy, then without search as a safety net.
+
+6. **Markdown code fence stripping.** Gemini sometimes wraps its JSON response in markdown code fences (` ```json ... ``` `). `ReviewService` now strips leading and trailing fences before JSON parsing, preventing `invalidJSON` errors.
+
+7. **`key_tracks` field in prompt.** The Cloud Function validates the response schema and requires a `key_tracks` array. The prompt template now includes this field. The client parses it (`ReviewResponse.keyTracks`) but does not display it in the UI.
+
+8. **Client timeout increased to 120 seconds.** The Cloud Function has a 120-second server-side timeout. The client's `HTTPSCallable.timeoutInterval` is now set to 120 seconds to match, preventing premature client-side timeouts for albums that require longer search grounding.
+
+9. **Typography and spacing normalization.** Review summary and bullets now use a uniform `.body` font (bullets were previously `.subheadline`). Horizontal padding uses `.padding(.horizontal)` (default 16pt) to match the track list gutters.
+
+**Alternatives Considered:**
+
+1. **Keep the explicit "Generate Review" button.** Preserves user control and avoids generating reviews users might not want. Rejected because the user already expressed intent by tapping the "Review" tab -- requiring a second tap added friction without meaningful benefit. Reviews that fail to generate show an error with retry, so there is no risk of a silent failure.
+
+2. **Always enable search grounding regardless of release date.** Simpler implementation (no date comparison logic). Rejected because search grounding adds latency, increases token usage (and thus the risk of truncation), and provides no new information for well-documented albums already in Gemini's training data. The date-based strategy gives faster responses for ~50+ years of catalog albums while preserving search accuracy for recent releases.
+
+3. **Retry with a shorter/simpler prompt instead of disabling search.** Could reduce token count while keeping search results. Rejected because the token truncation comes from search context, not the prompt itself. Disabling search is the targeted fix.
+
+4. **Server-side retry logic in the Cloud Function.** Would keep the client simpler. Rejected because the client already knows the album metadata and can make a smarter retry decision (disable search specifically) than the server, which would need additional parameter passing.
+
+**Rationale:**
+
+- Auto-generation removes a meaningless interaction step. Users tapping "Review" want a review -- making them tap again to generate one is anti-pattern.
+- Using artwork color for review accents makes the entire album detail page feel like a cohesive, album-themed experience rather than a generic app screen with brand-colored widgets bolted on.
+- Pre-fetching the record label alongside tracks eliminates a sequential dependency and reduces ReviewService's coupling (no longer needs MusicService).
+- The date-based search grounding strategy is a practical optimization: Gemini's training data is comprehensive for pre-cutoff albums, and search grounding adds measurable latency and failure risk. Post-cutoff albums genuinely benefit from search grounding for fresh critical data.
+- The retry-without-search pattern provides graceful degradation: a training-data-only review is significantly better than no review at all.
+
+**Consequences:**
+
+- **Reviews generate automatically when the tab is viewed.** There is no way to view the Review tab without triggering generation (or loading a cached review). This is intentional -- the empty state with a button was removed.
+- **Review accent colors vary per album.** The review no longer uses a consistent brand color. This is the same pattern used by the track list, play button, and scrubber -- each album's page has its own color identity.
+- **Post-cutoff albums may take two Cloud Function calls.** If the first (with search) fails and the retry (without search) succeeds, the user waits for both calls sequentially. The 120-second timeout applies to each call individually. In practice, the first call either succeeds or fails fast (token truncation errors return quickly).
+- **`AlbumDetailViewModel` now fetches album detail.** This adds one API call to `loadAlbumData()`, but it runs concurrently with the track fetch so it does not increase total load time.
+- **`ReviewService` no longer depends on `MusicService`.** This simplifies testing (no mock MusicService needed for review tests) and reduces coupling.
+
+**What would change this:** If Gemini updates its training data cutoff, the `searchCutoffDate` constant should be updated to match. If Apple exposes record label data on `CrateAlbum` directly (avoiding the detail fetch), the concurrent pre-fetch could be removed. If the Cloud Function's token limit is increased or search grounding becomes more reliable, the retry-without-search fallback could be removed.
 
 ---
 
