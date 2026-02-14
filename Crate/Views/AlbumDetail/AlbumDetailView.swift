@@ -10,8 +10,14 @@ struct AlbumDetailView: View {
 
     @State private var viewModel = AlbumDetailViewModel()
     @State private var colorExtractor = ArtworkColorExtractor()
+    @State private var selectedTab: DetailTab = .tracks
     @Environment(PlaybackViewModel.self) private var playbackViewModel
     @Environment(\.modelContext) private var modelContext
+
+    private enum DetailTab: String, CaseIterable {
+        case tracks = "Tracks"
+        case review = "Review"
+    }
 
     /// Platform-appropriate background color.
     private var backgroundColor: Color {
@@ -100,13 +106,26 @@ struct AlbumDetailView: View {
                             .transition(.opacity)
                     }
 
-                    // Track list
-                    if viewModel.isLoading {
-                        LoadingView(message: "Loading tracks...")
-                    } else if let tracks = viewModel.tracks {
-                        TrackListView(tracks: tracks, album: album, tintColor: colorExtractor.colors.0)
-                    } else if let error = viewModel.errorMessage {
-                        EmptyStateView(title: "Error", message: error)
+                    // Tracks / Review picker
+                    Picker("", selection: $selectedTab) {
+                        ForEach(DetailTab.allCases, id: \.self) { tab in
+                            Text(tab.rawValue).tag(tab)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+
+                    switch selectedTab {
+                    case .tracks:
+                        if viewModel.isLoading {
+                            LoadingView(message: "Loading tracks...")
+                        } else if let tracks = viewModel.tracks {
+                            TrackListView(tracks: tracks, album: album, tintColor: colorExtractor.colors.0)
+                        } else if let error = viewModel.errorMessage {
+                            EmptyStateView(title: "Error", message: error)
+                        }
+                    case .review:
+                        AlbumReviewView(album: album)
                     }
                 }
                 .padding(12)

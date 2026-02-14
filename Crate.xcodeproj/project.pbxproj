@@ -14,6 +14,8 @@
 		0D62CB3DD83BA46292A409FE /* Genre.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CB271E8593086FE76B920B4 /* Genre.swift */; };
 		18CFD0CE7EAFCD08F9A83182 /* AlbumDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 178A2E61284F45CF7AA7DECA /* AlbumDetailViewModel.swift */; };
 		1D4BC14548ABE22E18C26181 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 725C9493A0C8223AB4C9B4A9 /* ContentView.swift */; };
+		21F624DD2F4128EC00DED6B5 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 21F624DC2F4128EC00DED6B5 /* GoogleService-Info.plist */; };
+		21F624DE2F4128EC00DED6B5 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 21F624DC2F4128EC00DED6B5 /* GoogleService-Info.plist */; };
 		2250597CE2634A2912C8AA2D /* FeedDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41E72CBBDCB17B924FBA3774 /* FeedDiagnosticsView.swift */; };
 		2272B3AF0D32D90C1A10074E /* BrowseViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1449F397DA9B96CAC8E27C35 /* BrowseViewModel.swift */; };
 		309F76C9FDF378063168FE7F /* FavoritesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15F477BD91295217797621B /* FavoritesService.swift */; };
@@ -124,6 +126,22 @@
 		G2A3B4C5D6E7F8A9B0C1D2C1 /* QueueDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = G2A3B4C5D6E7F8A9B0C1D2A1 /* QueueDiagnosticsView.swift */; };
 		G3A4B5C6D7E8F9A0B1C2D3B1 /* AlbumQueueManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = G3A4B5C6D7E8F9A0B1C2D3A1 /* AlbumQueueManagerTests.swift */; };
 		G3A4B5C6D7E8F9A0B1C2D3C1 /* AlbumQueueManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = G3A4B5C6D7E8F9A0B1C2D3A1 /* AlbumQueueManagerTests.swift */; };
+		R1A2B3C4D5E6F7A8B9C0D1B1 /* AlbumReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = R1A2B3C4D5E6F7A8B9C0D1A1 /* AlbumReview.swift */; };
+		R1A2B3C4D5E6F7A8B9C0D1C1 /* AlbumReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = R1A2B3C4D5E6F7A8B9C0D1A1 /* AlbumReview.swift */; };
+		R2A3B4C5D6E7F8A9B0C1D2B1 /* ReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = R2A3B4C5D6E7F8A9B0C1D2A1 /* ReviewService.swift */; };
+		R2A3B4C5D6E7F8A9B0C1D2C1 /* ReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = R2A3B4C5D6E7F8A9B0C1D2A1 /* ReviewService.swift */; };
+		R3A4B5C6D7E8F9A0B1C2D3B1 /* AlbumReviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = R3A4B5C6D7E8F9A0B1C2D3A1 /* AlbumReviewViewModel.swift */; };
+		R3A4B5C6D7E8F9A0B1C2D3C1 /* AlbumReviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = R3A4B5C6D7E8F9A0B1C2D3A1 /* AlbumReviewViewModel.swift */; };
+		R4A5B6C7D8E9F0A1B2C3D4B1 /* AlbumReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = R4A5B6C7D8E9F0A1B2C3D4A1 /* AlbumReviewView.swift */; };
+		R4A5B6C7D8E9F0A1B2C3D4C1 /* AlbumReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = R4A5B6C7D8E9F0A1B2C3D4A1 /* AlbumReviewView.swift */; };
+		R5A6B7C8D9E0F1A2B3C4D5B1 /* ReviewServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = R5A6B7C8D9E0F1A2B3C4D5A1 /* ReviewServiceTests.swift */; };
+		R5A6B7C8D9E0F1A2B3C4D5C1 /* ReviewServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = R5A6B7C8D9E0F1A2B3C4D5A1 /* ReviewServiceTests.swift */; };
+		R7A8B9C0D1E2F3A4B5C6D7B1 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 21F624D92F4126A500DED6B5 /* FirebaseAppCheck */; };
+		R7A8B9C0D1E2F3A4B5C6D7B2 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 21F624DA2F4126A500DED6B5 /* FirebaseCore */; };
+		R7A8B9C0D1E2F3A4B5C6D7B3 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 21F624DB2F4126A500DED6B5 /* FirebaseFunctions */; };
+		R7A8B9C0D1E2F3A4B5C6D8B1 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = R6A7B8C9D0E1F2A3B4C5D6A1 /* FirebaseAppCheck */; };
+		R7A8B9C0D1E2F3A4B5C6D8B2 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = R6A7B8C9D0E1F2A3B4C5D6A2 /* FirebaseCore */; };
+		R7A8B9C0D1E2F3A4B5C6D8B3 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = R6A7B8C9D0E1F2A3B4C5D6A3 /* FirebaseFunctions */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -159,6 +177,7 @@
 		1748BF975FFA0E81C5222D7B /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
 		178A2E61284F45CF7AA7DECA /* AlbumDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumDetailViewModel.swift; sourceTree = "<group>"; };
 		1A0571F96221FA51A3226206 /* MusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicService.swift; sourceTree = "<group>"; };
+		21F624DC2F4128EC00DED6B5 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		2F9DC97E55FE86FA4EE14786 /* Genres.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Genres.swift; sourceTree = "<group>"; };
 		384B870D0B8AB9D5D4504BC3 /* CrateTests-macOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "CrateTests-macOS.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3E568C4AF26CD6CCDF589FF4 /* GenreBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenreBarView.swift; sourceTree = "<group>"; };
@@ -216,7 +235,35 @@
 		G1A2B3C4D5E6F7A8B9C0D1A1 /* AlbumQueueManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumQueueManager.swift; sourceTree = "<group>"; };
 		G2A3B4C5D6E7F8A9B0C1D2A1 /* QueueDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueDiagnosticsView.swift; sourceTree = "<group>"; };
 		G3A4B5C6D7E8F9A0B1C2D3A1 /* AlbumQueueManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumQueueManagerTests.swift; sourceTree = "<group>"; };
+		R1A2B3C4D5E6F7A8B9C0D1A1 /* AlbumReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumReview.swift; sourceTree = "<group>"; };
+		R2A3B4C5D6E7F8A9B0C1D2A1 /* ReviewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewService.swift; sourceTree = "<group>"; };
+		R3A4B5C6D7E8F9A0B1C2D3A1 /* AlbumReviewViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumReviewViewModel.swift; sourceTree = "<group>"; };
+		R4A5B6C7D8E9F0A1B2C3D4A1 /* AlbumReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumReviewView.swift; sourceTree = "<group>"; };
+		R5A6B7C8D9E0F1A2B3C4D5A1 /* ReviewServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewServiceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		R8A9B0C1D2E3F4A5B6C7D8E1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				R7A8B9C0D1E2F3A4B5C6D7B1 /* FirebaseAppCheck in Frameworks */,
+				R7A8B9C0D1E2F3A4B5C6D7B2 /* FirebaseCore in Frameworks */,
+				R7A8B9C0D1E2F3A4B5C6D7B3 /* FirebaseFunctions in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		R8A9B0C1D2E3F4A5B6C7D8E2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				R7A8B9C0D1E2F3A4B5C6D8B1 /* FirebaseAppCheck in Frameworks */,
+				R7A8B9C0D1E2F3A4B5C6D8B2 /* FirebaseCore in Frameworks */,
+				R7A8B9C0D1E2F3A4B5C6D8B3 /* FirebaseFunctions in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		02790D8819E7AD3A85DE90BB /* Crate */ = {
@@ -246,6 +293,7 @@
 				8B1A30CDB5641A4984B2EB6F /* GenreTaxonomyTests.swift */,
 				A1B2C3D4E5F6A7B8C9D0F1A1 /* MockMusicService.swift */,
 				CCCAE3E3C156199B42C40FC4 /* MusicServiceTests.swift */,
+				R5A6B7C8D9E0F1A2B3C4D5A1 /* ReviewServiceTests.swift */,
 			);
 			path = CrateTests;
 			sourceTree = "<group>";
@@ -262,6 +310,7 @@
 			isa = PBXGroup;
 			children = (
 				178A2E61284F45CF7AA7DECA /* AlbumDetailViewModel.swift */,
+				R3A4B5C6D7E8F9A0B1C2D3A1 /* AlbumReviewViewModel.swift */,
 				F3A4B5C6D7E8F9A0B1C2D3A1 /* ArtistCatalogViewModel.swift */,
 				1748BF975FFA0E81C5222D7B /* AuthViewModel.swift */,
 				1449F397DA9B96CAC8E27C35 /* BrowseViewModel.swift */,
@@ -332,6 +381,7 @@
 			isa = PBXGroup;
 			children = (
 				E1BFFBA0E43FF384AA140DE2 /* AlbumDetailView.swift */,
+				R4A5B6C7D8E9F0A1B2C3D4A1 /* AlbumReviewView.swift */,
 				975D9BBC7D1F9C9C2C703FB8 /* TrackListView.swift */,
 			);
 			path = AlbumDetail;
@@ -341,6 +391,7 @@
 			isa = PBXGroup;
 			children = (
 				6564F1160F7891E5A0EB0496 /* Album.swift */,
+				R1A2B3C4D5E6F7A8B9C0D1A1 /* AlbumReview.swift */,
 				A1B2C3D4E5F6A7B8C9D0E1F2 /* CrateDial.swift */,
 				F2A3B4C5D6E7F8A9B0C1D2A1 /* CrateDestination.swift */,
 				D1A2B3C4E5F6A7B8C9D0E1A1 /* DislikedAlbum.swift */,
@@ -365,6 +416,7 @@
 		C79DB4467C20A8488B8B447B = {
 			isa = PBXGroup;
 			children = (
+				21F624DC2F4128EC00DED6B5 /* GoogleService-Info.plist */,
 				02790D8819E7AD3A85DE90BB /* Crate */,
 				14E4B8B19F6D21299A4A51BF /* Crate-macOS */,
 				05CC075F914A6E00BBB11C54 /* CrateTests */,
@@ -405,6 +457,7 @@
 				F15F477BD91295217797621B /* FavoritesService.swift */,
 				D1A2B3C4E5F6A7B8C9D0E4A1 /* GenreFeedService.swift */,
 				1A0571F96221FA51A3226206 /* MusicService.swift */,
+				R2A3B4C5D6E7F8A9B0C1D2A1 /* ReviewService.swift */,
 				D1A2B3C4E5F6A7B8C9D0E5A1 /* WeightedInterleave.swift */,
 			);
 			path = Services;
@@ -478,6 +531,7 @@
 			buildConfigurationList = A8F9C7186CCDC56B5C5BE44C /* Build configuration list for PBXNativeTarget "Crate-iOS" */;
 			buildPhases = (
 				940F49B95E76FD7C00D580AF /* Sources */,
+				R8A9B0C1D2E3F4A5B6C7D8E1 /* Frameworks */,
 				3FF141BE3387A3F591098255 /* Resources */,
 			);
 			buildRules = (
@@ -486,6 +540,9 @@
 			);
 			name = "Crate-iOS";
 			packageProductDependencies = (
+				21F624D92F4126A500DED6B5 /* FirebaseAppCheck */,
+				21F624DA2F4126A500DED6B5 /* FirebaseCore */,
+				21F624DB2F4126A500DED6B5 /* FirebaseFunctions */,
 			);
 			productName = "Crate-iOS";
 			productReference = D03A2FCC458D6263935E01AD /* Crate-iOS.app */;
@@ -514,6 +571,7 @@
 			buildConfigurationList = F77E6678F7CEAAFF3D6E71D9 /* Build configuration list for PBXNativeTarget "Crate-macOS" */;
 			buildPhases = (
 				A33D6096712783DB9C861BD0 /* Sources */,
+				R8A9B0C1D2E3F4A5B6C7D8E2 /* Frameworks */,
 				56127DA2FE9B870E3F4ED0F6 /* Resources */,
 			);
 			buildRules = (
@@ -522,6 +580,9 @@
 			);
 			name = "Crate-macOS";
 			packageProductDependencies = (
+				R6A7B8C9D0E1F2A3B4C5D6A1 /* FirebaseAppCheck */,
+				R6A7B8C9D0E1F2A3B4C5D6A2 /* FirebaseCore */,
+				R6A7B8C9D0E1F2A3B4C5D6A3 /* FirebaseFunctions */,
 			);
 			productName = "Crate-macOS";
 			productReference = B9812D56793559E3EE89FECB /* Crate-macOS.app */;
@@ -551,6 +612,9 @@
 			);
 			mainGroup = C79DB4467C20A8488B8B447B;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				21F624D82F4126A500DED6B5 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -569,6 +633,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5F224429AB235403AE01483F /* Assets.xcassets in Resources */,
+				21F624DD2F4128EC00DED6B5 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -577,6 +642,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BB7D1BC2895CDCA1558ADFE7 /* Assets.xcassets in Resources */,
+				21F624DE2F4128EC00DED6B5 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -605,6 +671,7 @@
 				9EA5BA980B5659A812C355AC /* GenreTaxonomyTests.swift in Sources */,
 				A1B2C3D4E5F6A7B8C9D0F1C1 /* MockMusicService.swift in Sources */,
 				5002941B1CA680C6C920630F /* MusicServiceTests.swift in Sources */,
+				R5A6B7C8D9E0F1A2B3C4D5C1 /* ReviewServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -658,6 +725,10 @@
 				B1C2D3E4F5A6B7C8D9E0F1A7 /* SettingsView.swift in Sources */,
 				A8FFCBB26C049A9E649976BE /* TrackListView.swift in Sources */,
 				B1C2D3E4F5A6B7C8D9E0F1A6 /* WallGridItemView.swift in Sources */,
+				R1A2B3C4D5E6F7A8B9C0D1B1 /* AlbumReview.swift in Sources */,
+				R2A3B4C5D6E7F8A9B0C1D2B1 /* ReviewService.swift in Sources */,
+				R3A4B5C6D7E8F9A0B1C2D3B1 /* AlbumReviewViewModel.swift in Sources */,
+				R4A5B6C7D8E9F0A1B2C3D4B1 /* AlbumReviewView.swift in Sources */,
 				D1A2B3C4E5F6A7B8C9D0E5B1 /* WeightedInterleave.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -713,6 +784,10 @@
 				C1D2E3F4A5B6C7D8E9F0A1B7 /* SettingsView.swift in Sources */,
 				34648EBE4FE7FE7809C734E9 /* TrackListView.swift in Sources */,
 				C1D2E3F4A5B6C7D8E9F0A1B6 /* WallGridItemView.swift in Sources */,
+				R1A2B3C4D5E6F7A8B9C0D1C1 /* AlbumReview.swift in Sources */,
+				R2A3B4C5D6E7F8A9B0C1D2C1 /* ReviewService.swift in Sources */,
+				R3A4B5C6D7E8F9A0B1C2D3C1 /* AlbumReviewViewModel.swift in Sources */,
+				R4A5B6C7D8E9F0A1B2C3D4C1 /* AlbumReviewView.swift in Sources */,
 				D1A2B3C4E5F6A7B8C9D0E5C1 /* WeightedInterleave.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -730,6 +805,7 @@
 				EA1587B9D58D79B2C638DDF9 /* GenreTaxonomyTests.swift in Sources */,
 				A1B2C3D4E5F6A7B8C9D0F1B1 /* MockMusicService.swift in Sources */,
 				BD788F03DA1256AE2A63A7D2 /* MusicServiceTests.swift in Sources */,
+				R5A6B7C8D9E0F1A2B3C4D5B1 /* ReviewServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1138,6 +1214,50 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		21F624D82F4126A500DED6B5 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		21F624D92F4126A500DED6B5 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21F624D82F4126A500DED6B5 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
+		};
+		21F624DA2F4126A500DED6B5 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21F624D82F4126A500DED6B5 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		21F624DB2F4126A500DED6B5 /* FirebaseFunctions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21F624D82F4126A500DED6B5 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFunctions;
+		};
+		R6A7B8C9D0E1F2A3B4C5D6A1 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21F624D82F4126A500DED6B5 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
+		};
+		R6A7B8C9D0E1F2A3B4C5D6A2 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21F624D82F4126A500DED6B5 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		R6A7B8C9D0E1F2A3B4C5D6A3 /* FirebaseFunctions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21F624D82F4126A500DED6B5 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFunctions;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 9ADFF5926EAD9B59D340BCC7 /* Project object */;
 }

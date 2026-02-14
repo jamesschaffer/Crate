@@ -1,13 +1,39 @@
 import SwiftUI
 import SwiftData
 import MusicKit
+import FirebaseCore
+import FirebaseAppCheck
+
+/// App Check provider factory — uses debug tokens in development,
+/// App Attest in production on iOS, and debug tokens on macOS.
+private class CrateAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
+    func createProvider(with app: FirebaseApp) -> (any AppCheckProvider)? {
+        #if DEBUG
+        let provider = AppCheckDebugProvider(app: app)
+        if let token = provider?.localDebugToken() {
+            print("[Crate] App Check debug token: \(token)")
+        }
+        return provider
+        #else
+        #if os(iOS)
+        return AppAttestProvider(app: app)
+        #else
+        // macOS: use debug provider with registered token
+        let provider = AppCheckDebugProvider(app: app)
+        if let token = provider?.localDebugToken() {
+            print("[Crate] App Check debug token (macOS): \(token)")
+        }
+        return provider
+        #endif
+        #endif
+    }
+}
 
 /// Main entry point for the Crate app.
 ///
-/// Sets up the SwiftData model container for favorites persistence
-/// and injects shared view models into the environment. Shows the
-/// authorization flow if the user hasn't granted MusicKit access,
-/// or the main content if they have.
+/// Sets up Firebase, App Check, and the SwiftData model container for
+/// persistence. Shows the authorization flow if the user hasn't granted
+/// MusicKit access, or the main content if they have.
 @main
 struct CrateApp: App {
 
@@ -21,8 +47,12 @@ struct CrateApp: App {
     private var modelContainer: ModelContainer
 
     init() {
+        // Configure App Check BEFORE Firebase.configure()
+        AppCheck.setAppCheckProviderFactory(CrateAppCheckProviderFactory())
+        FirebaseApp.configure()
+
         do {
-            let schema = Schema([FavoriteAlbum.self, DislikedAlbum.self])
+            let schema = Schema([FavoriteAlbum.self, DislikedAlbum.self, AlbumReview.self])
             let configuration = ModelConfiguration(
                 "CrateFavorites",
                 schema: schema
