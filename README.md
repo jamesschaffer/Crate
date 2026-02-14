@@ -2,7 +2,7 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, and auto-advance album playback complete. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, and auto-advance album playback complete. Both iOS and macOS targets are buildable and testable. Visual design polish in progress.
 
 ---
 
@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (30 ADRs, ADR-100 through ADR-129) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (31 ADRs, ADR-100 through ADR-130) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -64,6 +64,7 @@ For the full product specification, see the [PRD](./PRD.md).
    - Build and run (Cmd+R)
    - On first launch, the app will request Apple Music authorization
    - After authorization, the Crate Wall loads as the default landing screen
+   - On macOS, standard keyboard shortcuts are available: Space (play/pause), Cmd+Right Arrow (next track), Cmd+Left Arrow (previous track), Cmd+. (stop)
 
 ### Entitlements Required
 

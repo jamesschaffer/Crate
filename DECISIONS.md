@@ -42,6 +42,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 127 | [Radio Selection for Crate Dial and Standardized Spinners](#adr-127-radio-selection-for-crate-dial-and-standardized-spinners) | Accepted |
 | 128 | [Artist Catalog View with Typed Navigation Destinations](#adr-128-artist-catalog-view-with-typed-navigation-destinations) | Accepted |
 | 129 | [Auto-Advance Album Playback from Grid Context](#adr-129-auto-advance-album-playback-from-grid-context) | Accepted |
+| 130 | [macOS Target: Buildable, Testable, and Platform-Specific Fixes](#adr-130-macos-target-buildable-testable-and-platform-specific-fixes) | Accepted |
 
 ---
 
@@ -1356,6 +1357,75 @@ Additionally, `stateChangeCounter` was being read directly in `AlbumDetailView.b
 - **Scrubber lazy scroll view retry.** `ScrubGestureUIView` re-checks for its parent `UIScrollView` on the first gesture if it was nil at `didMoveToWindow` time. On first launch, the UIKit hosting hierarchy may not be fully assembled when the view moves to the window.
 
 **Trade-off:** The user now waits 1-2 seconds (for a 5-album batch with 500ms throttle) before hearing music, versus the previous instant-play approach. In practice, this is a good trade: a brief spinner followed by seamless playback is far better than instant audio that stutters, flickers, and sometimes breaks. The anchor album's tracks are already loaded (fetched by `AlbumDetailViewModel`), so the wait only covers the remaining 4 albums.
+
+---
+
+## ADR-130: macOS Target: Buildable, Testable, and Platform-Specific Fixes
+
+**Date:** 2026-02-14
+**Status:** Accepted
+**Refines:** ADR-110 (Multiplatform Xcode Project with Shared Code), ADR-126 (Codebase Audit -- macOS Build Fix)
+
+**Context:** ADR-126 resolved three compile errors that prevented the macOS target from building (`Color(.systemBackground)`, `MusicLibrary.shared.add()`, `.toolbar(.hidden, for: .navigationBar)`). However, the macOS target had never been functionally tested -- it compiled but was not usable as an application. Running the macOS target revealed several categories of issues: missing keyboard shortcuts, a crash in the Settings scene, button rendering differences, navigation title redundancy, stale authorization UI text, and incomplete Xcode project configuration (signing, display name, app category).
+
+**Decision:** Six targeted fixes to bring the macOS target from "compiles" to "buildable and testable":
+
+1. **PlaybackCommands keyboard shortcuts.** Wired up `PlaybackCommands` in `CrateApp.swift` with standard macOS media shortcuts: Space (play/pause), Cmd+Right Arrow (next track), Cmd+Left Arrow (previous track), Cmd+. (stop). These are standard macOS playback shortcuts that users expect.
+
+2. **Settings scene environment injection.** On macOS, `Settings` is a separate window scene that does not inherit `@Environment` from the main `WindowGroup`. The Settings window crashed on open because it could not find `playbackViewModel` or `modelContainer` in the environment. Fixed by explicitly injecting both into the `Settings` scene in `CrateApp.swift`.
+
+3. **REST API fallback for `addToLibrary` on macOS.** `MusicLibrary.shared.add()` is iOS-only (not available on macOS). ADR-126 wrapped this call in `#if os(iOS)`, which meant macOS silently skipped adding albums to the user's library on like. Replaced the platform conditional with a REST API fallback: `POST /v1/me/library?ids[albums]={id}` via `MusicDataRequest`. This endpoint works on both platforms, so the like write-back now functions identically on iOS and macOS.
+
+4. **`.buttonStyle(.plain)` on interactive elements.** macOS renders visible button chrome (background rectangles with hover highlights) on `Button` and `NavigationLink` by default. iOS does not. Added `.buttonStyle(.plain)` to the like/dislike buttons, play/pause button, and artist NavigationLink in `AlbumDetailView` to remove the chrome and match the iOS appearance.
+
+5. **Hidden navigation title on macOS.** macOS navigation displays titles left-aligned in the toolbar, which is redundant with the album name already shown in the content area. Hidden the navigation title on macOS using `#if os(macOS)` with `.navigationTitle("")`. This matches the Apple Music pattern on macOS where content area titles take precedence over toolbar titles.
+
+6. **AuthView denied-state text updated.** The macOS authorization-denied message referenced the old "System Preferences > Security & Privacy > Privacy" path. Updated to "System Settings > Privacy & Security" to reflect the current macOS System Settings app (renamed in macOS Ventura).
+
+**Additional Xcode project changes (done through Xcode UI, not hand-edited):**
+
+- Configured automatic signing for the macOS target with the development team
+- Set macOS display name to "AlbumCrate"
+- Set macOS app category to Music
+
+**Key Discoveries:**
+
+- **`MusicLibrary.shared.add()` is iOS-only.** This is not documented prominently. The REST API `POST /v1/me/library` is the cross-platform alternative and works identically on both platforms. The REST approach could replace the MusicKit API call on iOS as well, but keeping the platform-specific call on iOS preserves compatibility with the existing tested path.
+
+- **macOS renders button chrome by default.** `Button` and `NavigationLink` show background rectangles and hover highlights on macOS unless `.buttonStyle(.plain)` is explicitly set. iOS does not exhibit this behavior. Any future interactive elements in custom layouts will need `.buttonStyle(.plain)` on macOS to avoid unwanted chrome.
+
+- **MusicKit capability does not need explicit Xcode configuration on macOS.** Unlike iOS (which requires the capability in Signing & Capabilities), the macOS target works through the existing App ID registration on the Apple Developer Portal. The entitlement is already in `Crate-macOS.entitlements`.
+
+- **macOS `Settings` scene is an independent window scene.** It does not inherit `@Environment` from the main `WindowGroup`. Any environment values needed by Settings must be explicitly injected into the `Settings` scene declaration.
+
+- **macOS navigation title placement.** macOS puts navigation titles left-aligned in the toolbar (not centered like iOS). For views with prominent content-area titles (like album detail with the album name), the toolbar title is redundant and should be hidden.
+
+**Alternatives Considered:**
+
+1. **Use `MusicLibrary.shared.add()` on macOS via a shim or polyfill.** Not possible -- the API genuinely does not exist on macOS. It is not a missing import; the type is absent from the macOS MusicKit framework.
+
+2. **Use the REST API for `addToLibrary` on both platforms (replace the iOS path too).** This would simplify the code (one path instead of two), but the MusicKit-native API on iOS has been tested and working. Replacing a working iOS path introduces unnecessary risk for no user-facing benefit.
+
+3. **Use `#if os(macOS)` `.buttonStyle(.plain)` instead of applying it unconditionally.** `.buttonStyle(.plain)` has no visible effect on iOS (buttons already have no chrome), so applying it unconditionally is safe and avoids platform conditionals. However, the changes were applied only to the specific views that exhibited the problem, not globally, to keep the diff minimal.
+
+4. **Pass environment from WindowGroup to Settings via a shared state object instead of explicit injection.** This would add architectural complexity (a shared state container) for something that explicit injection handles directly. The Settings scene only needs two values (`playbackViewModel` and `modelContainer`), so direct injection is simpler.
+
+**Rationale:**
+
+- The macOS target was technically "building" after ADR-126 but not usable as an application. Users expect standard keyboard shortcuts, functional settings, and platform-appropriate UI. These fixes close the gap between "compiles" and "works."
+- The REST API fallback for `addToLibrary` is the correct cross-platform solution. It uses the same authenticated `MusicDataRequest` infrastructure already used throughout the app, so no new auth or networking patterns are needed.
+- `.buttonStyle(.plain)` is the standard fix for unwanted macOS button chrome in custom layouts. It is a well-known SwiftUI platform difference.
+- Explicit environment injection into the `Settings` scene is the documented pattern for macOS window scenes. There is no automatic environment propagation between window scenes -- this is by design in SwiftUI's multi-window architecture.
+
+**Consequences:**
+
+- The macOS target is now a functional application: it launches, authorizes, loads the Crate Wall, plays albums with keyboard shortcuts, and opens Settings without crashing. It can be used for day-to-day testing alongside the iOS target.
+- Future interactive elements in `AlbumDetailView` (or similar custom layouts) should include `.buttonStyle(.plain)` on macOS to avoid button chrome. This is a pattern to be aware of when adding new buttons.
+- Any new environment dependencies added to `SettingsView` (or its children) must also be injected into the `Settings` scene in `CrateApp.swift`. Forgetting this will cause a crash on macOS when opening Settings.
+- The `addToLibrary` implementation now has two paths: MusicKit-native on iOS, REST API on macOS. If the REST API proves equally reliable on iOS, the two paths could be consolidated in the future.
+- macOS signing is configured for development. TestFlight and Mac App Store distribution will require additional provisioning profile setup.
+
+**What would change this:** If Apple adds `MusicLibrary.shared.add()` to macOS MusicKit in a future release, the REST API fallback could be replaced with the native call for consistency with iOS. If SwiftUI adds automatic environment propagation to `Settings` scenes, the explicit injection could be removed. If the app introduces a large number of buttons in custom layouts, a global `.buttonStyle(.plain)` modifier on the root view (macOS only) might be more maintainable than per-button overrides.
 
 ---
 
