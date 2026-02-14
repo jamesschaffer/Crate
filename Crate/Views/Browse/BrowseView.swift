@@ -24,7 +24,7 @@ struct BrowseView: View {
                 .ignoresSafeArea(edges: .top)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     if showControlBar {
-                        controlBar(bottomSafeArea: geometry.safeAreaInsets.bottom)
+                        controlBar
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
@@ -65,7 +65,7 @@ struct BrowseView: View {
 
     // MARK: - Unified Control Bar
 
-    private func controlBar(bottomSafeArea: CGFloat) -> some View {
+    private var controlBar: some View {
         // Read stateChangeCounter so playback row updates reactively.
         let _ = playbackViewModel.stateChangeCounter
 
@@ -107,7 +107,6 @@ struct BrowseView: View {
                 isDisabled: coordinator.isTransitioning
             )
         }
-        .padding(.bottom, bottomSafeArea)
         .background(.ultraThinMaterial.opacity(0.85))
     }
 
