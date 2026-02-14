@@ -937,7 +937,7 @@ An initial attempt to animate the pills using opacity and scaleEffect failed due
 
 1. Hide the control bar during initial wall load using a `@State private var showControlBar = false` boolean. After `wallViewModel.generateWallIfNeeded()` completes (albums are ready), wait 400ms, then animate the bar in with `.spring(duration: 0.5, bounce: 0.15)` using `.transition(.move(edge: .bottom).combined(with: .opacity))`. The result is that albums fill the screen first, then the control bar slides up from the bottom edge with a gentle spring.
 
-2. Extend the control bar's material background into the home indicator safe area by converting `controlBar` from a computed property to a function accepting `bottomSafeArea: CGFloat` from the enclosing `GeometryReader`. Apply `.padding(.bottom, bottomSafeArea)` to the control bar's content so the `.ultraThinMaterial` background stretches to the screen edge, eliminating the opacity seam.
+2. ~~Extend the control bar's material background into the home indicator safe area by converting `controlBar` from a computed property to a function accepting `bottomSafeArea: CGFloat` from the enclosing `GeometryReader`.~~ **Reverted (cef06b7).** `.safeAreaInset(edge: .bottom)` already extends its content into the safe area automatically. The explicit `.padding(.bottom, bottomSafeArea)` doubled the offset, pushing genre pills too high with dead space below. The `controlBar` was reverted to a computed property.
 
 3. Set the display name to "AlbumCrate" via Xcode's UI. This is a build settings change in `project.pbxproj` -- it was done through Xcode, not by hand-editing the file.
 
@@ -945,13 +945,13 @@ An initial attempt to animate the pills using opacity and scaleEffect failed due
 
 - **`showControlBar` state on BrowseView**: A boolean defaulting to `false`. The `.task` modifier awaits wall generation, then after a 400ms `Task.sleep` delay, sets `showControlBar = true` inside a `withAnimation` block. The `safeAreaInset(edge: .bottom)` block conditionally renders the control bar only when `showControlBar` is true, with the `.transition(.move(edge: .bottom).combined(with: .opacity))` modifier providing the slide-up + fade-in effect.
 
-- **`controlBar(bottomSafeArea:)` function**: Accepts the bottom safe area inset from the `GeometryReader` that wraps the entire BrowseView body. Applies `.padding(.bottom, bottomSafeArea)` to the VStack content, then `.background(.ultraThinMaterial.opacity(0.85))` covers the full area including the padding, extending the frosted material into the home indicator region.
+- **`controlBar` computed property**: A simple computed property returning the control bar's VStack with `.background(.ultraThinMaterial.opacity(0.85))`. No explicit safe area padding is needed -- `.safeAreaInset(edge: .bottom)` automatically extends its content into the home indicator region. (Originally converted to a function accepting `bottomSafeArea: CGFloat`, but the explicit padding was redundant and caused a double-offset bug; reverted in cef06b7.)
 
 **Lessons Learned:**
 
 - **Never hand-edit pbxproj for build settings.** The display name change was done through Xcode's UI (Signing & Capabilities). External edits to `project.pbxproj` can cause Xcode to get stuck showing raw XML source instead of the project editor. Build setting changes should always go through Xcode's GUI.
 
-- **`safeAreaInset` content does NOT propagate safe area information to children.** Applying `.ignoresSafeArea(edges: .bottom)` to a background within `safeAreaInset` content has no effect because the content does not know about the safe area it is inset from. The workaround is to read the safe area explicitly via `GeometryReader` and pass the value as explicit padding.
+- **`safeAreaInset` already extends into the safe area.** `.safeAreaInset(edge: .bottom)` automatically places its content so that the background material stretches into the home indicator region. Adding explicit `.padding(.bottom, bottomSafeArea)` on top of this doubles the offset. `.ignoresSafeArea()` on children within safeAreaInset content still has no effect (safe area info is not propagated to children), but for the common case of extending a material background, no workaround is needed -- `safeAreaInset` handles it natively.
 
 **Alternatives Considered:**
 
@@ -959,7 +959,7 @@ An initial attempt to animate the pills using opacity and scaleEffect failed due
 
 2. **Show the control bar immediately with a loading indicator.** The bar would be visible during wall load, with a spinner or shimmer in the album grid behind it. This was the previous behavior and felt unpolished -- the bar appeared before there was meaningful content to interact with.
 
-3. **Use `.ignoresSafeArea(edges: .bottom)` on the material background.** The natural approach for extending a background into the safe area. Does not work within `safeAreaInset` content because the safe area information is not propagated to the inset view's children. Explicit `GeometryReader` padding is the correct workaround.
+3. **Use `.ignoresSafeArea(edges: .bottom)` on the material background.** Does not work within `safeAreaInset` content because the safe area information is not propagated to the inset view's children. However, `.safeAreaInset(edge: .bottom)` already handles safe area extension automatically, so neither `.ignoresSafeArea()` nor explicit `GeometryReader` padding is needed.
 
 **Rationale:**
 
@@ -971,10 +971,9 @@ An initial attempt to animate the pills using opacity and scaleEffect failed due
 **Consequences:**
 
 - The control bar is not interactive during the initial wall load. If the wall takes a long time to load (slow network), the user cannot access genre browsing or settings until the wall completes. This is acceptable because the wall is the default experience and the user has nothing to filter until content is present.
-- The `controlBar` is now a function rather than a computed property, which slightly changes the call site syntax but has no functional impact.
-- The `GeometryReader` wrapping the BrowseView body was already present for `topInset`; it now also provides `bottomSafeArea` to the control bar, so no additional layout cost.
+- The `controlBar` is a computed property. (It was briefly converted to a function accepting `bottomSafeArea: CGFloat`, but that introduced a double-offset bug and was reverted.)
 
-**What would change this:** If the wall load became significantly slower (e.g., cold start on a poor network connection), we might show the control bar earlier with a skeleton/shimmer state, or show a dedicated loading screen before revealing the browse UI. If Apple fixes `safeAreaInset` to propagate safe area information to its content, the explicit `GeometryReader` padding could be replaced with `.ignoresSafeArea(edges: .bottom)` on the background.
+**What would change this:** If the wall load became significantly slower (e.g., cold start on a poor network connection), we might show the control bar earlier with a skeleton/shimmer state, or show a dedicated loading screen before revealing the browse UI.
 
 ---
 
@@ -1301,6 +1300,24 @@ The core challenge is that MusicKit's `ApplicationMusicPlayer` operates on a sin
 - Adding new grid surfaces in the future (e.g., search results grid, playlist grid) only requires passing the grid context to `PlaybackViewModel` -- the batching, fetching, and queue management are fully generic.
 
 **What would change this:** If Apple improves `insert()` to be reliable (no transient entry issues), the queue rebuild approach could be simplified to incremental insertion. If Apple Music tightens rate limits, the throttle delay would need to increase or the batch size would need to decrease. If users want to reorder or skip albums within the queue (not just auto-advance), `AlbumQueueManager` would need shuffle/skip-ahead logic.
+
+### Revision: 2026-02-14 -- Eliminate playback glitches on song changes
+
+**Problem:** Track taps, skips, and auto-advance transitions had several observable glitches:
+
+1. **Scrubber snapping/partial fills.** When a track changed (via auto-advance or skip), the scrubber and footer progress bar retained the old track's playback time until the next 0.5s timer tick. This caused a brief wrong-position display before snapping to the correct value.
+2. **Premature footer appearance.** `nowPlayingAlbum` was set before `player.play()` returned in several code paths (AlbumDetailView transport button, TrackListView track tap, and playNextBatch). The footer and scrubber appeared during the brief async gap before audio actually started.
+3. **Auto-advance dying after track list taps.** When a user tapped a track in the track list while auto-advance was active, the normal play path reset the queue manager state. The user heard the right track, but auto-advance stopped working for the rest of the session.
+4. **False batch advances on skip-backward.** `trackDidChange` only searched forward in the track map. When the user pressed the previous-track button, the forward search failed to find the backward track, which triggered wrap detection logic and falsely advanced to the next batch.
+
+**Fix:** Four coordinated changes across the queue manager, playback view model, and progress UI.
+
+- **Within-batch play path.** `PlaybackViewModel.play(tracks:startingAt:from:)` now accepts a `from album:` parameter. When the album is already in the current batch, the method reuses the existing `currentTracks` (the full batch queue) and rebuilds the MusicKit queue starting at the tapped track. `AlbumQueueManager.seekToTrack(at:)` repositions the track cursor without resetting any batch state. This preserves auto-advance -- no `resetAutoAdvance`, no refetch, no spinner. Track list taps and transport play-button taps both use this path.
+- **`nowPlayingAlbum` set after `player.play()` returns.** All three play paths (within-batch, preloader, normal) and `playNextBatch` now set `nowPlayingAlbum` only after the `try await player.play()` call succeeds. The external `nowPlayingAlbum = album` assignments in `AlbumDetailView` and `TrackListView` are removed -- the album is passed through the `from:` parameter instead, keeping the assignment centralized in `PlaybackViewModel`.
+- **`checkBackward` on `trackDidChange`.** The method now accepts an optional `checkBackward: Bool` parameter. When true and forward search fails, it checks exactly one position back. This handles skip-backward (which moves one track at a time) without interfering with queue-wrap detection -- wraps jump from position N-1 to 0, which is more than one step back, so they still register as `found: false`. `handleTrackChange` passes `checkBackward: true`.
+- **Immediate scrubber/progress bar sync on track duration change.** Both `PlaybackScrubber` and `PlaybackProgressBar` add `.onChange(of: viewModel.trackDuration)` to immediately set `currentTime = viewModel.playbackTime` when a new track starts. This eliminates the stale-position display between track changes, without waiting for the next 0.5s timer tick. The scrubber additionally guards against syncing during an active drag.
+
+**Trade-off:** The within-batch path adds a third code path to `play()` (alongside the preloader path and the normal path). This makes the method longer, but each path is clearly separated with comments, and the alternative -- letting track list taps destroy auto-advance state -- was a worse user experience. Five new unit tests (28 total) cover backward search, wrap detection preservation, seekToTrack, and out-of-bounds safety.
 
 ### Revision: 2026-02-13 -- Grid context passed through navigation instead of gesture
 
