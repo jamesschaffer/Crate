@@ -136,12 +136,42 @@ final class PlaybackViewModel {
 
     /// Play a collection of tracks (e.g., from an album's track list).
     ///
-    /// When a grid context is pending (auto-advance mode), fetches all batch
-    /// albums' tracks upfront before starting playback. A spinner is shown
-    /// while loading so the user isn't left with glitchy partial playback.
-    func play(tracks: MusicItemCollection<Track>, startingAt index: Int = 0) async {
+    /// Three paths:
+    /// 1. **Within-batch tap:** Album is already in the current batch — reuse existing
+    ///    tracks, rebuild the queue at the tapped position, preserve auto-advance.
+    /// 2. **Preloader (pending queue):** First play from grid — fetch all batch tracks
+    ///    upfront, build one complete queue, start playback.
+    /// 3. **Normal play:** No grid context — single-album playback, reset auto-advance.
+    func play(tracks: MusicItemCollection<Track>, startingAt index: Int = 0, from album: CrateAlbum? = nil) async {
         errorMessage = nil
         userDidStop = false
+
+        // Path 1: Within-batch track tap — album already loaded, reuse currentTracks.
+        // Preserves auto-advance (no resetAutoAdvance, no refetch, no spinner).
+        if let album,
+           !queueManager.currentBatch.isEmpty,
+           queueManager.currentBatch.contains(where: { $0.id == album.id }),
+           let existingTracks = currentTracks {
+
+            // Find the tapped track's position in the full batch queue.
+            let tappedTrack = tracks[index]
+            let batchIndex = existingTracks.firstIndex(where: { $0.id == tappedTrack.id })
+
+            trackDuration = tappedTrack.duration
+            do {
+                player.queue = ApplicationMusicPlayer.Queue(for: existingTracks, startingAt: tappedTrack)
+                try await player.play()
+                nowPlayingAlbum = album
+                if let batchIndex {
+                    let batchPosition = existingTracks.distance(from: existingTracks.startIndex, to: batchIndex)
+                    queueManager.seekToTrack(at: batchPosition)
+                }
+                print("[Crate][Queue] Within-batch tap: '\(tappedTrack.title)' on '\(album.title)'")
+            } catch {
+                errorMessage = "Playback failed: \(error.localizedDescription)"
+            }
+            return
+        }
 
         if queueManager.hasPendingQueue {
             // Auto-advance mode: load ALL batch tracks, then play everything at once.
@@ -184,6 +214,7 @@ final class PlaybackViewModel {
             do {
                 player.queue = ApplicationMusicPlayer.Queue(for: collection, startingAt: tracks[index])
                 try await player.play()
+                nowPlayingAlbum = album ?? batch.first
                 print("[Crate][Queue] Playing \(allTracks.count) tracks from \(batch.count) albums")
             } catch {
                 errorMessage = "Playback failed: \(error.localizedDescription)"
@@ -200,6 +231,7 @@ final class PlaybackViewModel {
             do {
                 player.queue = ApplicationMusicPlayer.Queue(for: tracks, startingAt: tracks[index])
                 try await player.play()
+                if let album { nowPlayingAlbum = album }
             } catch {
                 errorMessage = "Playback failed: \(error.localizedDescription)"
             }
@@ -368,11 +400,11 @@ final class PlaybackViewModel {
         let collection = MusicItemCollection(tracks)
         currentTracks = collection
         trackDuration = tracks.first?.duration
-        nowPlayingAlbum = queueManager.currentAlbum
 
         do {
             player.queue = ApplicationMusicPlayer.Queue(for: collection)
             try await player.play()
+            nowPlayingAlbum = queueManager.currentAlbum
         } catch {
             print("[Crate] Failed to play next batch: \(error)")
             queueManager.reset()
@@ -391,7 +423,7 @@ final class PlaybackViewModel {
             return
         }
 
-        let result = queueManager.trackDidChange(to: title)
+        let result = queueManager.trackDidChange(to: title, checkBackward: true)
 
         // Queue wrap detection: track not found forward + we were on the last track.
         // MusicKit wraps the queue to the first entry instead of clearing it,

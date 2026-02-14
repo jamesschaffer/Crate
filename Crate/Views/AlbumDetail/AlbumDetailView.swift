@@ -173,10 +173,7 @@ private struct AlbumTransportControls: View {
                         if isPlayingThisAlbum {
                             await playbackViewModel.togglePlayPause()
                         } else if let tracks {
-                            await playbackViewModel.play(tracks: tracks)
-                            // Set nowPlayingAlbum after playback starts so the
-                            // footer and scrubber don't appear during loading.
-                            playbackViewModel.nowPlayingAlbum = album
+                            await playbackViewModel.play(tracks: tracks, from: album)
                         }
                     }
                 } label: {

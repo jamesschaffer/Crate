@@ -37,6 +37,11 @@ struct PlaybackProgressBar: View {
         .onReceive(timer) { _ in
             currentTime = viewModel.playbackTime
         }
+        .onChange(of: viewModel.trackDuration) { _, newDuration in
+            if newDuration != nil {
+                currentTime = viewModel.playbackTime
+            }
+        }
         .task(id: viewModel.nowPlayingArtwork) {
             await colorExtractor.extract(from: viewModel.nowPlayingArtwork)
         }

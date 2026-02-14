@@ -19,8 +19,7 @@ struct TrackListView: View {
             ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                 Button {
                     Task {
-                        playbackViewModel.nowPlayingAlbum = album
-                        await playbackViewModel.play(tracks: tracks, startingAt: index)
+                        await playbackViewModel.play(tracks: tracks, startingAt: index, from: album)
                     }
                 } label: {
                     HStack(spacing: 8) {

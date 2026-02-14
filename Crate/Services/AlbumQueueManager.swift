@@ -132,10 +132,15 @@ final class AlbumQueueManager {
 
     /// Called when the player's current track changes.
     /// Searches forward in trackMap from currentTrackPosition to handle duplicate titles.
-    /// - Parameter title: Title of the new track.
+    /// - Parameters:
+    ///   - title: Title of the new track.
+    ///   - checkBackward: When true and forward search fails, checks one position back.
+    ///     Used for skip-backward which moves one track at a time. Deliberately one-back
+    ///     only (not a full backward scan) so queue-wrap detection still works — wraps
+    ///     jump from position N-1 to 0, which is more than one step back.
     /// - Returns: Whether the track was found, whether the album changed, and the new album if so.
     ///   `found: false` while `isAtLastTrack` is true indicates the queue wrapped — batch is done.
-    func trackDidChange(to title: String) -> (found: Bool, albumChanged: Bool, newAlbum: CrateAlbum?) {
+    func trackDidChange(to title: String, checkBackward: Bool = false) -> (found: Bool, albumChanged: Bool, newAlbum: CrateAlbum?) {
         guard !trackMap.isEmpty else {
             return (found: false, albumChanged: false, newAlbum: nil)
         }
@@ -150,7 +155,18 @@ final class AlbumQueueManager {
             }
         }
 
-        // If not found forward, the queue likely wrapped back to an earlier track.
+        // If not found forward and checkBackward is enabled, check one position back.
+        // One-back only: skip-backward moves one track at a time, but queue wraps
+        // jump from N-1 → 0 (more than one step), so this won't interfere with wrap detection.
+        if !found && checkBackward {
+            let oneBack = currentTrackPosition - 1
+            if oneBack >= 0 && trackMap[oneBack].title == title {
+                currentTrackPosition = oneBack
+                found = true
+            }
+        }
+
+        // If still not found, the queue likely wrapped back to an earlier track.
         guard found else {
             return (found: false, albumChanged: false, newAlbum: nil)
         }
@@ -164,6 +180,16 @@ final class AlbumQueueManager {
 
         let albumChanged = previousAlbum?.id != newAlbum?.id
         return (found: true, albumChanged: albumChanged, newAlbum: albumChanged ? newAlbum : nil)
+    }
+
+    /// Jumps the track cursor to an absolute position in the trackMap.
+    /// Used when a track-list tap replays the existing queue at a known index.
+    func seekToTrack(at index: Int) {
+        guard index >= 0 && index < trackMap.count else { return }
+        currentTrackPosition = index
+        let entry = trackMap[index]
+        currentAlbum = currentBatch.first(where: { $0.id == entry.albumID })
+        updateShouldPrefetch()
     }
 
     /// True when the track cursor is at the last entry in the trackMap.

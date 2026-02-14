@@ -113,6 +113,11 @@ struct PlaybackScrubber: View {
                 currentTime = viewModel.playbackTime
             }
         }
+        .onChange(of: viewModel.trackDuration) { _, newDuration in
+            if newDuration != nil && !scrubState.isDragging {
+                currentTime = viewModel.playbackTime
+            }
+        }
         #if os(iOS)
         .onChange(of: scrubState.pendingSeekProgress) { _, target in
             if let target {

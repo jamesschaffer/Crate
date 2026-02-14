@@ -483,6 +483,126 @@ struct AlbumQueueManagerTests {
         #expect(diag.trackQueue.count == 10)
     }
 
+    // MARK: - Test 24: trackDidChange with checkBackward finds one-back track
+
+    @Test("trackDidChange with checkBackward true finds one-back track")
+    func trackDidChangeCheckBackwardFinds() {
+        let manager = AlbumQueueManager()
+        let grid = makeGrid(count: 5)
+        manager.setPendingQueue(gridAlbums: grid, tappedIndex: 0)
+        _ = manager.computeBatch()
+
+        manager.registerBatchTracks([
+            (albumID: MusicItemID("1"), titles: ["Track A", "Track B", "Track C"]),
+        ])
+
+        // Advance to Track C (position 2).
+        _ = manager.trackDidChange(to: "Track C")
+        #expect(manager.currentTrackPosition == 2)
+
+        // Skip backward to Track B — forward search won't find it, but checkBackward will.
+        let result = manager.trackDidChange(to: "Track B", checkBackward: true)
+        #expect(result.found == true)
+        #expect(manager.currentTrackPosition == 1)
+    }
+
+    // MARK: - Test 25: trackDidChange without checkBackward does NOT find backward track
+
+    @Test("trackDidChange without checkBackward does NOT find backward track")
+    func trackDidChangeNoBackwardSkips() {
+        let manager = AlbumQueueManager()
+        let grid = makeGrid(count: 5)
+        manager.setPendingQueue(gridAlbums: grid, tappedIndex: 0)
+        _ = manager.computeBatch()
+
+        manager.registerBatchTracks([
+            (albumID: MusicItemID("1"), titles: ["Track A", "Track B", "Track C"]),
+        ])
+
+        // Advance to Track C (position 2).
+        _ = manager.trackDidChange(to: "Track C")
+
+        // Default checkBackward: false — backward track not found.
+        let result = manager.trackDidChange(to: "Track B")
+        #expect(result.found == false)
+        #expect(manager.currentTrackPosition == 2) // unchanged
+    }
+
+    // MARK: - Test 26: checkBackward at last track with wrap title preserves wrap detection
+
+    @Test("checkBackward at last track with wrap title still returns found false")
+    func checkBackwardPreservesWrapDetection() {
+        let manager = AlbumQueueManager()
+        let grid = makeGrid(count: 10)
+        manager.setPendingQueue(gridAlbums: grid, tappedIndex: 0)
+        _ = manager.computeBatch()
+
+        manager.registerBatchTracks([
+            (albumID: MusicItemID("1"), titles: ["Track A", "Track B"]),
+            (albumID: MusicItemID("2"), titles: ["Track C"]),
+        ])
+
+        // Advance to last track (position 2).
+        _ = manager.trackDidChange(to: "Track C")
+        #expect(manager.isAtLastTrack == true)
+
+        // Simulate MusicKit wrapping to "Track A" (position 0).
+        // One-back from position 2 is position 1 ("Track B"), not "Track A",
+        // so checkBackward still returns found: false.
+        let result = manager.trackDidChange(to: "Track A", checkBackward: true)
+        #expect(result.found == false)
+        #expect(manager.isAtLastTrack == true)
+    }
+
+    // MARK: - Test 27: seekToTrack updates position, currentAlbum, and shouldPrefetch
+
+    @Test("seekToTrack updates position, currentAlbum, and shouldPrefetch")
+    func seekToTrackUpdatesState() {
+        let manager = AlbumQueueManager()
+        let grid = makeGrid(count: 10)
+        manager.setPendingQueue(gridAlbums: grid, tappedIndex: 0)
+        _ = manager.computeBatch()
+
+        manager.registerBatchTracks([
+            (albumID: MusicItemID("1"), titles: ["Track A", "Track B"]),
+            (albumID: MusicItemID("2"), titles: ["Track C"]),
+            (albumID: MusicItemID("3"), titles: ["Track D"]),
+            (albumID: MusicItemID("4"), titles: ["Track E"]),
+            (albumID: MusicItemID("5"), titles: ["Track F"]),
+        ])
+
+        #expect(manager.currentTrackPosition == 0)
+        #expect(manager.currentAlbum?.id == MusicItemID("1"))
+        #expect(manager.shouldPrefetch == false)
+
+        // Seek to the last album's track.
+        manager.seekToTrack(at: 5) // Track F, album 5
+        #expect(manager.currentTrackPosition == 5)
+        #expect(manager.currentAlbum?.id == MusicItemID("5"))
+        #expect(manager.shouldPrefetch == true) // last album in batch
+    }
+
+    // MARK: - Test 28: seekToTrack with out-of-bounds index is a no-op
+
+    @Test("seekToTrack with out-of-bounds index is a no-op")
+    func seekToTrackOutOfBoundsNoOp() {
+        let manager = AlbumQueueManager()
+        let grid = makeGrid(count: 5)
+        manager.setPendingQueue(gridAlbums: grid, tappedIndex: 0)
+        _ = manager.computeBatch()
+
+        manager.registerBatchTracks([
+            (albumID: MusicItemID("1"), titles: ["Track A", "Track B"]),
+        ])
+
+        manager.seekToTrack(at: 99) // out of bounds — no change
+        #expect(manager.currentTrackPosition == 0)
+        #expect(manager.currentAlbum?.id == MusicItemID("1"))
+
+        manager.seekToTrack(at: -1) // negative — no change
+        #expect(manager.currentTrackPosition == 0)
+    }
+
     // MARK: - Test 23: diagnostics reflects current state
 
     @Test("diagnostics reflects current state")
