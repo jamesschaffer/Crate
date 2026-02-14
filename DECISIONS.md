@@ -43,6 +43,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 128 | [Artist Catalog View with Typed Navigation Destinations](#adr-128-artist-catalog-view-with-typed-navigation-destinations) | Accepted |
 | 129 | [Auto-Advance Album Playback from Grid Context](#adr-129-auto-advance-album-playback-from-grid-context) | Accepted |
 | 130 | [macOS Target: Buildable, Testable, and Platform-Specific Fixes](#adr-130-macos-target-buildable-testable-and-platform-specific-fixes) | Accepted |
+| 131 | [AI Album Reviews via Firebase Cloud Functions](#adr-131-ai-album-reviews-via-firebase-cloud-functions) | Accepted |
 
 ---
 
@@ -1426,6 +1427,69 @@ Additionally, `stateChangeCounter` was being read directly in `AlbumDetailView.b
 - macOS signing is configured for development. TestFlight and Mac App Store distribution will require additional provisioning profile setup.
 
 **What would change this:** If Apple adds `MusicLibrary.shared.add()` to macOS MusicKit in a future release, the REST API fallback could be replaced with the native call for consistency with iOS. If SwiftUI adds automatic environment propagation to `Settings` scenes, the explicit injection could be removed. If the app introduces a large number of buttons in custom layouts, a global `.buttonStyle(.plain)` modifier on the root view (macOS only) might be more maintainable than per-button overrides.
+
+---
+
+## ADR-131: AI Album Reviews via Firebase Cloud Functions
+
+**Date:** 2026-02-14
+**Status:** Accepted
+**PRD Reference:** N/A (new feature, not in original PRD)
+
+**Context:** AlbumCrate presents albums as visual grids with a focus on listening -- but offers no editorial context about an album before or after playing it. Users browsing unfamiliar albums (especially from the Crate Wall's "Wild Card" or "New Releases" signals) have no way to understand an album's significance, critical reception, or cultural context without leaving the app. Adding AI-generated reviews gives users a reason to explore deeper and makes the album detail screen a richer destination, not just a play button.
+
+A sibling project (Album Scan, Firebase project `albumscan-18308`) already has a working `generateReviewGemini` Cloud Function that takes a structured prompt and returns a JSON review via Gemini with web search grounding. Rather than building a new backend, AlbumCrate calls this existing function directly.
+
+**Decision:** Add AI-generated album reviews to AlbumDetailView, powered by a shared Firebase Cloud Function (`generateReviewGemini`) and cached locally in SwiftData. The implementation introduces Firebase as the app's first external service dependency (breaking the "no server" pattern for this specific feature).
+
+**Key implementation details:**
+
+1. **UI: Tracks/Review segmented picker.** AlbumDetailView now has a `Picker(.segmented)` below the transport controls with two tabs: "Tracks" (default, existing track list) and "Review". The picker uses a local `DetailTab` enum. The review tab shows `AlbumReviewView`, which manages its own `AlbumReviewViewModel` as `@State`.
+
+2. **AlbumReview SwiftData model.** A `@Model` class with `@Attribute(.unique) albumID`, `contextSummary`, `contextBullets: [String]`, `rating: Double`, `recommendation: String`, and `dateGenerated`. Added to the SwiftData schema in `CrateApp.init()` alongside `FavoriteAlbum` and `DislikedAlbum`.
+
+3. **ReviewService.** Handles three responsibilities: (a) SwiftData cache reads/writes with `@MainActor` isolation on cache methods, (b) Cloud Function calls via `Functions.functions().httpsCallable("generateReviewGemini")`, and (c) prompt construction using the same template as Album Scan (`buildPrompt` is a static method for testability). The record label is fetched on-demand from MusicKit via `musicService.fetchAlbumDetail(id:)` since `CrateAlbum` does not carry label data. The service is NOT `@MainActor` at the class level so it can be stored in `@Observable` view models without isolation conflicts.
+
+4. **AlbumReviewViewModel.** `@MainActor @Observable` view model managing `review`, `isGenerating`, `isRegenerating`, and `errorMessage` state. Follows the existing `configure(modelContext:)` pattern used by other view models. Regeneration reuses the same `generateReview` method but sets `isRegenerating` instead of `isGenerating` for distinct UI feedback.
+
+5. **AlbumReviewView.** Four states: empty (generate button), loading (spinner), content (rating with /10, tier badge in branded capsule, summary paragraph, bullet points, relative timestamp, regenerate button), and error (message + retry). Uses `brandPink` consistently for the generate button, tier badge background, bullet markers, and regenerate button.
+
+6. **Firebase integration.** `FirebaseCore`, `FirebaseAppCheck`, and `FirebaseFunctions` added via SPM and linked to both iOS and macOS targets in the Xcode project. `CrateApp.init()` configures App Check before `FirebaseApp.configure()`. App Check uses App Attest in iOS production, debug tokens in DEBUG builds and on macOS (macOS does not support App Attest). `GoogleService-Info.plist` added to the project for Firebase configuration.
+
+7. **Review prompt.** Uses a detailed music critic prompt template requesting structured JSON output: `context_summary` (2-3 sentence overview), `context_bullets` (3-5 evidence-based bullets with scores/awards/chart data), `rating` (0-10 scale), and `recommendation` (one of ~24 tier labels across 8 tiers from "Essential Classic" to "Avoid Entirely"). The prompt explicitly deprioritizes monetary value and focuses on artistic merit. `useSearch: true` enables Gemini web search grounding for current critical data.
+
+8. **Tests.** 5 unit tests covering model initialization, cache miss, save/retrieve round-trip, upsert behavior, and prompt placeholder substitution. Uses in-memory SwiftData containers. Cloud Function calls are not unit-tested (requires live backend).
+
+**Alternatives Considered:**
+
+1. **On-device LLM (Core ML / MLX).** Would eliminate the server dependency entirely, staying true to the "no backend" architecture. However, review quality depends heavily on web search grounding (Metacritic scores, chart positions, critical reception) -- an on-device model has no access to this data. The reviews would be generic and based only on training data, not evidence-based. This could be revisited if Apple ships on-device models with web search capability.
+
+2. **Build a dedicated backend for AlbumCrate.** Unnecessary complexity. The Album Scan project already has a working Cloud Function with the exact prompt and response format needed. Reusing it avoids maintaining two backends. If AlbumCrate's review needs diverge significantly from Album Scan's in the future, a dedicated function could be added to the same Firebase project.
+
+3. **Call Gemini API directly from the client (no Cloud Function).** This would embed the API key in the app binary, which is a security risk even with obfuscation. The Cloud Function acts as a secure proxy, and App Check ensures only legitimate app instances can call it.
+
+4. **Cache reviews in a remote database (Firestore/CloudKit) instead of SwiftData.** Would enable cross-device sync but adds complexity and cost. Reviews are cheap to regenerate and device-local caching matches the existing pattern for favorites and dislikes. Cross-device sync can be added later if needed.
+
+5. **Show reviews inline (no tab picker).** Would make the album detail view significantly longer and push the track list below the fold. The segmented picker keeps the view clean and lets users choose what they want to see. The "Tracks" tab remains the default, preserving the existing experience for users who do not care about reviews.
+
+**Rationale:**
+
+- Reusing the Album Scan Cloud Function avoids building and maintaining a separate backend. The prompt template, response parsing, and Gemini configuration are already tested in production.
+- Firebase App Check provides server-side request validation without requiring user authentication. This is important because AlbumCrate has no user accounts -- App Check verifies the request comes from a legitimate app instance, not a spoofed client.
+- SwiftData caching means reviews load instantly on repeat visits and work offline. The `@Attribute(.unique)` constraint on `albumID` provides natural upsert behavior.
+- The segmented picker is a minimal UI change that avoids disrupting the existing album detail experience. Users who never tap "Review" see no difference.
+- Making `ReviewService` non-MainActor at the class level (with `@MainActor` only on cache methods) avoids isolation conflicts when storing it as a property in `@Observable` view models, which are `@MainActor`.
+
+**Consequences:**
+
+- **AlbumCrate now has a server dependency.** This is the first feature that requires network access beyond Apple Music's MusicKit. If the Firebase function is down, reviews fail gracefully (error state with retry), but the feature is unavailable. All other app functionality remains fully client-side.
+- **Firebase SDK adds to binary size.** FirebaseCore, FirebaseAppCheck, and FirebaseFunctions are now linked to both targets. This is a non-trivial addition to the dependency graph. Future Firebase features (Analytics, Crashlytics) could be added without additional SDK setup.
+- **`GoogleService-Info.plist` must be included in the project.** This file contains the Firebase project configuration (not secrets) but is specific to the `albumscan-18308` project. If the Firebase project changes, this plist must be updated.
+- **App Check debug tokens must be registered in the Firebase console for development and macOS.** iOS production uses App Attest (no manual token registration needed), but DEBUG builds and macOS require registering the debug token printed to the Xcode console.
+- **SwiftData schema now includes `AlbumReview`.** Any future schema migrations must account for this model. The `@Attribute(.unique)` on `albumID` means the model cannot store multiple reviews per album (by design -- regeneration replaces the existing review).
+- **The review prompt is embedded in the client.** If the prompt needs to change, an app update is required. Moving the prompt to a remote config (Firebase Remote Config or the Cloud Function itself) would allow server-side updates without app releases.
+
+**What would change this:** If Apple ships on-device LLMs with web search grounding (making evidence-based reviews possible without a server), the Firebase dependency could be removed entirely. If review needs diverge from Album Scan's (e.g., different prompt, different model), a dedicated Cloud Function should be created. If cross-device review sync becomes important, migrating from SwiftData to CloudKit or Firestore would be needed.
 
 ---
 
