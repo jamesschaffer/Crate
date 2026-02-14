@@ -214,7 +214,25 @@ struct MusicService: MusicServiceProtocol {
         guard let album = response.items.first else { return }
         try await MusicLibrary.shared.add(album)
         #else
-        print("[Crate] addToLibrary not available on macOS")
+        // MusicLibrary.shared.add() is iOS-only. Use the REST API on macOS.
+        var urlComponents = URLComponents()
+        urlComponents.scheme = "https"
+        urlComponents.host = "api.music.apple.com"
+        urlComponents.path = "/v1/me/library"
+        urlComponents.queryItems = [
+            URLQueryItem(name: "ids[albums]", value: albumID.rawValue),
+        ]
+
+        guard let url = urlComponents.url else {
+            print("[Crate] URL construction failed for \(urlComponents.path)")
+            return
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+
+        let dataRequest = MusicDataRequest(urlRequest: urlRequest)
+        _ = try await dataRequest.response()
         #endif
     }
 

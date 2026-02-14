@@ -52,6 +52,7 @@ struct AlbumDetailView: View {
                                 .foregroundStyle(viewModel.isDisliked ? .gray : .primary)
                                 .frame(width: 44, height: 44)
                         }
+                        .buttonStyle(.plain)
 
                         AlbumArtworkView(artwork: album.artwork, size: 280, artworkURL: album.artworkURL)
                             .shadow(radius: 8)
@@ -64,6 +65,7 @@ struct AlbumDetailView: View {
                                 .foregroundStyle(viewModel.isFavorite ? .red : .primary)
                                 .frame(width: 44, height: 44)
                         }
+                        .buttonStyle(.plain)
                     }
 
                     // Title and artist
@@ -79,6 +81,7 @@ struct AlbumDetailView: View {
                                 .foregroundStyle(.secondaryText)
                                 .multilineTextAlignment(.center)
                         }
+                        .buttonStyle(.plain)
                     }
 
                     // Transport controls — isolated into child view so
@@ -111,9 +114,11 @@ struct AlbumDetailView: View {
                 .animation(.easeInOut(duration: 0.35), value: isPlayingThisAlbum)
             }
         }
-        .navigationTitle(album.title)
         #if os(iOS)
+        .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
+        #else
+        .navigationTitle("")
         #endif
         .task {
             // Set grid context for auto-advance before any playback can start.
@@ -184,6 +189,7 @@ private struct AlbumTransportControls: View {
                         .foregroundStyle(accentForeground)
                         .clipShape(Circle())
                 }
+                .buttonStyle(.plain)
                 .disabled(tracks == nil)
             }
 

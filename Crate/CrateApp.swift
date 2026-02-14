@@ -61,12 +61,18 @@ struct CrateApp: App {
             }
         }
         .modelContainer(modelContainer)
+        #if os(macOS)
+        .defaultSize(width: 800, height: 800)
+        .commands { PlaybackCommands(playbackViewModel: playbackViewModel) }
+        #endif
 
         #if os(macOS)
         Settings {
             SettingsView()
                 .frame(minWidth: 400, minHeight: 300)
+                .environment(playbackViewModel)
         }
+        .modelContainer(modelContainer)
         #endif
     }
 }

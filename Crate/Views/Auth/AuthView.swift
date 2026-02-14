@@ -117,7 +117,7 @@ struct AuthView: View {
             .buttonStyle(.bordered)
             .tint(Color.brandPink)
             #else
-            Text("System Preferences > Security & Privacy > Privacy > Media & Apple Music")
+            Text("System Settings > Privacy & Security > Media & Apple Music")
                 .font(.caption)
                 .foregroundStyle(.secondaryText)
             #endif
