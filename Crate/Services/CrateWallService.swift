@@ -194,7 +194,9 @@ struct CrateWallService: Sendable {
         do {
             return try await musicService.fetchRecentlyPlayed(limit: 25)
         } catch {
+            #if DEBUG
             print("[Crate] fetchRecentlyPlayed failed: \(error)")
+            #endif
             return []
         }
     }
@@ -203,7 +205,9 @@ struct CrateWallService: Sendable {
         do {
             return try await musicService.fetchHeavyRotation(limit: 25)
         } catch {
+            #if DEBUG
             print("[Crate] fetchHeavyRotation failed: \(error)")
+            #endif
             return []
         }
     }
@@ -212,7 +216,9 @@ struct CrateWallService: Sendable {
         do {
             return try await musicService.fetchLibraryAlbums(limit: 25, offset: 0)
         } catch {
+            #if DEBUG
             print("[Crate] fetchLibraryAlbums failed: \(error)")
+            #endif
             return []
         }
     }
@@ -221,7 +227,9 @@ struct CrateWallService: Sendable {
         do {
             return try await musicService.fetchRecommendations(limit: limit)
         } catch {
+            #if DEBUG
             print("[Crate] fetchRecommendations failed: \(error)")
+            #endif
             return []
         }
     }
@@ -230,7 +238,9 @@ struct CrateWallService: Sendable {
         do {
             return try await musicService.fetchChartAlbums(genreID: genreID, limit: limit, offset: 0)
         } catch {
+            #if DEBUG
             print("[Crate] fetchChartAlbums failed: \(error)")
+            #endif
             return []
         }
     }
@@ -239,7 +249,9 @@ struct CrateWallService: Sendable {
         do {
             return try await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: 0)
         } catch {
+            #if DEBUG
             print("[Crate] fetchNewReleaseChartAlbums failed: \(error)")
+            #endif
             return []
         }
     }

@@ -106,14 +106,18 @@ struct GenreFeedService: Sendable {
                             let related = try await self.musicService.fetchRelatedAlbums(for: MusicItemID(seed.albumID))
                             albums.append(contentsOf: related)
                         } catch {
+                            #if DEBUG
                             print("[Crate] GenreFeed fetchRelatedAlbums failed for \(seed.albumID): \(error)")
+                            #endif
                         }
                         // Fetch artist's other albums
                         do {
                             let artistAlbums = try await self.musicService.fetchAlbumsByArtist(name: seed.artistName, limit: 10)
                             albums.append(contentsOf: artistAlbums)
                         } catch {
+                            #if DEBUG
                             print("[Crate] GenreFeed fetchAlbumsByArtist failed for \(seed.artistName): \(error)")
+                            #endif
                         }
                         return (.seedExpansion, self.filterToGenre(albums))
                     }
@@ -168,7 +172,9 @@ struct GenreFeedService: Sendable {
             let heavy = try await musicService.fetchHeavyRotation(limit: 25)
             albums.append(contentsOf: filterToGenre(heavy))
         } catch {
+            #if DEBUG
             print("[Crate] GenreFeed fetchHeavyRotation failed: \(error)")
+            #endif
         }
 
         // Library albums
@@ -176,7 +182,9 @@ struct GenreFeedService: Sendable {
             let library = try await musicService.fetchLibraryAlbums(limit: 25, offset: 0)
             albums.append(contentsOf: filterToGenre(library))
         } catch {
+            #if DEBUG
             print("[Crate] GenreFeed fetchLibraryAlbums failed: \(error)")
+            #endif
         }
 
         // If sparse, also pull recently played
@@ -185,7 +193,9 @@ struct GenreFeedService: Sendable {
                 let recent = try await musicService.fetchRecentlyPlayed(limit: 25)
                 albums.append(contentsOf: filterToGenre(recent))
             } catch {
+                #if DEBUG
                 print("[Crate] GenreFeed fetchRecentlyPlayed failed: \(error)")
+                #endif
             }
         }
 
@@ -198,7 +208,9 @@ struct GenreFeedService: Sendable {
             let recs = try await musicService.fetchRecommendations(limit: limit)
             return filterToGenre(recs)
         } catch {
+            #if DEBUG
             print("[Crate] GenreFeed fetchRecommendations failed: \(error)")
+            #endif
             return []
         }
     }
@@ -220,7 +232,9 @@ struct GenreFeedService: Sendable {
         do {
             return try await musicService.fetchChartAlbums(genreID: genreID, limit: limit, offset: offset)
         } catch {
+            #if DEBUG
             print("[Crate] GenreFeed fetchChartAlbums failed: \(error)")
+            #endif
             return []
         }
     }
@@ -229,7 +243,9 @@ struct GenreFeedService: Sendable {
         do {
             return try await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: 0)
         } catch {
+            #if DEBUG
             print("[Crate] GenreFeed fetchNewReleaseChartAlbums failed: \(error)")
+            #endif
             return []
         }
     }

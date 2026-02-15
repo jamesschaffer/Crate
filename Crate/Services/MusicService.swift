@@ -91,7 +91,9 @@ struct MusicService: MusicServiceProtocol {
         ]
 
         guard let url = urlComponents.url else {
+            #if DEBUG
             print("[Crate] URL construction failed for \(urlComponents.path)")
+            #endif
             return []
         }
 
@@ -122,7 +124,9 @@ struct MusicService: MusicServiceProtocol {
         ]
 
         guard let url = urlComponents.url else {
+            #if DEBUG
             print("[Crate] URL construction failed for \(urlComponents.path)")
+            #endif
             return []
         }
 
@@ -166,7 +170,9 @@ struct MusicService: MusicServiceProtocol {
         ]
 
         guard let url = urlComponents.url else {
+            #if DEBUG
             print("[Crate] URL construction failed for \(urlComponents.path)")
+            #endif
             return []
         }
 
@@ -195,14 +201,18 @@ struct MusicService: MusicServiceProtocol {
     }
 
     func fetchAlbumTracks(albumID: MusicItemID) async throws -> MusicItemCollection<Track> {
+        #if DEBUG
         print("[Crate] fetchAlbumTracks — albumID: \(albumID.rawValue)")
+        #endif
         var request = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
         request.properties = [.tracks]
         let response = try await request.response()
 
         guard let album = response.items.first,
               let tracks = album.tracks else {
+            #if DEBUG
             print("[Crate] fetchAlbumTracks — album or tracks nil for ID: \(albumID.rawValue)")
+            #endif
             return MusicItemCollection<Track>([])
         }
 
@@ -226,7 +236,9 @@ struct MusicService: MusicServiceProtocol {
         ]
 
         guard let url = urlComponents.url else {
+            #if DEBUG
             print("[Crate] URL construction failed for \(urlComponents.path)")
+            #endif
             return
         }
 
@@ -245,7 +257,9 @@ struct MusicService: MusicServiceProtocol {
         urlComponents.path = "/v1/me/ratings/albums/\(id.rawValue)"
 
         guard let url = urlComponents.url else {
+            #if DEBUG
             print("[Crate] URL construction failed for \(urlComponents.path)")
+            #endif
             return
         }
 
@@ -273,7 +287,9 @@ struct MusicService: MusicServiceProtocol {
         ]
 
         guard let url = urlComponents.url else {
+            #if DEBUG
             print("[Crate] URL construction failed for \(urlComponents.path)")
+            #endif
             return
         }
 
@@ -294,7 +310,9 @@ struct MusicService: MusicServiceProtocol {
         ]
 
         guard let url = urlComponents.url else {
+            #if DEBUG
             print("[Crate] URL construction failed for \(urlComponents.path)")
+            #endif
             return []
         }
 
@@ -327,7 +345,9 @@ struct MusicService: MusicServiceProtocol {
         ]
 
         guard let url = urlComponents.url else {
+            #if DEBUG
             print("[Crate] URL construction failed for \(urlComponents.path)")
+            #endif
             return []
         }
 
@@ -340,7 +360,9 @@ struct MusicService: MusicServiceProtocol {
             // Require a catalog ID — library IDs (l.XXXXX) can't be used with
             // MusicCatalogResourceRequest and cause downstream track/artist fetch failures.
             guard let catalogID = item.relationships?.catalog?.data?.first?.id else {
+                #if DEBUG
                 print("[Crate] Skipping library album '\(attrs.name)' — no catalog ID (library ID: \(item.id))")
+                #endif
                 return nil
             }
             let catalogAttrs = item.relationships?.catalog?.data?.first?.attributes
@@ -373,7 +395,9 @@ struct MusicService: MusicServiceProtocol {
     }
 
     func fetchArtistID(forAlbumID albumID: MusicItemID) async throws -> MusicItemID? {
+        #if DEBUG
         print("[Crate] fetchArtistID — albumID: \(albumID.rawValue)")
+        #endif
         var request = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
         request.properties = [.artists]
         let response = try await request.response()
@@ -392,7 +416,9 @@ struct MusicService: MusicServiceProtocol {
         ]
 
         guard let url = urlComponents.url else {
+            #if DEBUG
             print("[Crate] URL construction failed for \(urlComponents.path)")
+            #endif
             return []
         }
 
@@ -440,7 +466,9 @@ struct MusicService: MusicServiceProtocol {
         ]
 
         guard let url = urlComponents.url else {
+            #if DEBUG
             print("[Crate] URL construction failed for \(urlComponents.path)")
+            #endif
             return []
         }
 

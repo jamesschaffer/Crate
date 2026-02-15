@@ -59,7 +59,9 @@ final class ReviewService {
             let results = try ctx.fetch(descriptor)
             return results.first
         } catch {
+            #if DEBUG
             print("[Crate] Failed to fetch cached review: \(error)")
+            #endif
             return nil
         }
     }
@@ -77,14 +79,25 @@ final class ReviewService {
         let predicate = #Predicate<AlbumReview> { $0.albumID == albumID }
         let descriptor = FetchDescriptor(predicate: predicate)
 
-        if let existing = try? ctx.fetch(descriptor) {
+        do {
+            let existing = try ctx.fetch(descriptor)
             for old in existing {
                 ctx.delete(old)
             }
+        } catch {
+            #if DEBUG
+            print("[Crate] Failed to fetch existing reviews for upsert: \(error)")
+            #endif
         }
 
         ctx.insert(review)
-        do { try ctx.save() } catch { print("[Crate] SwiftData save failed: \(error)") }
+        do {
+            try ctx.save()
+        } catch {
+            #if DEBUG
+            print("[Crate] SwiftData save failed: \(error)")
+            #endif
+        }
     }
 
     // MARK: - Review Generation
@@ -99,8 +112,10 @@ final class ReviewService {
     /// Record label is pre-fetched by AlbumDetailViewModel to avoid a redundant API call.
     /// If search grounding causes a truncation error, retries without search.
     func generateReview(for album: CrateAlbum, recordLabel: String?) async throws -> AlbumReview {
+        #if DEBUG
         print("[Crate] ========== REVIEW GENERATION START ==========")
         print("[Crate] Album: \(album.title) by \(album.artistName) (ID: \(album.id.rawValue))")
+        #endif
 
         let label = recordLabel ?? "Unknown"
 
@@ -121,7 +136,9 @@ final class ReviewService {
         }
 
         let genres = album.genreNames.joined(separator: ", ")
+        #if DEBUG
         print("[Crate] Metadata — year: \(releaseYear), genres: \(genres), label: \(label)")
+        #endif
 
         let prompt = Self.buildPrompt(
             artistName: album.artistName,
@@ -130,20 +147,28 @@ final class ReviewService {
             genres: genres,
             recordLabel: label
         )
+        #if DEBUG
         print("[Crate] Prompt built (\(prompt.count) chars)")
+        #endif
 
         // Try with search first; if it fails (truncation from token limits),
         // retry without search as a fallback.
         if useSearch {
+            #if DEBUG
             print("[Crate] Search grounding: ON (post-cutoff)")
+            #endif
             do {
                 return try await callCloudFunction(prompt: prompt, useSearch: true, albumID: album.id.rawValue)
             } catch {
+                #if DEBUG
                 print("[Crate] Search attempt failed — retrying without search grounding")
+                #endif
             }
         }
 
+        #if DEBUG
         print("[Crate] Search grounding: OFF")
+        #endif
         return try await callCloudFunction(prompt: prompt, useSearch: false, albumID: album.id.rawValue)
     }
 
@@ -154,7 +179,9 @@ final class ReviewService {
             "useSearch": useSearch
         ]
 
+        #if DEBUG
         print("[Crate] Calling generateReviewGemini (useSearch: \(useSearch), timeout: 120s)...")
+        #endif
         let callStart = Date()
         let result: HTTPSCallableResult
         do {
@@ -162,11 +189,15 @@ final class ReviewService {
             callable.timeoutInterval = 120  // Match server-side timeout
             result = try await callable.call(data)
             let elapsed = Date().timeIntervalSince(callStart)
+            #if DEBUG
             print("[Crate] Cloud Function returned in \(String(format: "%.1f", elapsed))s")
+            #endif
         } catch let error as NSError {
             let elapsed = Date().timeIntervalSince(callStart)
+            #if DEBUG
             print("[Crate] Cloud Function failed after \(String(format: "%.1f", elapsed))s")
             print("[Crate] Error — domain: \(error.domain), code: \(error.code), description: \(error.localizedDescription)")
+            #endif
             if error.domain == FunctionsErrorDomain {
                 let code = FunctionsErrorCode(rawValue: error.code)
                 switch code {
@@ -186,11 +217,13 @@ final class ReviewService {
               let success = resultData["success"] as? Bool,
               success,
               let openAIData = resultData["data"] as? [String: Any] else {
+            #if DEBUG
             print("[Crate] FAILED at top-level parse (success/data extraction)")
             if let rawDict = result.data as? [String: Any] {
                 print("[Crate] Top-level keys: \(Array(rawDict.keys))")
                 if let errorMsg = rawDict["error"] { print("[Crate] error = \(errorMsg)") }
             }
+            #endif
             throw ReviewError.invalidResponse
         }
 
@@ -198,7 +231,9 @@ final class ReviewService {
               let firstChoice = choices.first,
               let message = firstChoice["message"] as? [String: Any],
               let content = message["content"] as? String else {
+            #if DEBUG
             print("[Crate] FAILED at choices/message/content extraction")
+            #endif
             throw ReviewError.invalidResponse
         }
 
@@ -221,14 +256,20 @@ final class ReviewService {
         let parsed: ReviewResponse
         do {
             parsed = try JSONDecoder().decode(ReviewResponse.self, from: jsonData)
+            #if DEBUG
             print("[Crate] Review parsed — rating: \(parsed.rating), recommendation: \(parsed.recommendation)")
+            #endif
         } catch {
+            #if DEBUG
             print("[Crate] JSON decode FAILED: \(error)")
             print("[Crate] Content: \(cleanedText.prefix(500))")
+            #endif
             throw ReviewError.invalidJSON
         }
 
+        #if DEBUG
         print("[Crate] ========== REVIEW GENERATION COMPLETE ==========")
+        #endif
         return AlbumReview(
             albumID: albumID,
             contextSummary: parsed.contextSummary,

@@ -45,7 +45,9 @@ final class ArtistCatalogViewModel {
                 }
             }
         } catch {
+            #if DEBUG
             print("[Crate] Failed to load artist catalog: \(error)")
+            #endif
             errorMessage = "Could not load artist albums."
         }
 

@@ -40,7 +40,13 @@ final class FavoritesService {
         )
 
         ctx.insert(favorite)
-        do { try ctx.save() } catch { print("[Crate] SwiftData save failed: \(error)") }
+        do {
+            try ctx.save()
+        } catch {
+            #if DEBUG
+            print("[Crate] SwiftData save failed: \(error)")
+            #endif
+        }
     }
 
     /// Remove an album from favorites by its Apple Music ID.
@@ -54,13 +60,16 @@ final class FavoritesService {
         let predicate = #Predicate<FavoriteAlbum> { $0.albumID == albumID }
         let descriptor = FetchDescriptor(predicate: predicate)
 
-        guard let favorites = try? ctx.fetch(descriptor),
-              let favorite = favorites.first else {
-            return
+        do {
+            let favorites = try ctx.fetch(descriptor)
+            guard let favorite = favorites.first else { return }
+            ctx.delete(favorite)
+            try ctx.save()
+        } catch {
+            #if DEBUG
+            print("[Crate] SwiftData delete/save failed: \(error)")
+            #endif
         }
-
-        ctx.delete(favorite)
-        do { try ctx.save() } catch { print("[Crate] SwiftData save failed: \(error)") }
     }
 
     /// Check if an album is in favorites.
@@ -74,8 +83,15 @@ final class FavoritesService {
         let predicate = #Predicate<FavoriteAlbum> { $0.albumID == albumID }
         let descriptor = FetchDescriptor(predicate: predicate)
 
-        let count = (try? ctx.fetchCount(descriptor)) ?? 0
-        return count > 0
+        do {
+            let count = try ctx.fetchCount(descriptor)
+            return count > 0
+        } catch {
+            #if DEBUG
+            print("[Crate] FavoritesService.isFavorite fetch failed: \(error)")
+            #endif
+            return false
+        }
     }
 
     /// Fetch all favorite albums, newest first.
@@ -91,6 +107,13 @@ final class FavoritesService {
         )
         descriptor.fetchLimit = 500
 
-        return (try? ctx.fetch(descriptor)) ?? []
+        do {
+            return try ctx.fetch(descriptor)
+        } catch {
+            #if DEBUG
+            print("[Crate] FavoritesService.fetchAll failed: \(error)")
+            #endif
+            return []
+        }
     }
 }

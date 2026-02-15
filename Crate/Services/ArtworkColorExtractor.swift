@@ -65,7 +65,9 @@ final class ArtworkColorExtractor {
                 hasExtracted = true
             }
         } catch {
+            #if DEBUG
             print("[Crate] ArtworkColorExtractor failed: \(error.localizedDescription)")
+            #endif
         }
     }
 

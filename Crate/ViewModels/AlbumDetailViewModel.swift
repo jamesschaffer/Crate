@@ -70,17 +70,23 @@ final class AlbumDetailViewModel {
 
         // Load tracks and record label concurrently.
         // Retry tracks once on failure — rate limits from batch pre-fetch can cause transient errors.
+        #if DEBUG
         print("[Crate] loadAlbum — id: \(album.id.rawValue), title: '\(album.title)', artist: '\(album.artistName)'")
+        #endif
         async let detailResult = musicService.fetchAlbumDetail(id: album.id)
         do {
             tracks = try await musicService.fetchAlbumTracks(albumID: album.id)
         } catch {
+            #if DEBUG
             print("[Crate] loadAlbum — first track fetch failed for \(album.id.rawValue): \(error)")
+            #endif
             try? await Task.sleep(for: .seconds(1))
             do {
                 tracks = try await musicService.fetchAlbumTracks(albumID: album.id)
             } catch {
+                #if DEBUG
                 print("[Crate] loadAlbum — retry also failed for \(album.id.rawValue): \(error)")
+                #endif
                 errorMessage = "Could not load tracks: \(error.localizedDescription)"
             }
         }
@@ -124,9 +130,21 @@ final class AlbumDetailViewModel {
                 async let rate: () = musicService.rateAlbum(id: album.id, rating: .love)
                 async let fav: () = musicService.favoriteAlbum(id: album.id)
 
-                do { try await lib } catch { print("[Crate] addToLibrary failed: \(error)") }
-                do { try await rate } catch { print("[Crate] rateAlbum(.love) failed: \(error)") }
-                do { try await fav } catch { print("[Crate] favoriteAlbum failed: \(error)") }
+                do { try await lib } catch {
+                    #if DEBUG
+                    print("[Crate] addToLibrary failed: \(error)")
+                    #endif
+                }
+                do { try await rate } catch {
+                    #if DEBUG
+                    print("[Crate] rateAlbum(.love) failed: \(error)")
+                    #endif
+                }
+                do { try await fav } catch {
+                    #if DEBUG
+                    print("[Crate] favoriteAlbum failed: \(error)")
+                    #endif
+                }
             }
         }
     }
@@ -159,7 +177,11 @@ final class AlbumDetailViewModel {
             Task {
                 do {
                     try await musicService.rateAlbum(id: album.id, rating: .dislike)
-                } catch { print("[Crate] rateAlbum(.dislike) failed: \(error)") }
+                } catch {
+                    #if DEBUG
+                    print("[Crate] rateAlbum(.dislike) failed: \(error)")
+                    #endif
+                }
             }
         }
     }

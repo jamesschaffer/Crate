@@ -59,14 +59,22 @@ final class AlbumReviewViewModel {
             let newReview = try await reviewService.generateReview(for: album, recordLabel: recordLabel)
             reviewService.saveReview(newReview)
             review = newReview
+            #if DEBUG
             print("[Crate] Review saved to cache for album: \(album.id.rawValue)")
+            #endif
         } catch {
+            #if DEBUG
             print("[Crate] Review generation failed — type: \(type(of: error)), error: \(error)")
+            #endif
             if let reviewError = error as? ReviewError {
+                #if DEBUG
                 print("[Crate] ReviewError case: \(reviewError)")
+                #endif
                 errorMessage = reviewError.errorDescription
             } else {
+                #if DEBUG
                 print("[Crate] Non-ReviewError: \(error.localizedDescription)")
+                #endif
                 errorMessage = "Something went wrong. Please try again."
             }
         }

@@ -39,7 +39,13 @@ final class DislikeService {
         )
 
         ctx.insert(disliked)
-        do { try ctx.save() } catch { print("[Crate] SwiftData save failed: \(error)") }
+        do {
+            try ctx.save()
+        } catch {
+            #if DEBUG
+            print("[Crate] SwiftData save failed: \(error)")
+            #endif
+        }
     }
 
     /// Remove an album from the disliked list.
@@ -53,13 +59,16 @@ final class DislikeService {
         let predicate = #Predicate<DislikedAlbum> { $0.albumID == albumID }
         let descriptor = FetchDescriptor(predicate: predicate)
 
-        guard let disliked = try? ctx.fetch(descriptor),
-              let item = disliked.first else {
-            return
+        do {
+            let disliked = try ctx.fetch(descriptor)
+            guard let item = disliked.first else { return }
+            ctx.delete(item)
+            try ctx.save()
+        } catch {
+            #if DEBUG
+            print("[Crate] SwiftData delete/save failed: \(error)")
+            #endif
         }
-
-        ctx.delete(item)
-        do { try ctx.save() } catch { print("[Crate] SwiftData save failed: \(error)") }
     }
 
     /// Check if an album is disliked.
@@ -73,8 +82,15 @@ final class DislikeService {
         let predicate = #Predicate<DislikedAlbum> { $0.albumID == albumID }
         let descriptor = FetchDescriptor(predicate: predicate)
 
-        let count = (try? ctx.fetchCount(descriptor)) ?? 0
-        return count > 0
+        do {
+            let count = try ctx.fetchCount(descriptor)
+            return count > 0
+        } catch {
+            #if DEBUG
+            print("[Crate] DislikeService.isDisliked fetch failed: \(error)")
+            #endif
+            return false
+        }
     }
 
     /// Fetch all disliked album IDs for efficient feed filtering.
@@ -86,7 +102,14 @@ final class DislikeService {
         }
 
         let descriptor = FetchDescriptor<DislikedAlbum>()
-        let items = (try? ctx.fetch(descriptor)) ?? []
-        return Set(items.map(\.albumID))
+        do {
+            let items = try ctx.fetch(descriptor)
+            return Set(items.map(\.albumID))
+        } catch {
+            #if DEBUG
+            print("[Crate] DislikeService.fetchAllDislikedIDs failed: \(error)")
+            #endif
+            return []
+        }
     }
 }

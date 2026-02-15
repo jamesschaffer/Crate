@@ -125,7 +125,9 @@ final class PlaybackViewModel {
     /// Called by grid views when the user taps an album tile.
     /// Stores the grid context so auto-advance activates when playback starts.
     func setGridContext(gridAlbums: [CrateAlbum], tappedIndex: Int) {
+        #if DEBUG
         print("[Crate][Queue] setGridContext: \(gridAlbums.count) albums, tapped index \(tappedIndex)")
+        #endif
         queueManager.setPendingQueue(gridAlbums: gridAlbums, tappedIndex: tappedIndex)
     }
 
@@ -177,7 +179,9 @@ final class PlaybackViewModel {
                     let batchPosition = existingTracks.distance(from: existingTracks.startIndex, to: batchIndex)
                     queueManager.seekToTrack(at: batchPosition)
                 }
+                #if DEBUG
                 print("[Crate][Queue] Within-batch tap: '\(tappedTrack.title)' on '\(album.title)'")
+                #endif
             } catch {
                 errorMessage = "Playback failed: \(error.localizedDescription)"
             }
@@ -188,7 +192,9 @@ final class PlaybackViewModel {
             // Auto-advance mode: load ALL batch tracks, then play everything at once.
             let batch = queueManager.computeBatch()
             let remaining = Array(batch.dropFirst())
+            #if DEBUG
             print("[Crate][Queue] play(tracks:) — preparing \(batch.count)-album queue")
+            #endif
 
             // Start with the anchor's tracks (already fetched by AlbumDetailViewModel).
             var allTracks = Array(tracks)
@@ -207,9 +213,13 @@ final class PlaybackViewModel {
                         let fetched = try await musicService.fetchAlbumTracks(albumID: album.id)
                         tracksByAlbum.append((albumID: album.id, titles: fetched.map(\.title)))
                         allTracks.append(contentsOf: fetched)
+                        #if DEBUG
                         print("[Crate][Queue] Fetched \(fetched.count) tracks for '\(album.title)'")
+                        #endif
                     } catch {
+                        #if DEBUG
                         print("[Crate][Queue] Failed to fetch tracks for '\(album.title)': \(error)")
+                        #endif
                     }
                 }
             }
@@ -226,7 +236,9 @@ final class PlaybackViewModel {
                 player.queue = ApplicationMusicPlayer.Queue(for: collection, startingAt: tracks[index])
                 try await player.play()
                 nowPlayingAlbum = album ?? batch.first
+                #if DEBUG
                 print("[Crate][Queue] Playing \(allTracks.count) tracks from \(batch.count) albums")
+                #endif
             } catch {
                 errorMessage = "Playback failed: \(error.localizedDescription)"
                 queueManager.reset()
@@ -235,7 +247,9 @@ final class PlaybackViewModel {
             isPreparingQueue = false
         } else {
             // Normal play — reset any active auto-advance.
+            #if DEBUG
             print("[Crate][Queue] play(tracks:) — normal playback (no grid context)")
+            #endif
             resetAutoAdvance()
             currentTracks = tracks
             trackDuration = tracks[index].duration
@@ -452,7 +466,9 @@ final class PlaybackViewModel {
                 tracksByAlbum.append((albumID: album.id, titles: tracks.map(\.title)))
                 allTracks.append(contentsOf: tracks)
             } catch {
+                #if DEBUG
                 print("[Crate] Failed to fetch tracks for batch album \(album.title): \(error)")
+                #endif
             }
         }
 
@@ -470,7 +486,9 @@ final class PlaybackViewModel {
         }
 
         guard !readyBatchTracks.isEmpty else {
+            #if DEBUG
             print("[Crate] Next batch has no tracks")
+            #endif
             queueManager.reset()
             return
         }
@@ -486,7 +504,9 @@ final class PlaybackViewModel {
             try await player.play()
             nowPlayingAlbum = queueManager.currentAlbum
         } catch {
+            #if DEBUG
             print("[Crate] Failed to play next batch: \(error)")
+            #endif
             queueManager.reset()
         }
     }
