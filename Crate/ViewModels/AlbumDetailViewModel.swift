@@ -70,14 +70,17 @@ final class AlbumDetailViewModel {
 
         // Load tracks and record label concurrently.
         // Retry tracks once on failure — rate limits from batch pre-fetch can cause transient errors.
+        print("[Crate] loadAlbum — id: \(album.id.rawValue), title: '\(album.title)', artist: '\(album.artistName)'")
         async let detailResult = musicService.fetchAlbumDetail(id: album.id)
         do {
             tracks = try await musicService.fetchAlbumTracks(albumID: album.id)
         } catch {
+            print("[Crate] loadAlbum — first track fetch failed for \(album.id.rawValue): \(error)")
             try? await Task.sleep(for: .seconds(1))
             do {
                 tracks = try await musicService.fetchAlbumTracks(albumID: album.id)
             } catch {
+                print("[Crate] loadAlbum — retry also failed for \(album.id.rawValue): \(error)")
                 errorMessage = "Could not load tracks: \(error.localizedDescription)"
             }
         }

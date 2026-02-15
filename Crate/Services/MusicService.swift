@@ -195,12 +195,14 @@ struct MusicService: MusicServiceProtocol {
     }
 
     func fetchAlbumTracks(albumID: MusicItemID) async throws -> MusicItemCollection<Track> {
+        print("[Crate] fetchAlbumTracks — albumID: \(albumID.rawValue)")
         var request = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
         request.properties = [.tracks]
         let response = try await request.response()
 
         guard let album = response.items.first,
               let tracks = album.tracks else {
+            print("[Crate] fetchAlbumTracks — album or tracks nil for ID: \(albumID.rawValue)")
             return MusicItemCollection<Track>([])
         }
 
@@ -335,12 +337,15 @@ struct MusicService: MusicServiceProtocol {
         let decoded = try JSONDecoder().decode(LibraryAlbumsResponse.self, from: response.data)
         return decoded.data.compactMap { item -> CrateAlbum? in
             guard let attrs = item.attributes else { return nil }
-            // Prefer catalog ID if available, otherwise use library ID.
-            let catalogID = item.relationships?.catalog?.data?.first?.id
-            let albumID = catalogID ?? item.id
+            // Require a catalog ID — library IDs (l.XXXXX) can't be used with
+            // MusicCatalogResourceRequest and cause downstream track/artist fetch failures.
+            guard let catalogID = item.relationships?.catalog?.data?.first?.id else {
+                print("[Crate] Skipping library album '\(attrs.name)' — no catalog ID (library ID: \(item.id))")
+                return nil
+            }
             let catalogAttrs = item.relationships?.catalog?.data?.first?.attributes
             return CrateAlbum(
-                id: MusicItemID(albumID),
+                id: MusicItemID(catalogID),
                 title: attrs.name,
                 artistName: attrs.artistName,
                 artworkURL: attrs.artwork?.url,
@@ -368,6 +373,7 @@ struct MusicService: MusicServiceProtocol {
     }
 
     func fetchArtistID(forAlbumID albumID: MusicItemID) async throws -> MusicItemID? {
+        print("[Crate] fetchArtistID — albumID: \(albumID.rawValue)")
         var request = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
         request.properties = [.artists]
         let response = try await request.response()
