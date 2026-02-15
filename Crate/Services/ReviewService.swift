@@ -102,15 +102,9 @@ final class ReviewService {
 
     // MARK: - Review Generation
 
-    /// Gemini's training data cutoff. Albums released before this date
-    /// can skip Google Search grounding for faster responses.
-    private static let searchCutoffDate: Date = {
-        DateComponents(calendar: .current, year: 2024, month: 7, day: 1).date!
-    }()
-
     /// Generate a review for the given album via the Cloud Function.
     /// Record label is pre-fetched by AlbumDetailViewModel to avoid a redundant API call.
-    /// If search grounding causes a truncation error, retries without search.
+    /// The server owns the prompt template and search grounding decision.
     func generateReview(for album: CrateAlbum, recordLabel: String?) async throws -> AlbumReview {
         #if DEBUG
         print("[Crate] ========== REVIEW GENERATION START ==========")
@@ -119,7 +113,6 @@ final class ReviewService {
 
         let label = recordLabel ?? "Unknown"
 
-        // Build release year from date
         let releaseYear: String
         if let date = album.releaseDate {
             releaseYear = String(Calendar.current.component(.year, from: date))
@@ -127,60 +120,40 @@ final class ReviewService {
             releaseYear = "Unknown"
         }
 
-        // Enable search grounding only for albums released after Gemini's training cutoff
-        let useSearch: Bool
-        if let releaseDate = album.releaseDate {
-            useSearch = releaseDate >= Self.searchCutoffDate
-        } else {
-            useSearch = true  // Unknown date → use search to be safe
-        }
-
         let genres = album.genreNames.joined(separator: ", ")
         #if DEBUG
         print("[Crate] Metadata — year: \(releaseYear), genres: \(genres), label: \(label)")
         #endif
 
-        let prompt = Self.buildPrompt(
+        return try await callCloudFunction(
             artistName: album.artistName,
             albumTitle: album.title,
             releaseYear: releaseYear,
             genres: genres,
-            recordLabel: label
+            recordLabel: label,
+            albumID: album.id.rawValue
         )
-        #if DEBUG
-        print("[Crate] Prompt built (\(prompt.count) chars)")
-        #endif
-
-        // Try with search first; if it fails (truncation from token limits),
-        // retry without search as a fallback.
-        if useSearch {
-            #if DEBUG
-            print("[Crate] Search grounding: ON (post-cutoff)")
-            #endif
-            do {
-                return try await callCloudFunction(prompt: prompt, useSearch: true, albumID: album.id.rawValue)
-            } catch {
-                #if DEBUG
-                print("[Crate] Search attempt failed — retrying without search grounding")
-                #endif
-            }
-        }
-
-        #if DEBUG
-        print("[Crate] Search grounding: OFF")
-        #endif
-        return try await callCloudFunction(prompt: prompt, useSearch: false, albumID: album.id.rawValue)
     }
 
     /// Call the Cloud Function and parse the response.
-    private func callCloudFunction(prompt: String, useSearch: Bool, albumID: String) async throws -> AlbumReview {
+    private func callCloudFunction(
+        artistName: String,
+        albumTitle: String,
+        releaseYear: String,
+        genres: String,
+        recordLabel: String,
+        albumID: String
+    ) async throws -> AlbumReview {
         let data: [String: Any] = [
-            "prompt": prompt,
-            "useSearch": useSearch
+            "artistName": artistName,
+            "albumTitle": albumTitle,
+            "releaseYear": releaseYear,
+            "genres": genres,
+            "recordLabel": recordLabel
         ]
 
         #if DEBUG
-        print("[Crate] Calling generateReviewGemini (useSearch: \(useSearch), timeout: 120s)...")
+        print("[Crate] Calling generateReviewGemini (timeout: 120s)...")
         #endif
         let callStart = Date()
         let result: HTTPSCallableResult
@@ -279,101 +252,6 @@ final class ReviewService {
         )
     }
 
-    // MARK: - Prompt
-
-    static func buildPrompt(
-        artistName: String,
-        albumTitle: String,
-        releaseYear: String,
-        genres: String,
-        recordLabel: String
-    ) -> String {
-        reviewPromptTemplate
-            .replacingOccurrences(of: "{artistName}", with: artistName)
-            .replacingOccurrences(of: "{albumTitle}", with: albumTitle)
-            .replacingOccurrences(of: "{releaseYear}", with: releaseYear)
-            .replacingOccurrences(of: "{genres}", with: genres)
-            .replacingOccurrences(of: "{recordLabel}", with: recordLabel)
-    }
-
-    // MARK: - Prompt Template
-
-    // swiftlint:disable line_length
-    private static let reviewPromptTemplate = """
-    You are a music critic writing an honest, evidence-based album review for collectors who care about artistic merit, not financial value.
-
-    **Album Metadata:**
-    Artist: {artistName}
-    Album: {albumTitle}
-    Year: {releaseYear}
-    Genre: {genres}
-    Label: {recordLabel}
-
-    **Your Task:**
-    Generate a concise, honest assessment of this album's cultural significance and musical merit based on your knowledge of music history, critical reception, influence, and cultural impact.
-
-    **Source Prioritization:**
-    When searching for evidence and critical reception, prioritize these sources (in order):
-    - Metacritic
-    - Album of the Year
-    - Pitchfork
-    - Rolling Stone
-    - AllMusic
-    - The Guardian
-
-    **Source Diversity Rules:**
-    To ensure comprehensive and credible reviews, follow these citation rules:
-    - Use NO MORE than 2 URLs from any single domain (e.g., max 2 Wikipedia links)
-    - Aim to cite at least 3 different sources from the priority list
-    - Prefer Metacritic/Pitchfork for review scores and critical consensus
-    - Use Wikipedia for general context, background, and album basics
-    - Use music publications (Rolling Stone, AllMusic) for in-depth analysis and cultural impact
-    - Diversify your sources to provide multiple perspectives
-
-    **Required Output Structure:**
-
-    1. **context_summary** (2-3 sentences): Opening paragraph that captures the album's core essence and importance. Be specific about what makes it matter (or not).
-
-    2. **context_bullets** (3-5 bullet points): Concrete evidence supporting your assessment:
-       - Critical reception (scores from Pitchfork, Rolling Stone, Metacritic when available)
-       - Concrete impact examples (chart performance, sales figures, awards)
-       - Specific standout tracks and sonic qualities
-       - Genre innovation or influence on other artists
-       - Reputation evolution (initially panned vs. later acclaimed, etc.)
-
-    3. **rating** (number 0-10): Your assessment based on the album's artistic merit and cultural significance.
-
-    4. **recommendation** (string): Choose ONE label that best captures this album's place in music:
-
-       TIER 1 (Undeniable Greatness): Essential Classic | Genre Landmark | Cultural Monument
-       TIER 2 (Critical Darlings): Indie Masterpiece | Cult Essential | Critics' Choice
-       TIER 3 (Crowd Pleasers): Crowd Favorite | Radio Gold | Crossover Success
-       TIER 4 (Hidden Gems): Deep Cut | Surprise Excellence | Scene Favorite
-       TIER 5 (Historical Interest): Time Capsule | Influential Curio | Pioneering Effort
-       TIER 6 (Solid Work): Reliable Listen | Fan Essential | Genre Staple
-       TIER 7 (Problematic): Ambitious Failure | Divisive Work | Uneven Effort
-       TIER 8 (Pass): Forgettable Entry | Career Low | Avoid Entirely
-
-    **Critical Requirements:**
-    - Use honest, direct language - call out mediocre or bad albums explicitly
-    - Focus on what actually matters about the album (no filler or generic praise)
-    - Evaluate albums purely on musical merit - artist's personal controversies or social issues may be mentioned for context but do NOT devalue their musical contributions or impact
-    - Provide specific evidence (scores, chart positions, awards, influence examples)
-    - Choose the recommendation carefully based on the album's actual place in music history, not just your personal opinion
-    - Reserve Tier 1 labels for genuinely canonical/influential albums only
-    - NEVER mention price, monetary value, market considerations, investment potential, pressing details, or collectibility
-    - Be the honest music historian, not the investment advisor
-
-    Return ONLY valid JSON in this exact format:
-    {
-      "context_summary": "string",
-      "context_bullets": ["string", "string", "string"],
-      "rating": number,
-      "recommendation": "string (exactly as written above)",
-      "key_tracks": ["string", "string", "string"]
-    }
-    """
-    // swiftlint:enable line_length
 }
 
 // MARK: - Response Decoding

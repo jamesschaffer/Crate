@@ -102,22 +102,4 @@ struct ReviewServiceTests {
         #expect(all.count == 1)
     }
 
-    @Test("Prompt builds correctly with placeholders")
-    func promptBuilding() {
-        let prompt = ReviewService.buildPrompt(
-            artistName: "Radiohead",
-            albumTitle: "OK Computer",
-            releaseYear: "1997",
-            genres: "Alternative Rock, Art Rock",
-            recordLabel: "Parlophone"
-        )
-
-        #expect(prompt.contains("Artist: Radiohead"))
-        #expect(prompt.contains("Album: OK Computer"))
-        #expect(prompt.contains("Year: 1997"))
-        #expect(prompt.contains("Genre: Alternative Rock, Art Rock"))
-        #expect(prompt.contains("Label: Parlophone"))
-        #expect(!prompt.contains("{artistName}"))
-        #expect(!prompt.contains("{albumTitle}"))
-    }
 }
