@@ -1,7 +1,13 @@
 import Foundation
 import MusicKit
+import MediaPlayer
 import Observation
 import Combine
+#if os(iOS)
+import UIKit
+#else
+import AppKit
+#endif
 
 /// Wraps ApplicationMusicPlayer to provide reactive playback state
 /// and transport controls for the rest of the app.
@@ -41,7 +47,7 @@ final class PlaybackViewModel {
     }
 
     /// Current playback status.
-    var playbackStatus: MusicPlayer.PlaybackStatus {
+    var playbackStatus: MusicKit.MusicPlayer.PlaybackStatus {
         player.state.playbackStatus
     }
 
@@ -99,12 +105,17 @@ final class PlaybackViewModel {
     // and @Observable tracks only direct property mutations.
     var stateChangeCounter: Int = 0
 
+    /// Tracks last artwork entry title to avoid redundant image downloads for Now Playing info.
+    private var lastNowPlayingArtworkTitle: String?
+    /// Cached artwork for the Now Playing info center, persisted across info dict rebuilds.
+    private var cachedNowPlayingArtwork: MPMediaItemArtwork?
+
     init(musicService: MusicServiceProtocol = MusicService()) {
         self.musicService = musicService
 
         // Always disable shuffle — Crate is about intentional album listening.
         player.state.shuffleMode = .off
-        player.state.repeatMode = MusicPlayer.RepeatMode.none
+        player.state.repeatMode = MusicKit.MusicPlayer.RepeatMode.none
 
         observePlayerState()
     }
@@ -280,6 +291,9 @@ final class PlaybackViewModel {
         resetAutoAdvance()
         player.stop()
         player.queue = []
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        lastNowPlayingArtworkTitle = nil
+        cachedNowPlayingArtwork = nil
     }
 
     // MARK: - Private — Observation
@@ -292,6 +306,7 @@ final class PlaybackViewModel {
                 guard let self else { return }
                 self.stateChangeCounter += 1
                 self.checkBatchExhausted()
+                self.updateNowPlayingInfo()
             }
         }
 
@@ -301,6 +316,7 @@ final class PlaybackViewModel {
                 self.stateChangeCounter += 1
                 self.syncTrackDuration()
                 self.handleTrackChange()
+                self.updateNowPlayingInfo()
             }
         }
     }
@@ -313,6 +329,70 @@ final class PlaybackViewModel {
         }
         if let match = tracks.first(where: { $0.title == title }) {
             trackDuration = match.duration
+        }
+    }
+
+    // MARK: - Private — Now Playing Info
+
+    /// Publishes current track metadata to MPNowPlayingInfoCenter so the system
+    /// AirPlay route picker (and other system UI) can display what's playing.
+    private func updateNowPlayingInfo() {
+        guard let entry = player.queue.currentEntry else {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            lastNowPlayingArtworkTitle = nil
+            cachedNowPlayingArtwork = nil
+            return
+        }
+
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: entry.title,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: player.playbackTime,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+        ]
+
+        if let subtitle = entry.subtitle {
+            info[MPMediaItemPropertyArtist] = subtitle
+        }
+
+        if let duration = trackDuration {
+            info[MPMediaItemPropertyPlaybackDuration] = duration
+        }
+
+        if let albumTitle = nowPlayingAlbum?.title {
+            info[MPMediaItemPropertyAlbumTitle] = albumTitle
+        }
+
+        if let artwork = cachedNowPlayingArtwork {
+            info[MPMediaItemPropertyArtwork] = artwork
+        }
+
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+
+        loadNowPlayingArtwork(for: entry)
+    }
+
+    /// Downloads artwork for the current track and caches it for inclusion in
+    /// future Now Playing info dict rebuilds. Skips download if unchanged.
+    private func loadNowPlayingArtwork(for entry: ApplicationMusicPlayer.Queue.Entry) {
+        guard entry.title != lastNowPlayingArtworkTitle else { return }
+        lastNowPlayingArtworkTitle = entry.title
+        cachedNowPlayingArtwork = nil
+
+        guard let artwork = entry.artwork,
+              let url = artwork.url(width: 300, height: 300) else { return }
+
+        Task { [weak self] in
+            guard let data = try? await URLSession.shared.data(from: url).0 else { return }
+
+            #if os(iOS)
+            guard let image = UIImage(data: data) else { return }
+            #else
+            guard let image = NSImage(data: data) else { return }
+            #endif
+
+            guard let self else { return }
+            self.cachedNowPlayingArtwork = MPMediaItemArtwork(boundsSize: CGSize(width: 300, height: 300)) { _ in image }
+            self.updateNowPlayingInfo()
         }
     }
 

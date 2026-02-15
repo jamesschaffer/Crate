@@ -1,3 +1,4 @@
+import AVKit
 import SwiftUI
 import MusicKit
 
@@ -24,6 +25,10 @@ struct PlaybackRowContent: View {
                     trackInfo
                 }
             }
+
+            // AirPlay route picker
+            AirPlayRoutePickerButton()
+                .frame(width: 28, height: 28)
 
             // Play/pause toggle
             Button {
@@ -93,6 +98,32 @@ struct PlaybackFooterView: View {
         .background(.ultraThinMaterial)
     }
 }
+
+// MARK: - AirPlay Route Picker
+
+#if os(iOS)
+struct AirPlayRoutePickerButton: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let picker = AVRoutePickerView()
+        picker.tintColor = .label
+        picker.activeTintColor = .systemBlue
+        picker.prioritizesVideoDevices = false
+        return picker
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
+}
+#else
+struct AirPlayRoutePickerButton: NSViewRepresentable {
+    func makeNSView(context: Context) -> AVRoutePickerView {
+        let picker = AVRoutePickerView()
+        picker.isRoutePickerButtonBordered = false
+        return picker
+    }
+
+    func updateNSView(_ nsView: AVRoutePickerView, context: Context) {}
+}
+#endif
 
 #Preview {
     PlaybackFooterView()
