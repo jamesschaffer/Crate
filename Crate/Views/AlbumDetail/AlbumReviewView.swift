@@ -61,6 +61,9 @@ struct AlbumReviewView: View {
                     .clipShape(Capsule())
             }
 
+            // Album metadata — year, genre, label
+            metadataRow
+
             // Summary
             Text(review.contextSummary)
                 .font(.body)
@@ -145,6 +148,33 @@ struct AlbumReviewView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Metadata Row
+
+    /// Year · Genre · Record Label — secondary text between rating and summary.
+    private var metadataRow: some View {
+        let parts: [String] = {
+            var items: [String] = []
+            if let date = album.releaseDate {
+                items.append(String(Calendar.current.component(.year, from: date)))
+            }
+            if let genre = album.genreNames.first {
+                items.append(genre)
+            }
+            if let label = recordLabel {
+                items.append(label)
+            }
+            return items
+        }()
+
+        return Group {
+            if !parts.isEmpty {
+                Text(parts.joined(separator: "  ·  "))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondaryText)
+            }
+        }
     }
 
     // MARK: - Helpers
