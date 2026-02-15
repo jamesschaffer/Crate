@@ -2,7 +2,7 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, and AI album reviews complete. Review UI polished with auto-generation on tab tap, artwork-themed accents, and Cloud Function reliability improvements. Both iOS and macOS targets are buildable and testable. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, AI album reviews, and AirPlay output routing complete. Review UI polished with auto-generation on tab tap, artwork-themed accents, and Cloud Function reliability improvements. Both iOS and macOS targets are buildable and testable. Visual design polish in progress.
 
 ---
 
@@ -108,8 +108,9 @@ Crate/
                                 # AlbumReviewView
       /ArtistCatalog            # ArtistCatalogView (artist discography grid)
       /Auth                     # AuthView
-      /Playback                 # PlaybackFooterView, PlaybackRowContent,
-                                # PlaybackProgressBar, PlaybackScrubber
+      /Playback                 # PlaybackFooterView (+ AirPlayRoutePickerButton),
+                                # PlaybackRowContent, PlaybackProgressBar,
+                                # PlaybackScrubber
       /Settings                 # SettingsView (Crate Algorithm radio selector),
                                 # FeedDiagnosticsView, QueueDiagnosticsView
       /Shared                   # AlbumArtworkView, LoadingView, EmptyStateView
