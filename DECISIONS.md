@@ -45,6 +45,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 130 | [macOS Target: Buildable, Testable, and Platform-Specific Fixes](#adr-130-macos-target-buildable-testable-and-platform-specific-fixes) | Accepted |
 | 131 | [AI Album Reviews via Firebase Cloud Functions](#adr-131-ai-album-reviews-via-firebase-cloud-functions) | Accepted |
 | 132 | [Review UI Polish and Cloud Function Reliability](#adr-132-review-ui-polish-and-cloud-function-reliability) | Accepted |
+| 133 | [Server-Side Review Prompt and Search Grounding](#adr-133-server-side-review-prompt-and-search-grounding) | Accepted |
 
 ---
 
@@ -1488,7 +1489,7 @@ A sibling project (Album Scan, Firebase project `albumscan-18308`) already has a
 - **`GoogleService-Info.plist` must be included in the project.** This file contains the Firebase project configuration (not secrets) but is specific to the `albumscan-18308` project. If the Firebase project changes, this plist must be updated.
 - **App Check debug tokens must be registered in the Firebase console for development and macOS.** iOS production uses App Attest (no manual token registration needed), but DEBUG builds and macOS require registering the debug token printed to the Xcode console.
 - **SwiftData schema now includes `AlbumReview`.** Any future schema migrations must account for this model. The `@Attribute(.unique)` on `albumID` means the model cannot store multiple reviews per album (by design -- regeneration replaces the existing review).
-- **The review prompt is embedded in the client.** If the prompt needs to change, an app update is required. Moving the prompt to a remote config (Firebase Remote Config or the Cloud Function itself) would allow server-side updates without app releases.
+- **The review prompt is embedded in the client.** If the prompt needs to change, an app update is required. Moving the prompt to a remote config (Firebase Remote Config or the Cloud Function itself) would allow server-side updates without app releases. *(Resolved by ADR-133: prompt moved to the Cloud Function.)*
 
 **What would change this:** If Apple ships on-device LLMs with web search grounding (making evidence-based reviews possible without a server), the Firebase dependency could be removed entirely. If review needs diverge from Album Scan's (e.g., different prompt, different model), a dedicated Cloud Function should be created. If cross-device review sync becomes important, migrating from SwiftData to CloudKit or Firestore would be needed.
 
@@ -1550,7 +1551,57 @@ A sibling project (Album Scan, Firebase project `albumscan-18308`) already has a
 - **`AlbumDetailViewModel` now fetches album detail.** This adds one API call to `loadAlbumData()`, but it runs concurrently with the track fetch so it does not increase total load time.
 - **`ReviewService` no longer depends on `MusicService`.** This simplifies testing (no mock MusicService needed for review tests) and reduces coupling.
 
-**What would change this:** If Gemini updates its training data cutoff, the `searchCutoffDate` constant should be updated to match. If Apple exposes record label data on `CrateAlbum` directly (avoiding the detail fetch), the concurrent pre-fetch could be removed. If the Cloud Function's token limit is increased or search grounding becomes more reliable, the retry-without-search fallback could be removed.
+**What would change this:** If Apple exposes record label data on `CrateAlbum` directly (avoiding the detail fetch), the concurrent pre-fetch could be removed. *(Note: The search grounding, retry logic, and prompt template aspects of this ADR were moved server-side by ADR-133. Changes to those behaviors are now Cloud Function deployments, not app updates.)*
+
+---
+
+## ADR-133: Server-Side Review Prompt and Search Grounding
+
+**Date:** 2026-02-15
+**Status:** Accepted
+**Amends:** ADR-131, ADR-132
+
+**Context:** A security audit of the AI review pipeline identified three vulnerabilities in the client-server boundary:
+
+1. **Prompt injection (finding #2).** The iOS client constructed the full prompt (system instruction + album metadata) and sent it as a single `prompt` string to the Cloud Function. A malicious or compromised client could inject arbitrary instructions into the prompt, causing Gemini to produce manipulated output.
+2. **Prompt template exposure (finding #3).** The entire review prompt template -- including system instructions, scoring rubric, tier definitions, and output schema -- was embedded in the iOS binary (`ReviewService.reviewPromptTemplate`). Anyone decompiling the app could read the full prompt and craft adversarial inputs.
+3. **Client-controlled search grounding (finding #7).** The client computed `useSearch` based on the album's release date and sent it as a boolean flag. A compromised client could force search on or off regardless of the album, either wasting resources or degrading review quality.
+
+**Decision:** Move the review prompt template, system instruction, and search grounding decision to the Firebase Cloud Function. The iOS client sends only structured album metadata (artist name, album title, release year, genres, record label) and the server constructs the prompt, decides whether to use search grounding, and handles retry logic.
+
+**Key changes:**
+
+1. **Cloud Function (`generateReviewGemini`).** The `ReviewRequest` interface changed from `{prompt: string, useSearch: boolean}` to `{artistName: string, albumTitle: string, releaseYear: string, genres: string, recordLabel: string}`. A new `validateReviewRequest()` function enforces type checks, length limits, and year format validation on all fields. `REVIEW_SYSTEM_INSTRUCTION` is a server-side constant containing the full prompt template (previously embedded in the iOS binary). `buildUserMessage()` constructs the album metadata block as user content. The Gemini call now uses `systemInstruction` to properly separate system and user content (previously everything was a single user prompt). `shouldUseSearch()` decides search grounding server-side (year >= 2024 or "Unknown" enables search). Server-side retry: if a search-grounded call fails, the function retries without search before returning an error. The old OpenAI `generateReview` function (dead code) was removed.
+
+2. **iOS client (`ReviewService.swift`).** Removed `searchCutoffDate`, `useSearch` computation, `buildPrompt()`, and `reviewPromptTemplate` (~100 lines deleted). Removed the client-side search retry loop (server handles this now). `generateReview()` extracts metadata from the album and makes a single `callCloudFunction` call. `callCloudFunction()` sends the 5 structured fields instead of `prompt` + `useSearch`. Response parsing is unchanged.
+
+3. **Tests (`ReviewServiceTests.swift`).** The "Prompt builds correctly with placeholders" test was removed (no client-side prompt to test). 4 cache tests remain and pass.
+
+**Alternatives Considered:**
+
+1. **Keep the prompt client-side but sign it.** The client could HMAC-sign the prompt so the server can verify it was not tampered with. This addresses injection but not template exposure -- the prompt is still in the binary. Also adds key management complexity.
+
+2. **Encrypt the prompt template in the binary.** Would obscure the template from casual decompilation, but a determined attacker with a debugger could still extract it at runtime. Security through obscurity, not a real fix.
+
+3. **Send only an album ID and let the server fetch metadata.** Maximum security (client sends almost nothing), but requires the server to have Apple Music API access or a metadata database. Adds significant server-side complexity and a new dependency. The structured metadata approach is a practical middle ground -- the server controls the prompt and search logic, while the client provides the data it already has.
+
+**Rationale:**
+
+- The server is the trust boundary. By moving prompt construction and search decisions to the server, the client cannot influence what Gemini sees beyond the album metadata fields, which are validated and length-limited.
+- Structured metadata fields are easy to validate. String length limits and year format checks catch malformed input before it reaches Gemini.
+- Separating system instruction from user content via Gemini's `systemInstruction` parameter is a best practice -- it prevents user content from being interpreted as instructions.
+- Server-side retry simplifies the client (one call instead of a retry loop) and keeps retry logic where the decision context lives (the server knows whether search was used and can retry without it).
+- Removing the prompt template from the binary eliminates a ~100-line attack surface and reduces the iOS binary size slightly.
+
+**Consequences:**
+
+- **The review prompt is now server-controlled.** Prompt changes (rubric, tiers, output schema) can be deployed by updating the Cloud Function without an app release. This reverses the ADR-131 consequence that "if the prompt needs to change, an app update is required."
+- **The client no longer controls search grounding.** The server decides based on release year. The ADR-132 client-side `searchCutoffDate` and retry-without-search logic are removed.
+- **The client-server contract is now structured data, not a free-form prompt string.** Any future changes to the metadata fields (adding or removing fields) require coordinated client + server updates.
+- **The "Prompt builds correctly" unit test is gone.** Prompt correctness is now a server concern. If Cloud Function tests are added in the future, they should cover prompt construction.
+- **Older app versions will break.** The Cloud Function no longer accepts `{prompt, useSearch}`. Any app version still sending the old format will get a validation error. This is acceptable because the app is not yet in the App Store.
+
+**What would change this:** If the app needed to support multiple prompt strategies (e.g., different review styles per user preference), the server would need to accept a strategy identifier alongside the metadata. The current design assumes a single review format.
 
 ---
 
