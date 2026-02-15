@@ -18,12 +18,9 @@ private class CrateAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
         #if os(iOS)
         return AppAttestProvider(app: app)
         #else
-        // macOS: use debug provider with registered token
-        let provider = AppCheckDebugProvider(app: app)
-        if let token = provider?.localDebugToken() {
-            print("[Crate] App Check debug token (macOS): \(token)")
-        }
-        return provider
+        // macOS: App Attest unavailable — use debug provider with registered token.
+        // Token is NOT logged in release builds to avoid leaking it via Console.app.
+        return AppCheckDebugProvider(app: app)
         #endif
         #endif
     }

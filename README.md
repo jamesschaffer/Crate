@@ -77,7 +77,7 @@ For the full product specification, see the [PRD](./PRD.md).
 ### Configuration
 
 - **MusicKit:** No API keys or environment variables needed. Authentication is handled automatically via the provisioning profile and MusicKit entitlement.
-- **Firebase (AI Reviews):** `GoogleService-Info.plist` is included in the repository and configures the Firebase project connection. No additional setup is required for the Cloud Function. In DEBUG builds and on macOS, an App Check debug token is printed to the Xcode console -- this token must be registered in the [Firebase Console](https://console.firebase.google.com/) under App Check > Debug Tokens for the function calls to succeed during development.
+- **Firebase (AI Reviews):** `GoogleService-Info.plist` is **not** checked into the repository (gitignored). Copy `GoogleService-Info.plist.example` to `GoogleService-Info.plist` and fill in your Firebase project values, or download the file from the [Firebase Console](https://console.firebase.google.com/). In DEBUG builds, an App Check debug token is printed to the Xcode console — register it in the Firebase Console under App Check > Debug Tokens for Cloud Function calls to work during development.
 
 ## Key Constraints
 
@@ -92,7 +92,7 @@ For the full product specification, see the [PRD](./PRD.md).
 ```
 Crate/
   Crate.xcodeproj
-  GoogleService-Info.plist      # Firebase configuration (AI reviews)
+  GoogleService-Info.plist.example  # Firebase config template (copy to GoogleService-Info.plist)
   Crate/                        # Shared code (iOS + macOS)
     CrateApp.swift              # App entry point (Firebase + App Check init, SwiftData schema)
     ContentView.swift           # Root view (auth gate) + PlaybackFooterOverlay + ShaderWarmUpView
