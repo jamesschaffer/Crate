@@ -106,7 +106,7 @@ struct AlbumDetailView: View {
                             .transition(.opacity)
                     }
 
-                    // Tracks / Review picker
+                    // Tracks / Review picker — translucent so artwork background shows through
                     Picker("", selection: $selectedTab) {
                         ForEach(DetailTab.allCases, id: \.self) { tab in
                             Text(tab.rawValue).tag(tab)
@@ -114,6 +114,7 @@ struct AlbumDetailView: View {
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
+                    .opacity(0.8)
 
                     switch selectedTab {
                     case .tracks:

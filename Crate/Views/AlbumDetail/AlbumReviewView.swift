@@ -39,8 +39,8 @@ struct AlbumReviewView: View {
 
     private func reviewContent(_ review: AlbumReview) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Rating + recommendation badge
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            // Rating + recommendation badge — vertically centered
+            HStack(spacing: 8) {
                 Text(String(format: "%.1f", review.rating))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundStyle(tintColor)
@@ -54,8 +54,8 @@ struct AlbumReviewView: View {
                 Text(review.recommendation)
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                     .background(tintColor.opacity(0.15))
                     .foregroundStyle(tintColor)
                     .clipShape(Capsule())
@@ -74,7 +74,7 @@ struct AlbumReviewView: View {
                             .frame(width: 6, height: 6)
                             .padding(.top, 7)
 
-                        Text(bullet)
+                        Text(Self.stripCitations(from: bullet))
                             .font(.body)
                     }
                 }
@@ -145,5 +145,17 @@ struct AlbumReviewView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Helpers
+
+    /// Strip markdown citation links appended by the Cloud Function.
+    /// Format: ` ([Title](url))` → removed.
+    private static func stripCitations(from text: String) -> String {
+        text.replacingOccurrences(
+            of: #"\s*\(\[.*?\]\(.*?\)\)"#,
+            with: "",
+            options: .regularExpression
+        )
     }
 }
