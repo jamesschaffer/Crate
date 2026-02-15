@@ -48,6 +48,7 @@ iOSInjectionProject/
 .env.*
 *.xcconfig
 !*.xcconfig.example
+GoogleService-Info.plist
 
 # macOS
 .DS_Store
