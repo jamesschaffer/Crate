@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (34 ADRs, ADR-100 through ADR-133) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (35 ADRs, ADR-100 through ADR-134) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -92,7 +92,12 @@ For the full product specification, see the [PRD](./PRD.md).
 ```
 Crate/
   Crate.xcodeproj
+  Gemfile                         # Bundler dependencies (Fastlane)
   GoogleService-Info.plist.example  # Firebase config template (copy to GoogleService-Info.plist)
+  .github/workflows/test.yml     # GitHub Actions CI (iOS + macOS test suites)
+  fastlane/
+    Appfile                       # App identifier and Apple ID
+    Fastfile                      # Build lanes (ios_beta, mac_beta -> TestFlight)
   Crate/                        # Shared code (iOS + macOS)
     CrateApp.swift              # App entry point (Firebase + App Check init, SwiftData schema)
     ContentView.swift           # Root view (auth gate) + PlaybackFooterOverlay + ShaderWarmUpView

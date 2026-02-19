@@ -1,5 +1,20 @@
 import SwiftUI
 
+// MARK: - Pill Glass Helper
+
+/// Conditionally applies Liquid Glass capsule effect on iOS 26+ / macOS 26+,
+/// falling back to an ultra-thin material capsule on older OS versions.
+private extension View {
+    @ViewBuilder
+    func pillGlass() -> some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            self.glassEffect(.regular.interactive(), in: .capsule)
+        } else {
+            self.background(.ultraThinMaterial, in: .capsule)
+        }
+    }
+}
+
 /// Horizontal scrolling bar that transforms between two states:
 ///
 /// **No genre selected:** Dial label pill + genre category pills.
@@ -66,91 +81,7 @@ struct GenreBarView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            GlassEffectContainer {
-                HStack(spacing: 12) {
-                    if let category = selectedCategory {
-                        // MARK: Genre-selected state
-
-                        // Selected genre dismiss pill
-                        Button {
-                            onHome?()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(category.name)
-                                Image(systemName: "xmark")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                            }
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                            .foregroundStyle(Color.brandPink)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .offset(y: pillOffset(for: 0))
-                        }
-                        .buttonStyle(.plain)
-                        .glassEffect(.regular.interactive(), in: .capsule)
-                        .offset(y: pillOffset(for: 0))
-
-                        // Subcategory pills
-                        ForEach(Array(category.subcategories.enumerated()), id: \.element.id) { index, sub in
-                            Button {
-                                onToggleSubcategory?(sub.id)
-                            } label: {
-                                Text(sub.name)
-                                    .font(.subheadline)
-                                    .fontWeight(selectedSubcategoryIDs.contains(sub.id) ? .semibold : .medium)
-                                    .foregroundStyle(selectedSubcategoryIDs.contains(sub.id) ? Color.brandPink : .primary)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .offset(y: pillOffset(for: index + 1))
-                            }
-                            .buttonStyle(.plain)
-                            .glassEffect(.regular.interactive(), in: .capsule)
-                            .offset(y: pillOffset(for: index + 1))
-                        }
-                    } else {
-                        // MARK: Home state
-
-                        // Dial position pill — opens settings
-                        Button {
-                            onDialTap()
-                        } label: {
-                            Text(dialLabel)
-                                .font(.subheadline)
-                                .fontWeight(.bold)
-                                .foregroundStyle(Color.brandPink)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .offset(y: pillOffset(for: 0))
-                        }
-                        .buttonStyle(.plain)
-                        .glassEffect(.regular.interactive(), in: .capsule)
-                        .offset(y: pillOffset(for: 0))
-
-                        // Genre category pills
-                        ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in
-                            Button {
-                                onSelect(category)
-                            } label: {
-                                Text(category.name)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .offset(y: pillOffset(for: index + 1))
-                            }
-                            .buttonStyle(.plain)
-                            .glassEffect(.regular.interactive(), in: .capsule)
-                            .offset(y: pillOffset(for: index + 1))
-                        }
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
-                .disabled(isDisabled)
-                .opacity(isDisabled && !coordinator.animateGenreBar ? 0.6 : 1.0)
-            }
+            glassContainer
         }
         .clipped()
         .onChange(of: coordinator.phase) { _, newPhase in
@@ -166,6 +97,107 @@ struct GenreBarView: View {
                 break
             }
         }
+    }
+
+    // MARK: - Glass Container
+
+    @ViewBuilder
+    private var glassContainer: some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            GlassEffectContainer {
+                pillStack
+            }
+        } else {
+            pillStack
+        }
+    }
+
+    // MARK: - Pill Stack
+
+    private var pillStack: some View {
+        HStack(spacing: 12) {
+            if let category = selectedCategory {
+                // MARK: Genre-selected state
+
+                // Selected genre dismiss pill
+                Button {
+                    onHome?()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(category.name)
+                        Image(systemName: "xmark")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.brandPink)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .offset(y: pillOffset(for: 0))
+                }
+                .buttonStyle(.plain)
+                .pillGlass()
+                .offset(y: pillOffset(for: 0))
+
+                // Subcategory pills
+                ForEach(Array(category.subcategories.enumerated()), id: \.element.id) { index, sub in
+                    Button {
+                        onToggleSubcategory?(sub.id)
+                    } label: {
+                        Text(sub.name)
+                            .font(.subheadline)
+                            .fontWeight(selectedSubcategoryIDs.contains(sub.id) ? .semibold : .medium)
+                            .foregroundStyle(selectedSubcategoryIDs.contains(sub.id) ? Color.brandPink : .primary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .offset(y: pillOffset(for: index + 1))
+                    }
+                    .buttonStyle(.plain)
+                    .pillGlass()
+                    .offset(y: pillOffset(for: index + 1))
+                }
+            } else {
+                // MARK: Home state
+
+                // Dial position pill — opens settings
+                Button {
+                    onDialTap()
+                } label: {
+                    Text(dialLabel)
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.brandPink)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .offset(y: pillOffset(for: 0))
+                }
+                .buttonStyle(.plain)
+                .pillGlass()
+                .offset(y: pillOffset(for: 0))
+
+                // Genre category pills
+                ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in
+                    Button {
+                        onSelect(category)
+                    } label: {
+                        Text(category.name)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .offset(y: pillOffset(for: index + 1))
+                    }
+                    .buttonStyle(.plain)
+                    .pillGlass()
+                    .offset(y: pillOffset(for: index + 1))
+                }
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 12)
+        .disabled(isDisabled)
+        .opacity(isDisabled && !coordinator.animateGenreBar ? 0.6 : 1.0)
     }
 
     // MARK: - Stagger Animations

@@ -8,10 +8,10 @@ AlbumWall Player is a SwiftUI multiplatform app targeting iOS and macOS, powered
 
 ## Current Status
 
-**Active development.** Core features, Crate Wall, personalized genre feeds, grid transition animations, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, AI album reviews, and AirPlay output routing are implemented. Review UI polished with auto-generation on tab tap and artwork-derived accent colors. Review prompt and search grounding logic moved server-side for security hardening (ADR-133). The macOS target is now buildable and testable (keyboard shortcuts, Settings scene, platform-specific UI fixes). Visual design polish is in progress.
+**Active development.** Core features, Crate Wall, personalized genre feeds, grid transition animations, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, AI album reviews, and AirPlay output routing are implemented. Review UI polished with auto-generation on tab tap and artwork-derived accent colors. Review prompt and search grounding logic moved server-side for security hardening (ADR-133). The macOS target is now buildable and testable (keyboard shortcuts, Settings scene, platform-specific UI fixes). Fastlane is configured with `ios_beta` and `mac_beta` lanes for TestFlight distribution, and GitHub Actions CI runs iOS + macOS test suites on every push/PR to `main`. Visual design polish is in progress.
 
 - PRD: Complete (Draft -- Architecture Complete, MusicKit Pivot)
-- Architecture decisions: 34 ADRs documented (ADR-100 through ADR-133)
+- Architecture decisions: 35 ADRs documented (ADR-100 through ADR-134)
 - Core app: Implemented (Browse, Album Detail, Playback, Auth, Favorites, Dislikes)
 - Crate Wall: Complete -- algorithm-driven landing experience with 5 blended signals, Crate Dial settings, enriched genre extraction (heavy rotation + library albums), dislike filtering, infinite scroll, graceful degradation
 - Genre feeds: Complete -- multi-signal blended genre feeds (6 signals: Personal History, Recommendations, Trending, New Releases, Subcategory Rotation, Seed Expansion), CrateDial-weighted, replaces single-source chart pagination
@@ -50,7 +50,7 @@ AlbumWall Player is a SwiftUI multiplatform app targeting iOS and macOS, powered
 | Validation | Swift type system (compile-time) |
 | Testing | XCTest (UI tests) + Swift Testing (unit tests) |
 | Deployment | App Store (iOS + macOS), TestFlight for beta |
-| CI/CD | Xcode Cloud |
+| CI/CD | Fastlane + GitHub Actions (TestFlight via `fastlane ios ios_beta` / `fastlane mac mac_beta`; CI via `.github/workflows/test.yml`) |
 | Server / Backend | Firebase Cloud Functions (AI reviews only; all other features are client-side) |
 | Database | None (SwiftData is on-device only) |
 
@@ -75,7 +75,7 @@ AlbumWall Player is a SwiftUI multiplatform app targeting iOS and macOS, powered
 | Document | Path | Description |
 |----------|------|-------------|
 | PRD | [PRD.md](./PRD.md) | Full product requirements, UX specification, and architecture |
-| Decision Log | [DECISIONS.md](./DECISIONS.md) | 34 architectural decision records (ADR-100 through ADR-133) |
+| Decision Log | [DECISIONS.md](./DECISIONS.md) | 35 architectural decision records (ADR-100 through ADR-134) |
 | README | [README.md](./README.md) | Project overview and getting started |
 
 ## Architecture Summary

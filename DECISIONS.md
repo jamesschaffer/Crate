@@ -46,6 +46,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 131 | [AI Album Reviews via Firebase Cloud Functions](#adr-131-ai-album-reviews-via-firebase-cloud-functions) | Accepted |
 | 132 | [Review UI Polish and Cloud Function Reliability](#adr-132-review-ui-polish-and-cloud-function-reliability) | Accepted |
 | 133 | [Server-Side Review Prompt and Search Grounding](#adr-133-server-side-review-prompt-and-search-grounding) | Accepted |
+| 134 | [Fastlane + GitHub Actions for CI/CD](#adr-134-fastlane--github-actions-for-cicd) | Accepted |
 
 ---
 
@@ -1602,6 +1603,62 @@ A sibling project (Album Scan, Firebase project `albumscan-18308`) already has a
 - **Older app versions will break.** The Cloud Function no longer accepts `{prompt, useSearch}`. Any app version still sending the old format will get a validation error. This is acceptable because the app is not yet in the App Store.
 
 **What would change this:** If the app needed to support multiple prompt strategies (e.g., different review styles per user preference), the server would need to accept a strategy identifier alongside the metadata. The current design assumes a single review format.
+
+---
+
+## ADR-134: Fastlane + GitHub Actions for CI/CD
+
+**Date:** 2026-02-19
+**Status:** Accepted
+**Amends:** ADR-112 (App Store + TestFlight for Distribution)
+
+**Context:** ADR-112 selected App Store + TestFlight for distribution and mentioned Xcode Cloud as the CI/CD automation tool. As the project moved toward its first TestFlight builds, the CI/CD tooling needed to be set up concretely. Xcode Cloud requires configuration through the Xcode GUI and Apple Developer portal, ties CI exclusively to Apple's infrastructure, and offers limited customization for multi-platform builds. Fastlane is a widely-adopted open-source tool for iOS/macOS build automation that runs anywhere (local machine, GitHub Actions, any CI provider), and GitHub Actions provides free CI minutes for public repos and integrates natively with the repository.
+
+Separately, the app's display name was changed from "AlbumCrate" to "AlbumWall Player" to better communicate the app's purpose (a wall of album art for focused listening). The deployment targets were also lowered to iOS 17.0 and macOS 14.0 (from iOS 17.4 and macOS 14.4) to maximize device compatibility, since no APIs in use require the higher point releases.
+
+**Decision:**
+
+1. **Fastlane for build and distribution.** Added `Gemfile` (bundler dependency management for Fastlane), `fastlane/Appfile` (app identifier and Apple ID), and `fastlane/Fastfile` with two lanes:
+   - `ios_beta`: Builds the `Crate-iOS` scheme and uploads to TestFlight.
+   - `mac_beta`: Builds the `Crate-macOS` scheme and uploads to TestFlight.
+   Both lanes use `app_store_connect_api_key` with an AuthKey `.p8` file (gitignored) for authentication, and `increment_build_number` with a timestamp format (`%Y%m%d%H%M`) for unique build numbers.
+
+2. **GitHub Actions for CI.** Added `.github/workflows/test.yml` with three jobs:
+   - `ios-tests`: Runs `xcodebuild test` for the `Crate-iOS` scheme on an iPhone 16 Simulator (macOS 15 runner, Xcode 16).
+   - `macos-tests`: Runs `xcodebuild test` for the `Crate-macOS` scheme natively on macOS.
+   - `test-summary`: A gate job that fails if either test job failed.
+   Tests run on push to `main` and on pull requests targeting `main`. Concurrency groups cancel in-progress runs on the same branch. `GoogleService-Info.plist` is stubbed from the example file for CI (Firebase features degrade gracefully). Test results are uploaded as artifacts with 7-day retention.
+
+3. **Display name rename** from "AlbumCrate" to "AlbumWall Player" in the Xcode project and UI references.
+
+4. **Lowered deployment targets** to iOS 17.0 / macOS 14.0 (from 17.4 / 14.4).
+
+5. **Signing key patterns added to `.gitignore`**: `*.p8`, `*.p12`, `*.cer`, `*.mobileprovision`, and `*.provisionprofile` to prevent accidental commits of signing credentials.
+
+**Alternatives Considered:**
+
+1. **Xcode Cloud.** Apple's first-party CI/CD. Advantages: tight Xcode integration, no runner management, automatic code signing. Disadvantages: configuration is GUI-only (not version-controlled), limited to Apple's infrastructure (cannot run non-Apple tools in the pipeline), 25 compute hours/month on the free tier, less community tooling and documentation than Fastlane. For a project that needs version-controlled CI configuration and flexibility to add linting, code generation, or other tools to the pipeline, Xcode Cloud felt constraining.
+
+2. **Fastlane without GitHub Actions (local-only).** Running Fastlane only from a developer machine works for TestFlight uploads but provides no automated test gating on PRs. GitHub Actions adds the test automation layer that catches regressions before merge.
+
+3. **GitHub Actions without Fastlane (raw xcodebuild for everything).** Possible but verbose. Fastlane abstracts code signing, build number management, and TestFlight upload into concise lane definitions. Raw `xcodebuild` scripts for the same workflow would be significantly longer and harder to maintain.
+
+**Rationale:**
+
+- Fastlane is the de facto standard for iOS/macOS build automation. Its lane-based configuration is version-controlled (the `Fastfile` is in the repo), well-documented, and portable across CI providers.
+- GitHub Actions provides free macOS runners, native repository integration (status checks on PRs), and a declarative YAML workflow that lives in the repo alongside the code.
+- The combination gives both automated testing (GitHub Actions on every push/PR) and automated distribution (Fastlane for TestFlight uploads), with all configuration checked into the repository.
+- Lowering deployment targets to iOS 17.0 / macOS 14.0 maximizes the addressable device base without giving up any APIs the app actually uses. The `@Observable` macro, SwiftData, and MusicKit features in use are all available from iOS 17.0 / macOS 14.0.
+
+**Consequences:**
+
+- ADR-112's mention of "Xcode Cloud can automate the build -> test -> TestFlight pipeline" is no longer the planned approach. Fastlane + GitHub Actions replaces Xcode Cloud for CI/CD.
+- The `Gemfile` and `fastlane/` directory are new project dependencies. Contributors running Fastlane locally need Ruby and Bundler (`bundle install`). GitHub Actions CI does not use Fastlane (it runs `xcodebuild` directly for tests).
+- The `AuthKey.p8` file for App Store Connect API access is gitignored and must be provided out-of-band for TestFlight uploads. The `ASC_KEY_ID` and `ASC_ISSUER_ID` environment variables must also be set.
+- The display name change from "AlbumCrate" to "AlbumWall Player" affects the home screen label and any user-facing references. The internal codebase still uses "Crate" for project, target, and module names.
+- Lowered deployment targets mean the app can run on devices that were on iOS 17.0 / macOS 14.0 but never updated to 17.4 / 14.4. No code changes were needed since the app does not use any APIs introduced after the 17.0 / 14.0 base.
+
+**What would change this:** If Apple significantly improves Xcode Cloud (version-controlled configuration, better pricing, more flexibility), it could be reconsidered. If the project moves to a monorepo with non-Apple components, the CI workflow would need to expand beyond the current Apple-focused setup. If GitHub Actions macOS runner availability or pricing changes unfavorably, alternative CI providers (CircleCI, Bitrise) could host the same Fastlane lanes with minimal changes.
 
 ---
 
