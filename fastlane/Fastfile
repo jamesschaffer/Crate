@@ -1,0 +1,37 @@
+default_platform(:ios)
+
+def setup_build
+  app_store_connect_api_key(
+    key_id: ENV["ASC_KEY_ID"],
+    issuer_id: ENV["ASC_ISSUER_ID"],
+    key_filepath: "fastlane/AuthKey.p8"
+  )
+  increment_build_number(
+    build_number: Time.now.strftime("%Y%m%d%H%M"),
+    xcodeproj: "Crate.xcodeproj"
+  )
+end
+
+platform :ios do
+  lane :ios_beta do
+    setup_build
+    build_app(
+      scheme: "Crate-iOS",
+      export_method: "app-store",
+      xcargs: "-allowProvisioningUpdates"
+    )
+    upload_to_testflight(skip_waiting_for_build_processing: true)
+  end
+end
+
+platform :mac do
+  lane :mac_beta do
+    setup_build
+    build_app(
+      scheme: "Crate-macOS",
+      export_method: "app-store",
+      xcargs: "-allowProvisioningUpdates"
+    )
+    upload_to_testflight(skip_waiting_for_build_processing: true)
+  end
+end

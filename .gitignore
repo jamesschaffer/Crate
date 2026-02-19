@@ -46,9 +46,15 @@ iOSInjectionProject/
 # Environment / Secrets
 .env
 .env.*
+!.env.example
 *.xcconfig
 !*.xcconfig.example
 GoogleService-Info.plist
+
+# Signing keys
+*.p8
+*.p12
+*.pem
 
 # macOS
 .DS_Store

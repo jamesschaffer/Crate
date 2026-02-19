@@ -103,7 +103,7 @@ struct AuthView: View {
                 .font(.headline)
                 .foregroundStyle(.white)
 
-            Text("Open Settings and enable Music access for AlbumCrate.")
+            Text("Open Settings and enable Music access for AlbumWall Player.")
                 .font(.subheadline)
                 .foregroundStyle(.secondaryText)
                 .multilineTextAlignment(.center)

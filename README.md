@@ -1,4 +1,4 @@
-# AlbumCrate
+# AlbumWall Player
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
@@ -6,11 +6,11 @@ A focused album listening experience built on Apple Music. Browse by genre, pick
 
 ---
 
-## What is AlbumCrate?
+## What is AlbumWall Player?
 
-AlbumCrate is a single-purpose native app for Apple Music that removes playlists, podcasts, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy (9 super-genres, ~50 subcategories). On launch, an algorithm-driven "Crate Wall" fills the screen with album art, then a control bar slides up from the bottom with a spring animation once content is ready. The wall draws from five blended signals -- listening history, recommendations, charts, new releases, and wild card picks -- controlled by a "Crate Dial" radio selector in settings. When you play an album from any grid, playback automatically continues through the remaining albums -- no need to manually pick the next record. The experience is designed to feel like browsing a record store, not using a streaming app.
+AlbumWall Player is a single-purpose native app for Apple Music that removes playlists, podcasts, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy (9 super-genres, ~50 subcategories). On launch, an algorithm-driven "Crate Wall" fills the screen with album art, then a control bar slides up from the bottom with a spring animation once content is ready. The wall draws from five blended signals -- listening history, recommendations, charts, new releases, and wild card picks -- controlled by a "Crate Dial" radio selector in settings. When you play an album from any grid, playback automatically continues through the remaining albums -- no need to manually pick the next record. The experience is designed to feel like browsing a record store, not using a streaming app.
 
-AlbumCrate is a SwiftUI multiplatform app targeting **iOS** and **macOS** from a single codebase, powered by **MusicKit** for Apple Music integration. The app is primarily client-side, with one server dependency: AI album reviews are generated via a Firebase Cloud Function. The codebase still uses "Crate" internally for the project name, targets, and module names.
+AlbumWall Player is a SwiftUI multiplatform app targeting **iOS** and **macOS** from a single codebase, powered by **MusicKit** for Apple Music integration. The app is primarily client-side, with one server dependency: AI album reviews are generated via a Firebase Cloud Function. The codebase still uses "Crate" internally for the project name, targets, and module names.
 
 For the full product specification, see the [PRD](./PRD.md).
 
@@ -32,7 +32,7 @@ For the full product specification, see the [PRD](./PRD.md).
 - **Local Persistence:** SwiftData (favorites, dislikes, reviews)
 - **Testing:** XCTest (UI tests) + Swift Testing (unit tests)
 - **Deployment:** App Store + Mac App Store, TestFlight for beta
-- **CI/CD:** Xcode Cloud
+- **CI/CD:** Fastlane + GitHub Actions (TestFlight via `fastlane ios ios_beta` / `fastlane mac mac_beta`)
 
 ## Prerequisites
 
