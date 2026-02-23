@@ -396,7 +396,15 @@ final class PlaybackViewModel {
               let url = artwork.url(width: 300, height: 300) else { return }
 
         Task { [weak self] in
-            guard let data = try? await URLSession.shared.data(from: url).0 else { return }
+            let data: Data
+            do {
+                data = try await URLSession.shared.data(from: url).0
+            } catch {
+                #if DEBUG
+                print("[Crate] loadNowPlayingArtwork failed: \(error)")
+                #endif
+                return
+            }
 
             #if os(iOS)
             guard let image = UIImage(data: data) else { return }

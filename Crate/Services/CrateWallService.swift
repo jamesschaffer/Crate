@@ -174,18 +174,25 @@ struct CrateWallService: Sendable {
 
     /// Match genre names from recently played albums to our static genre taxonomy IDs.
     private func extractGenreIDs(from albums: [CrateAlbum]) -> Set<String> {
-        let allGenreNames = albums.flatMap(\.genreNames)
+        // Pre-lowercase all genre names once to avoid repeated locale-aware comparisons.
+        let lowercasedNames = albums.flatMap(\.genreNames).map { $0.lowercased() }
         var ids: Set<String> = []
 
         for category in Genres.all {
+            let categoryLower = category.name.lowercased()
+
             // Check top-level genre name match.
-            if allGenreNames.contains(where: { $0.localizedCaseInsensitiveContains(category.name) }) {
+            if lowercasedNames.contains(where: { $0.contains(categoryLower) }) {
                 ids.insert(category.appleMusicID)
+                continue  // Already matched — skip subcategory checks
             }
+
             // Check subcategory name matches.
             for sub in category.subcategories {
-                if allGenreNames.contains(where: { $0.localizedCaseInsensitiveContains(sub.name) }) {
+                let subLower = sub.name.lowercased()
+                if lowercasedNames.contains(where: { $0.contains(subLower) }) {
                     ids.insert(category.appleMusicID)
+                    break  // Found match — skip remaining subcategories
                 }
             }
         }

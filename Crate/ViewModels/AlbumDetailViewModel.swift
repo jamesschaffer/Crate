@@ -92,8 +92,14 @@ final class AlbumDetailViewModel {
         }
 
         // Extract record label (non-critical — don't fail if unavailable)
-        if let detail = try? await detailResult {
-            recordLabel = detail.recordLabelName
+        do {
+            if let detail = try await detailResult {
+                recordLabel = detail.recordLabelName
+            }
+        } catch {
+            #if DEBUG
+            print("[Crate] loadAlbum — record label fetch failed for \(album.id.rawValue): \(error)")
+            #endif
         }
 
         isLoading = false
