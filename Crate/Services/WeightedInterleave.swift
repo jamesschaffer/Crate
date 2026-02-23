@@ -22,6 +22,7 @@ func distributeByWeight<Key: Hashable>(_ weights: [Key: Double], total: Int) -> 
 /// frequently but aren't clustered together in long runs.
 ///
 /// Used by both CrateWallService and GenreFeedService.
+/// Uses index cursors instead of removeFirst() to avoid O(n) array shifts.
 func weightedInterleave<Signal: Hashable>(
     buckets: [Signal: [CrateAlbum]],
     weights: [Signal: Double]
@@ -31,9 +32,18 @@ func weightedInterleave<Signal: Hashable>(
         queues[signal] = albums.shuffled()
     }
 
+    // Index cursors — advance instead of removeFirst() (O(1) vs O(n))
+    var cursors: [Signal: Int] = [:]
+    for signal in buckets.keys {
+        cursors[signal] = 0
+    }
+
     let allSignals = Array(buckets.keys)
+    let totalCount = queues.values.reduce(0) { $0 + $1.count }
     var result: [CrateAlbum] = []
-    var activeSignals = allSignals.filter { !(queues[$0]?.isEmpty ?? true) }
+    result.reserveCapacity(totalCount)
+
+    var activeSignals = allSignals.filter { (cursors[$0] ?? 0) < (queues[$0]?.count ?? 0) }
 
     while !activeSignals.isEmpty {
         let totalWeight = activeSignals.reduce(0.0) { $0 + (weights[$1] ?? 0) }
@@ -51,12 +61,12 @@ func weightedInterleave<Signal: Hashable>(
             }
         }
 
-        if let album = queues[chosen]?.first {
-            result.append(album)
-            queues[chosen]?.removeFirst()
+        if let queue = queues[chosen], let cursor = cursors[chosen], cursor < queue.count {
+            result.append(queue[cursor])
+            cursors[chosen] = cursor + 1
         }
 
-        activeSignals = allSignals.filter { !(queues[$0]?.isEmpty ?? true) }
+        activeSignals = allSignals.filter { (cursors[$0] ?? 0) < (queues[$0]?.count ?? 0) }
     }
 
     return result

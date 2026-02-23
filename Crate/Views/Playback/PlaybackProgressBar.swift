@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 import MusicKit
 
 /// A thin progress bar showing track progress with a gradient fill
@@ -11,7 +10,6 @@ struct PlaybackProgressBar: View {
     @State private var currentTime: TimeInterval = 0
 
     private let barHeight: CGFloat = 4
-    private let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         GeometryReader { geo in
@@ -34,8 +32,13 @@ struct PlaybackProgressBar: View {
             .frame(height: barHeight)
         }
         .frame(height: barHeight)
-        .onReceive(timer) { _ in
-            currentTime = viewModel.playbackTime
+        .task {
+            // Poll playback time every 0.5s. Cancels automatically when
+            // this view is removed (unlike Timer.publish which fires globally).
+            while !Task.isCancelled {
+                currentTime = viewModel.playbackTime
+                try? await Task.sleep(for: .milliseconds(500))
+            }
         }
         .onChange(of: viewModel.trackDuration) { _, newDuration in
             if newDuration != nil {

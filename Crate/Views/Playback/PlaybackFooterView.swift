@@ -83,9 +83,6 @@ struct PlaybackFooterView: View {
     var onTap: () -> Void = {}
 
     var body: some View {
-        // Read stateChangeCounter to trigger re-renders on player state changes.
-        let _ = viewModel.stateChangeCounter
-
         VStack(spacing: 0) {
             if showProgressBar {
                 PlaybackProgressBar()

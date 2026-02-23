@@ -16,6 +16,8 @@ final class ArtworkColorExtractor {
     var hasExtracted = false
 
     private var cache: [String: (Color, Color)] = [:]
+    private var cacheOrder: [String] = []
+    private let maxCacheSize = 150
 
     /// Extract dominant colors from the given artwork.
     /// Call this from `.task(id:)` so it cancels on artwork change.
@@ -55,7 +57,13 @@ final class ArtworkColorExtractor {
         // Download and extract off-main
         do {
             let extracted = try await Self.extractColors(from: url)
+            // FIFO eviction: drop oldest entry when cache is full
+            if cache.count >= maxCacheSize, let oldest = cacheOrder.first {
+                cache.removeValue(forKey: oldest)
+                cacheOrder.removeFirst()
+            }
             cache[key] = extracted
+            cacheOrder.append(key)
             colors = extracted
             hasExtracted = true
         } catch {

@@ -68,16 +68,10 @@ struct BrowseView: View {
     // MARK: - Unified Control Bar
 
     private var controlBar: some View {
-        // Read stateChangeCounter so playback row updates reactively.
-        let _ = playbackViewModel.stateChangeCounter
-
-        return VStack(spacing: 0) {
-            // Playback row (when something is playing)
-            if playbackViewModel.hasQueue {
-                PlaybackProgressBar()
-                playbackRow
-                Divider()
-            }
+        VStack(spacing: 0) {
+            // Isolated child — stateChangeCounter only re-renders this section,
+            // not the entire BrowseView + GenreBarView below.
+            PlaybackControlSection(navigationPath: $navigationPath)
 
             // Filter row (always visible, transforms between genres and subcategories)
             GenreBarView(
@@ -110,19 +104,6 @@ struct BrowseView: View {
             )
         }
         .background(.ultraThinMaterial.opacity(0.85))
-    }
-
-    // MARK: - Playback Row
-
-    private var playbackRow: some View {
-        PlaybackRowContent(onTap: {
-            if let album = playbackViewModel.nowPlayingAlbum {
-                navigationPath.append(.album(album))
-            }
-        })
-            .padding(.horizontal)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
     }
 
     // MARK: - Current Albums (reads from coordinator during transition, VMs during idle)
@@ -238,6 +219,32 @@ struct BrowseView: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.black)
+        }
+    }
+}
+
+// MARK: - Playback Control Section (Isolated)
+
+/// Reads stateChangeCounter in its own body so playback state changes
+/// only re-render this section — not the parent BrowseView or GenreBarView.
+private struct PlaybackControlSection: View {
+    @Binding var navigationPath: [CrateDestination]
+    @Environment(PlaybackViewModel.self) private var playbackViewModel
+
+    var body: some View {
+        let _ = playbackViewModel.stateChangeCounter
+
+        if playbackViewModel.hasQueue {
+            PlaybackProgressBar()
+            PlaybackRowContent(onTap: {
+                if let album = playbackViewModel.nowPlayingAlbum {
+                    navigationPath.append(.album(album))
+                }
+            })
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
+            Divider()
         }
     }
 }

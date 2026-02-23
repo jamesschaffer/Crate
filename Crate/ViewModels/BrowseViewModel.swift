@@ -257,12 +257,6 @@ final class BrowseViewModel {
     /// Ensures search results don't leak cross-genre albums (e.g. "Classic Rock" in "Classic Soul").
     private func filterToSelectedGenre(_ albums: [CrateAlbum]) -> [CrateAlbum] {
         guard let genre = selectedCategory else { return albums }
-        let genreNameSet = Set([genre.name.lowercased()] + genre.subcategories.map { $0.name.lowercased() })
-        return albums.filter { album in
-            album.genreNames.contains { name in
-                genreNameSet.contains(name.lowercased()) ||
-                name.localizedCaseInsensitiveContains(genre.name)
-            }
-        }
+        return genre.filterAlbums(albums)
     }
 }

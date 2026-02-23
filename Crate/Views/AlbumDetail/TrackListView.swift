@@ -9,75 +9,96 @@ struct TrackListView: View {
     var album: CrateAlbum? = nil
     var tintColor: Color = .brandPink
 
-    @Environment(PlaybackViewModel.self) private var playbackViewModel
-
     var body: some View {
-        // Read stateChangeCounter so now-playing indicator updates reactively.
-        let _ = playbackViewModel.stateChangeCounter
-
         LazyVStack(spacing: 0) {
             ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
-                Button {
-                    Task {
-                        await playbackViewModel.play(tracks: tracks, startingAt: index, from: album)
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        if isCurrentlyPlaying(track: track) {
-                            Image(systemName: "play.fill")
-                                .font(.caption)
-                                .foregroundStyle(tintColor)
-                                .frame(width: 16, alignment: .trailing)
-                                .padding(.trailing, 8)
-                        } else {
-                            Text("\(index + 1)")
-                                .font(.caption)
-                                .foregroundStyle(.secondaryText)
-                                .frame(width: 16, alignment: .trailing)
-                                .padding(.trailing, 8)
-                        }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(track.title)
-                                .font(.body)
-                                .lineLimit(1)
-
-                            if !track.artistName.isEmpty {
-                                Text(track.artistName)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondaryText)
-                                    .lineLimit(1)
-                            }
-                        }
-
-                        Spacer()
-
-                        if let duration = track.duration {
-                            Text(formattedDuration(duration))
-                                .font(.footnote)
-                                .foregroundStyle(.secondaryText)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                    .padding(.leading, 6)
-                    .padding(.trailing, 12)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-
-                if index < tracks.count - 1 {
-                    Divider()
-                        .padding(.leading, 6)
-                        .padding(.trailing, 12)
-                }
+                TrackRow(
+                    track: track,
+                    index: index,
+                    tracks: tracks,
+                    album: album,
+                    tintColor: tintColor,
+                    isLast: index == tracks.count - 1
+                )
             }
         }
     }
+}
 
-    /// Whether the given track is the one currently playing.
-    private func isCurrentlyPlaying(track: Track) -> Bool {
+/// Single track row with isolated stateChangeCounter observation.
+/// Only this row re-renders on player state changes — not the parent ForEach.
+private struct TrackRow: View {
+
+    let track: Track
+    let index: Int
+    let tracks: MusicItemCollection<Track>
+    var album: CrateAlbum?
+    var tintColor: Color
+    var isLast: Bool
+
+    @Environment(PlaybackViewModel.self) private var playbackViewModel
+
+    var body: some View {
+        let _ = playbackViewModel.stateChangeCounter
+
+        Button {
+            Task {
+                await playbackViewModel.play(tracks: tracks, startingAt: index, from: album)
+            }
+        } label: {
+            HStack(spacing: 8) {
+                if isCurrentlyPlaying {
+                    Image(systemName: "play.fill")
+                        .font(.caption)
+                        .foregroundStyle(tintColor)
+                        .frame(width: 16, alignment: .trailing)
+                        .padding(.trailing, 8)
+                } else {
+                    Text("\(index + 1)")
+                        .font(.caption)
+                        .foregroundStyle(.secondaryText)
+                        .frame(width: 16, alignment: .trailing)
+                        .padding(.trailing, 8)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(track.title)
+                        .font(.body)
+                        .lineLimit(1)
+
+                    if !track.artistName.isEmpty {
+                        Text(track.artistName)
+                            .font(.footnote)
+                            .foregroundStyle(.secondaryText)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+
+                if let duration = track.duration {
+                    Text(formattedDuration(duration))
+                        .font(.footnote)
+                        .foregroundStyle(.secondaryText)
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.leading, 6)
+            .padding(.trailing, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+
+        if !isLast {
+            Divider()
+                .padding(.leading, 6)
+                .padding(.trailing, 12)
+        }
+    }
+
+    private var isCurrentlyPlaying: Bool {
         guard playbackViewModel.isPlaying,
-              let album = album,
+              let album,
               playbackViewModel.nowPlayingAlbum?.id == album.id,
               playbackViewModel.nowPlayingTitle == track.title else {
             return false
@@ -85,7 +106,6 @@ struct TrackListView: View {
         return true
     }
 
-    /// Format a TimeInterval (seconds) into "m:ss" string.
     private func formattedDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60

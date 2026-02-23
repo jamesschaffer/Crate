@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 import Observation
 
 #if os(iOS)
@@ -47,7 +46,6 @@ struct PlaybackScrubber: View {
     private let activeHeight: CGFloat = 14
     private let thumbSize: CGFloat = 20
     private let touchTargetHeight: CGFloat = 54
-    private let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         GeometryReader { geo in
@@ -108,9 +106,14 @@ struct PlaybackScrubber: View {
                 barExpanded = dragging
             }
         }
-        .onReceive(timer) { _ in
-            if !scrubState.isDragging && lastSeekDate.timeIntervalSinceNow < -1.0 {
-                currentTime = viewModel.playbackTime
+        .task {
+            // Poll playback time every 0.5s. Cancels automatically when
+            // view is removed (unlike Timer.publish which fires globally).
+            while !Task.isCancelled {
+                if !scrubState.isDragging && lastSeekDate.timeIntervalSinceNow < -1.0 {
+                    currentTime = viewModel.playbackTime
+                }
+                try? await Task.sleep(for: .milliseconds(500))
             }
         }
         .onChange(of: viewModel.trackDuration) { _, newDuration in

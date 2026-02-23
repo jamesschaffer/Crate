@@ -222,13 +222,7 @@ struct GenreFeedService: Sendable {
 
     /// Filter albums to those matching this genre or its subcategories.
     private func filterToGenre(_ albums: [CrateAlbum]) -> [CrateAlbum] {
-        let genreNameSet = Set([genre.name.lowercased()] + genre.subcategories.map { $0.name.lowercased() })
-        return albums.filter { album in
-            album.genreNames.contains { name in
-                genreNameSet.contains(name.lowercased()) ||
-                name.localizedCaseInsensitiveContains(genre.name)
-            }
-        }
+        genre.filterAlbums(albums)
     }
 
     // MARK: - Safe Fetch Wrappers
