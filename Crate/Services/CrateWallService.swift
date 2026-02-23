@@ -27,8 +27,8 @@ struct CrateWallService: Sendable {
     // MARK: - Public
 
     /// Generate the initial wall (~100 albums).
-    func generateWall() async -> [CrateAlbum] {
-        await buildWall(total: 100, excluding: [])
+    func generateWall(excluding seenIDs: Set<MusicItemID> = []) async -> [CrateAlbum] {
+        await buildWall(total: 100, excluding: seenIDs)
     }
 
     /// Fetch more albums for infinite scroll (~50), excluding already-displayed IDs.
@@ -44,9 +44,10 @@ struct CrateWallService: Sendable {
         var counts = weights.albumCounts(total: total)
 
         // Step 1: Fetch recently played + heavy rotation + library for genre preferences.
+        let libraryOffset = OffsetStrategy.randomLibraryOffset(for: position)
         async let recentTask = fetchRecentlyPlayedSafe()
         async let heavyTask = fetchHeavyRotationSafe()
-        async let libraryTask = fetchLibraryAlbumsSafe()
+        async let libraryTask = fetchLibraryAlbumsSafe(offset: libraryOffset)
 
         let recentlyPlayed = await recentTask
         let heavyRotation = await heavyTask
@@ -87,10 +88,11 @@ struct CrateWallService: Sendable {
 
             // Listening History: chart albums in user's genres
             if historyCount > 0 {
-                let perGenre = max(historyCount / max(historyGenres.count, 1), 5)
+                let perGenre = Int(Double(max(historyCount / max(historyGenres.count, 1), 5)) * OffsetStrategy.overFetchMultiplier)
                 for genre in historyGenres {
                     group.addTask {
-                        let albums = await self.fetchChartsSafe(genreID: genre.appleMusicID, limit: perGenre)
+                        let offset = OffsetStrategy.randomChartOffset(for: position)
+                        let albums = await self.fetchChartsSafe(genreID: genre.appleMusicID, limit: perGenre, offset: offset)
                         return (.listeningHistory, albums)
                     }
                 }
@@ -106,10 +108,11 @@ struct CrateWallService: Sendable {
 
             // Popular Charts
             if chartsCount > 0 {
-                let perGenre = max(chartsCount / max(chartGenres.count, 1), 5)
+                let perGenre = Int(Double(max(chartsCount / max(chartGenres.count, 1), 5)) * OffsetStrategy.overFetchMultiplier)
                 for genre in chartGenres {
                     group.addTask {
-                        let albums = await self.fetchChartsSafe(genreID: genre.appleMusicID, limit: perGenre)
+                        let offset = OffsetStrategy.randomChartOffset(for: position)
+                        let albums = await self.fetchChartsSafe(genreID: genre.appleMusicID, limit: perGenre, offset: offset)
                         return (.popularCharts, albums)
                     }
                 }
@@ -117,10 +120,11 @@ struct CrateWallService: Sendable {
 
             // New Releases
             if newRelCount > 0 {
-                let perGenre = max(newRelCount / max(newReleaseGenres.count, 1), 5)
+                let perGenre = Int(Double(max(newRelCount / max(newReleaseGenres.count, 1), 5)) * OffsetStrategy.overFetchMultiplier)
                 for genre in newReleaseGenres {
                     group.addTask {
-                        let albums = await self.fetchNewReleasesSafe(genreID: genre.appleMusicID, limit: perGenre)
+                        let offset = OffsetStrategy.randomNewReleaseOffset(for: position)
+                        let albums = await self.fetchNewReleasesSafe(genreID: genre.appleMusicID, limit: perGenre, offset: offset)
                         return (.newReleases, albums)
                     }
                 }
@@ -128,10 +132,11 @@ struct CrateWallService: Sendable {
 
             // Wild Card
             if wildCount > 0 {
-                let perGenre = max(wildCount / max(wildCardGenres.count, 1), 5)
+                let perGenre = Int(Double(max(wildCount / max(wildCardGenres.count, 1), 5)) * OffsetStrategy.overFetchMultiplier)
                 for genre in wildCardGenres {
                     group.addTask {
-                        let albums = await self.fetchChartsSafe(genreID: genre.appleMusicID, limit: perGenre)
+                        let offset = OffsetStrategy.randomChartOffset(for: position)
+                        let albums = await self.fetchChartsSafe(genreID: genre.appleMusicID, limit: perGenre, offset: offset)
                         return (.wildCard, albums)
                     }
                 }
@@ -212,9 +217,9 @@ struct CrateWallService: Sendable {
         }
     }
 
-    private func fetchLibraryAlbumsSafe() async -> [CrateAlbum] {
+    private func fetchLibraryAlbumsSafe(offset: Int = 0) async -> [CrateAlbum] {
         do {
-            return try await musicService.fetchLibraryAlbums(limit: 25, offset: 0)
+            return try await musicService.fetchLibraryAlbums(limit: 25, offset: offset)
         } catch {
             #if DEBUG
             print("[Crate] fetchLibraryAlbums failed: \(error)")
@@ -234,9 +239,9 @@ struct CrateWallService: Sendable {
         }
     }
 
-    private func fetchChartsSafe(genreID: String, limit: Int) async -> [CrateAlbum] {
+    private func fetchChartsSafe(genreID: String, limit: Int, offset: Int) async -> [CrateAlbum] {
         do {
-            return try await musicService.fetchChartAlbums(genreID: genreID, limit: limit, offset: 0)
+            return try await musicService.fetchChartAlbums(genreID: genreID, limit: limit, offset: offset)
         } catch {
             #if DEBUG
             print("[Crate] fetchChartAlbums failed: \(error)")
@@ -245,9 +250,9 @@ struct CrateWallService: Sendable {
         }
     }
 
-    private func fetchNewReleasesSafe(genreID: String, limit: Int) async -> [CrateAlbum] {
+    private func fetchNewReleasesSafe(genreID: String, limit: Int, offset: Int) async -> [CrateAlbum] {
         do {
-            return try await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: 0)
+            return try await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: offset)
         } catch {
             #if DEBUG
             print("[Crate] fetchNewReleaseChartAlbums failed: \(error)")

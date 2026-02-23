@@ -1,6 +1,7 @@
 import Foundation
 import MusicKit
 import Observation
+import SwiftData
 
 /// Drives the Crate Wall — the algorithm-driven landing experience.
 ///
@@ -35,9 +36,20 @@ final class CrateWallViewModel {
     // MARK: - Dependencies
 
     private var wallService: CrateWallService
+    private let seenAlbumService = SeenAlbumService()
+    private let dialStore = CrateDialStore()
 
     init(wallService: CrateWallService = CrateWallService()) {
         self.wallService = wallService
+    }
+
+    // MARK: - Configuration
+
+    /// Inject the SwiftData model context for seen-album tracking.
+    /// Call from the view layer before generating the wall.
+    func configure(modelContext: ModelContext) {
+        seenAlbumService.modelContext = modelContext
+        seenAlbumService.purgeExpired()
     }
 
     // MARK: - Actions
@@ -53,13 +65,18 @@ final class CrateWallViewModel {
         isLoading = true
         errorMessage = nil
 
-        let wall = await wallService.generateWall()
+        // Load recently-seen album IDs to exclude from this session's wall.
+        let seenIDs = seenAlbumService.recentlySeenIDs(for: dialStore.position)
+        let seenMusicIDs = Set(seenIDs.map { MusicItemID($0) })
+
+        let wall = await wallService.generateWall(excluding: seenMusicIDs)
 
         if wall.isEmpty {
             errorMessage = "Couldn't load the Crate Wall. Check your connection and try again."
         } else {
             albums = wall
             existingIDs = Set(wall.map(\.id))
+            seenAlbumService.markSeen(albumIDs: wall.map(\.id.rawValue))
         }
 
         hasGenerated = true
@@ -74,6 +91,7 @@ final class CrateWallViewModel {
         let more = await wallService.fetchMore(excluding: existingIDs)
         albums.append(contentsOf: more)
         existingIDs.formUnion(more.map(\.id))
+        seenAlbumService.markSeen(albumIDs: more.map(\.id.rawValue))
 
         isLoadingMore = false
     }

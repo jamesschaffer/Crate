@@ -18,6 +18,7 @@ final class BrowseViewModel {
     private let musicService: MusicServiceProtocol
     private let favoritesService: FavoritesService
     private let dislikeService: DislikeService
+    private let seenAlbumService: SeenAlbumService
     private let dialStore: CrateDialStore
 
     // MARK: - Genre Selection State
@@ -63,20 +64,24 @@ final class BrowseViewModel {
     init(musicService: MusicServiceProtocol = MusicService(),
          favoritesService: FavoritesService = FavoritesService(),
          dislikeService: DislikeService = DislikeService(),
+         seenAlbumService: SeenAlbumService = SeenAlbumService(),
          dialStore: CrateDialStore = CrateDialStore()) {
         self.musicService = musicService
         self.favoritesService = favoritesService
         self.dislikeService = dislikeService
+        self.seenAlbumService = seenAlbumService
         self.dialStore = dialStore
     }
 
     // MARK: - Configuration
 
-    /// Inject the SwiftData model context into both services.
+    /// Inject the SwiftData model context into all services.
     /// Call this from the view layer before any CRUD operations.
     func configure(modelContext: ModelContext) {
         favoritesService.modelContext = modelContext
         dislikeService.modelContext = modelContext
+        seenAlbumService.modelContext = modelContext
+        seenAlbumService.purgeExpired()
     }
 
     // MARK: - Actions
@@ -168,10 +173,15 @@ final class BrowseViewModel {
 
         isLoading = true
 
-        let feed = await feedService.generateFeed(total: 50, excluding: [])
+        // Load recently-seen IDs to exclude from this genre feed.
+        let seenIDs = seenAlbumService.recentlySeenIDs(for: dialStore.position)
+        let seenMusicIDs = Set(seenIDs.map { MusicItemID($0) })
+
+        let feed = await feedService.generateFeed(total: 50, excluding: seenMusicIDs)
         albums = feed
         existingIDs = Set(feed.map(\.id))
         hasMorePages = !feed.isEmpty
+        seenAlbumService.markSeen(albumIDs: feed.map(\.id.rawValue))
 
         isLoading = false
     }
@@ -186,6 +196,7 @@ final class BrowseViewModel {
         albums.append(contentsOf: more)
         existingIDs.formUnion(more.map(\.id))
         hasMorePages = !more.isEmpty
+        seenAlbumService.markSeen(albumIDs: more.map(\.id.rawValue))
 
         isLoadingMore = false
     }

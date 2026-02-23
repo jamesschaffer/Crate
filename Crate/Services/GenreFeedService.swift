@@ -66,19 +66,22 @@ struct GenreFeedService: Sendable {
                 }
             }
 
-            // Trending: chart albums for this genre with random offset
+            // Trending: chart albums for this genre with dial-scaled random offset
             if trendingCount > 0 {
+                let trendingLimit = Int(Double(trendingCount + 5) * OffsetStrategy.overFetchMultiplier)
                 group.addTask {
-                    let offset = Int.random(in: 0...50)
-                    let albums = await self.fetchChartsSafe(genreID: self.genre.appleMusicID, limit: trendingCount + 5, offset: offset)
+                    let offset = OffsetStrategy.randomChartOffset(for: position)
+                    let albums = await self.fetchChartsSafe(genreID: self.genre.appleMusicID, limit: trendingLimit, offset: offset)
                     return (.trending, self.filterToGenre(albums))
                 }
             }
 
             // New Releases: new release charts for this genre
             if newRelCount > 0 {
+                let newRelLimit = Int(Double(newRelCount + 5) * OffsetStrategy.overFetchMultiplier)
                 group.addTask {
-                    let albums = await self.fetchNewReleasesSafe(genreID: self.genre.appleMusicID, limit: newRelCount + 5)
+                    let offset = OffsetStrategy.randomNewReleaseOffset(for: position)
+                    let albums = await self.fetchNewReleasesSafe(genreID: self.genre.appleMusicID, limit: newRelLimit, offset: offset)
                     return (.newReleases, self.filterToGenre(albums))
                 }
             }
@@ -86,10 +89,11 @@ struct GenreFeedService: Sendable {
             // Subcategory Rotation: pick random subcategories and fetch their charts
             if subcatCount > 0 {
                 let subcats = Array(genre.subcategories.shuffled().prefix(3))
-                let perSubcat = max(subcatCount / max(subcats.count, 1), 5)
+                let perSubcat = Int(Double(max(subcatCount / max(subcats.count, 1), 5)) * OffsetStrategy.overFetchMultiplier)
                 for subcat in subcats {
                     group.addTask {
-                        let albums = await self.fetchChartsSafe(genreID: subcat.appleMusicID, limit: perSubcat, offset: 0)
+                        let offset = OffsetStrategy.randomChartOffset(for: position)
+                        let albums = await self.fetchChartsSafe(genreID: subcat.appleMusicID, limit: perSubcat, offset: offset)
                         return (.subcategoryRotation, self.filterToGenre(albums))
                     }
                 }
@@ -177,9 +181,10 @@ struct GenreFeedService: Sendable {
             #endif
         }
 
-        // Library albums
+        // Library albums (randomized offset for variability)
+        let libraryOffset = OffsetStrategy.randomLibraryOffset(for: dialStore.position)
         do {
-            let library = try await musicService.fetchLibraryAlbums(limit: 25, offset: 0)
+            let library = try await musicService.fetchLibraryAlbums(limit: 25, offset: libraryOffset)
             albums.append(contentsOf: filterToGenre(library))
         } catch {
             #if DEBUG
@@ -239,9 +244,9 @@ struct GenreFeedService: Sendable {
         }
     }
 
-    private func fetchNewReleasesSafe(genreID: String, limit: Int) async -> [CrateAlbum] {
+    private func fetchNewReleasesSafe(genreID: String, limit: Int, offset: Int = 0) async -> [CrateAlbum] {
         do {
-            return try await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: 0)
+            return try await musicService.fetchNewReleaseChartAlbums(genreID: genreID, limit: limit, offset: offset)
         } catch {
             #if DEBUG
             print("[Crate] GenreFeed fetchNewReleaseChartAlbums failed: \(error)")

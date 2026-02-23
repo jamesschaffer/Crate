@@ -49,7 +49,7 @@ struct CrateApp: App {
         FirebaseApp.configure()
 
         do {
-            let schema = Schema([FavoriteAlbum.self, DislikedAlbum.self, AlbumReview.self])
+            let schema = Schema([FavoriteAlbum.self, DislikedAlbum.self, AlbumReview.self, SeenAlbum.self])
             let configuration = ModelConfiguration(
                 "CrateFavorites",
                 schema: schema

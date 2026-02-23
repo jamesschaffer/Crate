@@ -10,7 +10,7 @@ struct DislikeServiceTests {
 
     /// Create an in-memory container with both models for testing.
     private func makeContext() throws -> ModelContext {
-        let schema = Schema([FavoriteAlbum.self, DislikedAlbum.self])
+        let schema = Schema([FavoriteAlbum.self, DislikedAlbum.self, SeenAlbum.self])
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: schema, configurations: [config])
         return ModelContext(container)

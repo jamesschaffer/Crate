@@ -50,6 +50,7 @@ struct BrowseView: View {
         }
         .task {
             viewModel.configure(modelContext: modelContext)
+            wallViewModel.configure(modelContext: modelContext)
             viewModel.loadDislikedIDs()
             wallViewModel.updateExcludedAlbums(viewModel.dislikedAlbumIDs)
             await wallViewModel.generateWallIfNeeded()
