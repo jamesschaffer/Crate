@@ -47,6 +47,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 132 | [Review UI Polish and Cloud Function Reliability](#adr-132-review-ui-polish-and-cloud-function-reliability) | Accepted |
 | 133 | [Server-Side Review Prompt and Search Grounding](#adr-133-server-side-review-prompt-and-search-grounding) | Accepted |
 | 134 | [Fastlane + GitHub Actions for CI/CD](#adr-134-fastlane--github-actions-for-cicd) | Accepted |
+| 135 | [Feed Variability: Random Offsets, Seen-Album Memory, and Over-Fetch Sampling](#adr-135-feed-variability-random-offsets-seen-album-memory-and-over-fetch-sampling) | Accepted |
 
 ---
 
@@ -1659,6 +1660,66 @@ Separately, the app's display name was changed from "AlbumCrate" to "AlbumWall P
 - Lowered deployment targets mean the app can run on devices that were on iOS 17.0 / macOS 14.0 but never updated to 17.4 / 14.4. No code changes were needed since the app does not use any APIs introduced after the 17.0 / 14.0 base.
 
 **What would change this:** If Apple significantly improves Xcode Cloud (version-controlled configuration, better pricing, more flexibility), it could be reconsidered. If the project moves to a monorepo with non-Apple components, the CI workflow would need to expand beyond the current Apple-focused setup. If GitHub Actions macOS runner availability or pricing changes unfavorably, alternative CI providers (CircleCI, Bitrise) could host the same Fastlane lanes with minimal changes.
+
+---
+
+## ADR-135: Feed Variability: Random Offsets, Seen-Album Memory, and Over-Fetch Sampling
+
+**Date:** 2026-02-23
+**Status:** Accepted
+**Refines:** ADR-115 (Crate Wall as Default Landing Experience), ADR-118 (Personalized Genre Feeds with Feedback Loop)
+
+**Context:** The Crate Wall and genre feeds were deterministic given the same Apple Music API responses -- same dial position and same user data always produced the same album grid. Users reopening the app within a short window saw identical content. Three specific problems: (1) chart and new-release fetches always started at offset 0, returning the same top-N albums; (2) there was no memory of which albums had already been shown, so repeat visits surfaced the same content; (3) the exact number of albums requested was the exact number shown, leaving no room for variety through sampling.
+
+**Decision:** Introduce three complementary variability mechanisms that work together to ensure each session produces a noticeably different album grid:
+
+1. **Random fetch offsets (`OffsetStrategy`).** A pure utility struct in `Crate/Config/OffsetStrategy.swift` that generates dial-scaled random starting offsets for chart, new-release, and library API fetches. Each dial position maps to a maximum offset range (e.g., "My Personal Taste" uses 0-15 for charts; "Mystery Selections" uses 0-180). The offset range increases with dial adventurousness, pushing deeper into the catalog. Separate methods for charts (`randomChartOffset`), new releases (`randomNewReleaseOffset`, capped at 80), and library albums (`randomLibraryOffset`, half the chart range). Also defines a static `overFetchMultiplier = 2.0`.
+
+2. **Seen-album memory (`SeenAlbum` + `SeenAlbumService`).** A SwiftData model (`SeenAlbum`) records the album ID and timestamp when an album is shown in any feed. `SeenAlbumService` provides CRUD operations: `markSeen(albumIDs:)` batch-upserts records, `recentlySeenIDs(for:)` returns album IDs within a dial-dependent decay window, and `purgeExpired()` deletes records older than 14 days (the maximum decay window). Decay windows scale with the dial: 3 days at "My Personal Taste" (small library, frequent repeats acceptable), up to 14 days at "Mystery Selections" (large catalog, repeats feel stale faster). The service follows the same pattern as `DislikeService` -- `modelContext` is injected via `configure(modelContext:)`, all SwiftData operations are `@MainActor`, and `assertionFailure` fires in DEBUG builds if `modelContext` is nil.
+
+3. **Over-fetch sampling.** Both `CrateWallService` and `GenreFeedService` now request `2x` the target album count from each signal source (using `OffsetStrategy.overFetchMultiplier`), then randomly sample down to the target count using `Array.shuffled().prefix(n)`. This means even with the same API offset, the final selection varies between sessions.
+
+**Architecture:**
+
+- **`OffsetStrategy` (Crate/Config/OffsetStrategy.swift):** Pure static struct, `Sendable`, no dependencies. Three methods map `CrateDialPosition` to max-offset ranges and return `Int.random(in: 0...maxOffset)`. The over-fetch multiplier is a static `Double` constant.
+
+- **`SeenAlbum` (Crate/Models/SeenAlbum.swift):** SwiftData `@Model` with `@Attribute(.unique) var albumID: String` and `var dateSeen: Date`. The unique constraint means `markSeen` can upsert by fetching existing records and updating `dateSeen` rather than inserting duplicates.
+
+- **`SeenAlbumService` (Crate/Services/SeenAlbumService.swift):** Follows the `DislikeService` pattern. `modelContext` is an optional property set via the view model's `configure(modelContext:)` call. Decay windows are a private static method mapping dial positions to day counts. `purgeExpired()` removes all records older than 14 days regardless of dial position (the maximum window acts as a hard ceiling).
+
+- **`CrateWallService` / `GenreFeedService` modifications:** Fetch wrapper methods now accept optional `offset` parameters. The view models (`CrateWallViewModel`, `BrowseViewModel`) generate offsets via `OffsetStrategy`, pass them to the service, and after receiving results, filter out `recentlySeenIDs` before the weighted interleave. After the final wall/feed is assembled, `markSeen` is called with the displayed album IDs.
+
+- **`CrateApp.swift`:** `SeenAlbum.self` added to the SwiftData `ModelContainer` schema alongside `FavoriteAlbum`, `DislikedAlbum`, and `AlbumReview`.
+
+- **`BrowseView.swift`:** Calls `wallViewModel.configure(modelContext:)` in `.task` to inject the model context for `SeenAlbumService` operations.
+
+**Alternatives Considered:**
+
+1. **Server-side variability (randomized API proxy).** Would provide true randomization but adds a server dependency for what is currently a fully client-side feature. The Apple Music API already supports offsets natively, making client-side randomization straightforward.
+
+2. **Time-based seed for deterministic shuffling.** Using the current date as a shuffle seed would give different results each day but identical results within the same day. Random offsets + over-fetch sampling provide intra-day variety as well.
+
+3. **UserDefaults for seen-album tracking.** Simpler than SwiftData but does not scale well as the seen set grows (thousands of album IDs serialized as a plist array). SwiftData provides indexed queries, date-based predicates for decay windows, and automatic persistence.
+
+4. **Fixed decay window (same for all dial positions).** A single window (e.g., 7 days) would be simpler but does not match the dial's intent. "My Personal Taste" draws from a smaller pool where repeats are expected sooner; "Mystery Selections" draws from a larger catalog where repeats feel jarring.
+
+**Rationale:**
+
+- The three mechanisms are complementary and target different sources of staleness: random offsets vary the API response, seen-album memory prevents recently-shown content from reappearing, and over-fetch sampling adds randomness to the final selection even when the API response is the same.
+- Dial-scaling ensures the variability budget matches the user's intent. Conservative dial positions (small personal library) get smaller offsets and shorter decay windows; adventurous positions (deep catalog exploration) get larger offsets and longer suppression.
+- `OffsetStrategy` is a pure, stateless, `Sendable` struct with no dependencies, making it trivially testable (11 unit tests cover all dial positions and boundary conditions).
+- `SeenAlbumService` mirrors the established `DislikeService` pattern (optional modelContext, @MainActor CRUD, assertionFailure guards), keeping the codebase consistent.
+- Over-fetch at 2x is a conservative multiplier that doubles API data transfer but stays well within Apple Music rate limits. The extra albums are discarded after sampling, not stored.
+
+**Consequences:**
+
+- The SwiftData schema now includes four models: `FavoriteAlbum`, `DislikedAlbum`, `AlbumReview`, and `SeenAlbum`. Existing installations will get an automatic lightweight migration when `SeenAlbum` is added to the container.
+- Feed results are no longer deterministic. The same user with the same dial position will see different albums on each session. This is the intended behavior but means exact reproduction of a specific feed state is not possible without fixing the random seed (which is not exposed).
+- `CrateWallViewModel` and `BrowseViewModel` now require `modelContext` injection for `SeenAlbumService` in addition to `FavoritesService` and `DislikeService`. The existing `configure(modelContext:)` pattern handles this.
+- The `purgeExpired()` call prevents unbounded growth of the `SeenAlbum` table. Records older than 14 days are cleaned up regardless of the current dial position.
+- Test schemas in `DislikeServiceTests`, `FeedbackLoopTests`, and `BrowseViewModelTests` were updated to include `SeenAlbum.self` in their in-memory SwiftData containers.
+
+**What would change this:** If Apple Music's API added native randomization or "don't repeat" parameters, the client-side offset strategy could be simplified. If the seen-album table grew large enough to impact SwiftData query performance (unlikely given the 14-day purge ceiling), an in-memory cache with periodic persistence could replace the per-query fetch. If users report wanting to see the same wall across sessions (e.g., a "pin my wall" feature), an opt-out mechanism for seen-album suppression would be needed.
 
 ---
 

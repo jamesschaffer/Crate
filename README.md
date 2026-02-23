@@ -2,7 +2,7 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, AI album reviews, and AirPlay output routing complete. Review UI polished with auto-generation on tab tap and artwork-themed accents. Review prompt and search grounding logic moved server-side (security hardening). Both iOS and macOS targets are buildable and testable. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, AI album reviews, and AirPlay output routing complete. Feed variability improved with random offsets, seen-album memory, and over-fetch sampling. Review UI polished with auto-generation on tab tap and artwork-themed accents. Review prompt and search grounding logic moved server-side (security hardening). Both iOS and macOS targets are buildable and testable. Visual design polish in progress.
 
 ---
 
@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (35 ADRs, ADR-100 through ADR-134) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (36 ADRs, ADR-100 through ADR-135) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -29,7 +29,7 @@ For the full product specification, see the [PRD](./PRD.md).
 - **Music Integration:** MusicKit (Apple Music)
 - **Playback:** `ApplicationMusicPlayer`
 - **AI Reviews:** Firebase Cloud Functions (Gemini) + App Check, server-side prompt and search grounding
-- **Local Persistence:** SwiftData (favorites, dislikes, reviews)
+- **Local Persistence:** SwiftData (favorites, dislikes, reviews, seen albums)
 - **Testing:** XCTest (UI tests) + Swift Testing (unit tests)
 - **Deployment:** App Store + Mac App Store, TestFlight for beta
 - **CI/CD:** Fastlane + GitHub Actions (TestFlight via `fastlane ios ios_beta` / `fastlane mac mac_beta`)
@@ -102,8 +102,8 @@ Crate/
     CrateApp.swift              # App entry point (Firebase + App Check init, SwiftData schema)
     ContentView.swift           # Root view (auth gate) + PlaybackFooterOverlay + ShaderWarmUpView
     /Models                     # CrateAlbum, CrateDestination, Genre, GenreTaxonomy,
-                                # FavoriteAlbum, DislikedAlbum, AlbumReview, CrateDial,
-                                # GenreFeedSignal, GenreFeedWeights
+                                # FavoriteAlbum, DislikedAlbum, SeenAlbum, AlbumReview,
+                                # CrateDial, GenreFeedSignal, GenreFeedWeights
     /ViewModels                 # Browse, AlbumDetail, AlbumReview, ArtistCatalog,
                                 # Playback, Auth, CrateWall, GridTransitionCoordinator
     /Views
@@ -120,11 +120,12 @@ Crate/
                                 # FeedDiagnosticsView, QueueDiagnosticsView
       /Shared                   # AlbumArtworkView, LoadingView, EmptyStateView
     /Services                   # MusicService, FavoritesService, DislikeService,
-                                # CrateWallService, GenreFeedService, ReviewService,
-                                # WeightedInterleave, ArtworkColorExtractor,
-                                # AlbumQueueManager
+                                # SeenAlbumService, CrateWallService, GenreFeedService,
+                                # ReviewService, WeightedInterleave,
+                                # ArtworkColorExtractor, AlbumQueueManager
     /Config                     # Genres.swift (static taxonomy), CrateDialStore.swift,
-                                # GridTransitionConstants.swift, AppColors.swift (brand color)
+                                # GridTransitionConstants.swift, AppColors.swift (brand color),
+                                # OffsetStrategy.swift (dial-scaled random offsets)
     /Resources                  # Assets.xcassets
   Crate-iOS/                    # iOS entitlements, Info.plist
   Crate-macOS/                  # macOS entitlements, Info.plist, MacCommands.swift
@@ -133,6 +134,7 @@ Crate/
                                 # GenreTaxonomyTests, FavoritesServiceTests,
                                 # DislikeServiceTests, FeedbackLoopTests,
                                 # AlbumQueueManagerTests, ReviewServiceTests,
+                                # OffsetStrategyTests, SeenAlbumServiceTests,
                                 # MockMusicService (shared test mock)
   CrateUITests/                 # UI tests (XCTest)
 ```
