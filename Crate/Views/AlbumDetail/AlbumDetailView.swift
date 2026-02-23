@@ -132,6 +132,7 @@ struct AlbumDetailView: View {
                 .padding(12)
                 .padding(.bottom, 80)
                 .animation(.easeInOut(duration: 0.35), value: isPlayingThisAlbum)
+                .animation(.easeInOut(duration: 0.3), value: colorExtractor.hasExtracted)
             }
         }
         #if os(iOS)

@@ -10,7 +10,6 @@ struct SettingsView: View {
 
     var onDialChanged: (() -> Void)?
 
-    @State private var dialStore = CrateDialStore()
     @State private var selectedPosition: CrateDialPosition = .mixedCrate
     @State private var showDiagnostics: Bool = false
     @State private var showQueueDiagnostics: Bool = false
@@ -32,7 +31,7 @@ struct SettingsView: View {
                     ForEach(CrateDialPosition.allCases, id: \.rawValue) { position in
                         Button {
                             selectedPosition = position
-                            dialStore.position = position
+                            CrateDialStore().position = position
                             onDialChanged?()
                         } label: {
                             HStack(spacing: 12) {
@@ -93,7 +92,7 @@ struct SettingsView: View {
             #endif
         }
         .onAppear {
-            selectedPosition = dialStore.position
+            selectedPosition = CrateDialStore().position
         }
     }
 }

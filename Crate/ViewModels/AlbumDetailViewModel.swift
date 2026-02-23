@@ -125,10 +125,12 @@ final class AlbumDetailViewModel {
 
             // Write back to Apple Music concurrently (fire-and-forget).
             // Running in parallel avoids user-token expiry between sequential calls.
-            Task {
-                async let lib: () = musicService.addToLibrary(albumID: album.id)
-                async let rate: () = musicService.rateAlbum(id: album.id, rating: .love)
-                async let fav: () = musicService.favoriteAlbum(id: album.id)
+            let albumID = album.id
+            Task { [weak self] in
+                guard let self else { return }
+                async let lib: () = self.musicService.addToLibrary(albumID: albumID)
+                async let rate: () = self.musicService.rateAlbum(id: albumID, rating: .love)
+                async let fav: () = self.musicService.favoriteAlbum(id: albumID)
 
                 do { try await lib } catch {
                     #if DEBUG
@@ -174,9 +176,11 @@ final class AlbumDetailViewModel {
             isDisliked = true
 
             // Write back to Apple Music (fire-and-forget)
-            Task {
+            let albumID = album.id
+            Task { [weak self] in
+                guard let self else { return }
                 do {
-                    try await musicService.rateAlbum(id: album.id, rating: .dislike)
+                    try await self.musicService.rateAlbum(id: albumID, rating: .dislike)
                 } catch {
                     #if DEBUG
                     print("[Crate] rateAlbum(.dislike) failed: \(error)")

@@ -45,6 +45,7 @@ struct PlaybackProgressBar: View {
         .task(id: viewModel.nowPlayingArtwork) {
             await colorExtractor.extract(from: viewModel.nowPlayingArtwork)
         }
+        .animation(.easeInOut(duration: 0.3), value: colorExtractor.hasExtracted)
     }
 
     // MARK: - Private

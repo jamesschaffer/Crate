@@ -315,24 +315,24 @@ final class PlaybackViewModel {
     private func observePlayerState() {
         // Observe player state changes via Combine and bump a counter
         // so @Observable-backed views re-render.
-        stateObservation = player.state.objectWillChange.sink { [weak self] _ in
-            Task { @MainActor in
+        stateObservation = player.state.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
                 guard let self else { return }
                 self.stateChangeCounter += 1
                 self.checkBatchExhausted()
                 self.updateNowPlayingInfo()
             }
-        }
 
-        queueObservation = player.queue.objectWillChange.sink { [weak self] _ in
-            Task { @MainActor in
+        queueObservation = player.queue.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
                 guard let self else { return }
                 self.stateChangeCounter += 1
                 self.syncTrackDuration()
                 self.handleTrackChange()
                 self.updateNowPlayingInfo()
             }
-        }
     }
 
     /// Match the current queue entry against stored tracks to update duration.
@@ -540,20 +540,22 @@ final class PlaybackViewModel {
         // If we're on the last album of the batch, pre-fetch the next batch.
         if queueManager.shouldPrefetch && queueManager.nextBatch == nil {
             prefetchTask?.cancel()
-            prefetchTask = Task { [weak self] in
-                await self?.prefetchNextBatch()
+            prefetchTask = Task {
+                await prefetchNextBatch()
             }
         }
     }
 
     /// Trigger the batch advance sequence.
+    /// Uses strong self — PlaybackViewModel is app-lifetime singleton.
+    /// weak self would silently skip isAdvancing = false, permanently blocking auto-advance.
     private func triggerBatchAdvance() {
         queueManager.markBatchExhausted()
         isAdvancing = true
 
-        Task { [weak self] in
-            await self?.playNextBatch()
-            self?.isAdvancing = false
+        Task {
+            await playNextBatch()
+            isAdvancing = false
         }
     }
 

@@ -13,7 +13,7 @@ struct BrowseView: View {
     @State private var wallViewModel = CrateWallViewModel()
     @State private var coordinator = GridTransitionCoordinator()
     @State private var showingSettings = false
-    @State private var dialStore = CrateDialStore()
+    @State private var dialPosition: CrateDialPosition = CrateDialStore().position
     @State private var showControlBar = false
     @Environment(PlaybackViewModel.self) private var playbackViewModel
     @Environment(\.modelContext) private var modelContext
@@ -42,6 +42,7 @@ struct BrowseView: View {
         #endif
         .sheet(isPresented: $showingSettings) {
             SettingsView(onDialChanged: {
+                dialPosition = CrateDialStore().position
                 Task {
                     await wallViewModel.regenerate()
                 }
@@ -80,7 +81,7 @@ struct BrowseView: View {
 
             // Filter row (always visible, transforms between genres and subcategories)
             GenreBarView(
-                dialLabel: dialStore.position.label,
+                dialLabel: dialPosition.label,
                 categories: GenreTaxonomy.categories,
                 selectedCategory: viewModel.selectedCategory,
                 onSelect: { category in

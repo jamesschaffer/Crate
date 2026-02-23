@@ -39,9 +39,7 @@ final class ArtworkColorExtractor {
 
         guard let url = resolvedURL else {
             hasExtracted = false
-            withAnimation(.easeInOut(duration: 0.3)) {
-                colors = (.white.opacity(0.6), .white.opacity(0.6))
-            }
+            colors = (.white.opacity(0.6), .white.opacity(0.6))
             return
         }
 
@@ -49,10 +47,8 @@ final class ArtworkColorExtractor {
 
         // Check cache first
         if let cached = cache[key] {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                colors = cached
-                hasExtracted = true
-            }
+            colors = cached
+            hasExtracted = true
             return
         }
 
@@ -60,10 +56,8 @@ final class ArtworkColorExtractor {
         do {
             let extracted = try await Self.extractColors(from: url)
             cache[key] = extracted
-            withAnimation(.easeInOut(duration: 0.3)) {
-                colors = extracted
-                hasExtracted = true
-            }
+            colors = extracted
+            hasExtracted = true
         } catch {
             #if DEBUG
             print("[Crate] ArtworkColorExtractor failed: \(error.localizedDescription)")
