@@ -48,6 +48,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 133 | [Server-Side Review Prompt and Search Grounding](#adr-133-server-side-review-prompt-and-search-grounding) | Accepted |
 | 134 | [Fastlane + GitHub Actions for CI/CD](#adr-134-fastlane--github-actions-for-cicd) | Accepted |
 | 135 | [Feed Variability: Random Offsets, Seen-Album Memory, and Over-Fetch Sampling](#adr-135-feed-variability-random-offsets-seen-album-memory-and-over-fetch-sampling) | Accepted |
+| 136 | [Correctness Fixes: Async Boundaries, Task Captures, and Swift 6 Blockers](#adr-136-correctness-fixes-async-boundaries-task-captures-and-swift-6-blockers) | Accepted |
 
 ---
 
@@ -1720,6 +1721,51 @@ Separately, the app's display name was changed from "AlbumCrate" to "AlbumWall P
 - Test schemas in `DislikeServiceTests`, `FeedbackLoopTests`, and `BrowseViewModelTests` were updated to include `SeenAlbum.self` in their in-memory SwiftData containers.
 
 **What would change this:** If Apple Music's API added native randomization or "don't repeat" parameters, the client-side offset strategy could be simplified. If the seen-album table grew large enough to impact SwiftData query performance (unlikely given the 14-day purge ceiling), an in-memory cache with periodic persistence could replace the per-query fetch. If users report wanting to see the same wall across sessions (e.g., a "pin my wall" feature), an opt-out mechanism for seen-album suppression would be needed.
+
+---
+
+## ADR-136: Correctness Fixes: Async Boundaries, Task Captures, and Swift 6 Blockers
+
+**Date:** 2026-02-23
+**Status:** Accepted
+**Refines:** ADR-119 (Concurrency Isolation, Error Logging, and Dead Code Removal), ADR-126 (Codebase Audit), ADR-121 (Now-Playing Progress Bar)
+
+**Context:** A comprehensive code quality audit identified six correctness bugs -- some causing visible UI issues (stale genre bar label, non-deterministic animations), others creating latent problems that would become compile errors under Swift 6 strict concurrency (data races on `lazy var`, off-main-thread UI mutations, strong reference cycles preventing deallocation). None were user-facing crashes, but all were either already causing incorrect behavior or would block migration to Swift 6.
+
+**Decision:** Six targeted fixes:
+
+1. **CrateDialStore dual-instance fix.** `BrowseView` and `SettingsView` each created their own `@State private var dialStore = CrateDialStore()` instance. Since `CrateDialStore` reads/writes `UserDefaults`, both instances reflected the same persisted value on creation -- but BrowseView's instance never saw updates made by SettingsView's instance, so the genre bar label went stale after a settings change. Fixed by replacing `@State dialStore` in BrowseView with `@State dialPosition: CrateDialPosition` (a plain value), and refreshing it in the `onDialChanged` callback from SettingsView. SettingsView similarly creates a transient `CrateDialStore()` only when writing, not as `@State`.
+
+2. **ArtworkColorExtractor async boundary.** The extractor called `withAnimation(.easeInOut(duration: 0.3))` after `await` to animate color transitions. After an `await`, the current animation transaction is undefined -- `withAnimation` captures whatever transaction context exists at the continuation resumption point, which varies depending on thread scheduling. This produced non-deterministic animations (sometimes animated, sometimes instant). Removed all `withAnimation` calls from the service. Consuming views (`AlbumDetailView`, `PlaybackProgressBar`) now apply `.animation(.easeInOut(duration: 0.3), value: colorExtractor.hasExtracted)` as a view modifier, which is declarative and deterministic.
+
+3. **ReviewService `lazy var` to `let`.** `ReviewService` had `private lazy var functions = Functions.functions()`. `lazy var` is not thread-safe on a non-isolated class -- concurrent first access from different tasks is a data race. Under Swift 6 strict concurrency, this is a compile error. Changed to `private let functions = Functions.functions()`, which initializes during `init()` and is safe for concurrent reads.
+
+4. **PlaybackViewModel Combine sinks.** The `player.state.objectWillChange` and `player.queue.objectWillChange` publishers deliver on MusicKit's internal queue, not the main thread. The previous code wrapped the sink body in `Task { @MainActor in ... }`, which created an unnecessary async boundary -- the Task could be scheduled after subsequent state changes, causing out-of-order processing. Replaced with `.receive(on: RunLoop.main)` before `.sink`, which synchronously dispatches to the main run loop and preserves event ordering.
+
+5. **AlbumDetailViewModel Task captures.** Fire-and-forget `Task` blocks in `toggleFavorite()` and `toggleDislike()` captured `self` strongly. `AlbumDetailViewModel` is NOT a singleton -- it is created per album detail push and should deallocate on navigation-away. Strong capture prevented deallocation until the background API calls completed (which can take several seconds with network latency). Changed to `[weak self]` with early `guard let self` return, and captured `album.id` as a local `let albumID` to avoid accessing `self.album` after the weak check (the album ID is all the API calls need).
+
+6. **PlaybackViewModel `triggerBatchAdvance` strong self.** The previous code used `[weak self]` in the batch advance Task. `PlaybackViewModel` IS an app-lifetime singleton -- it is never deallocated. If `self` were somehow nil, the `[weak self]` pattern would silently skip `isAdvancing = false`, permanently blocking all future auto-advance attempts (the guard would return before the cleanup line). Changed to strong self capture, which is correct for singletons and guarantees the cleanup always runs. The same change was applied to `prefetchTask`.
+
+**Rationale:**
+
+- **Weak vs. strong self is not a blanket rule.** The correct choice depends on the object's lifecycle. View models that are created and destroyed with navigation (like `AlbumDetailViewModel`) need `[weak self]` in fire-and-forget Tasks to avoid extending their lifetime. Singletons (like `PlaybackViewModel`) need strong self to guarantee cleanup code executes. Applying `[weak self]` uniformly is a common mistake that creates silent failures in singleton contexts.
+
+- **Animation belongs in the view layer, not the service layer.** Services operate in async contexts where the animation transaction is undefined. SwiftUI's `.animation(value:)` modifier is the idiomatic way to animate state changes -- it reacts to the value change regardless of which thread or context set it.
+
+- **`.receive(on: RunLoop.main)` vs. `Task { @MainActor in }`:** Both ensure main-thread execution, but `.receive(on:)` is synchronous (dispatches on the next run loop tick with preserved ordering), while wrapping in a Task creates a new structured concurrency context with its own scheduling. For Combine pipelines that need to update UI state, `.receive(on:)` is the standard Combine pattern and avoids the overhead of Task creation.
+
+- **`let` vs. `lazy var` for thread safety:** `let` properties are immutable after initialization and safe for concurrent access without synchronization. `lazy var` requires exclusive access on first use, which Swift 6 enforces. Since `Functions.functions()` is lightweight (returns a cached shared instance), there is no performance reason to defer initialization.
+
+**Consequences:**
+
+- The genre bar label in BrowseView now always reflects the current Crate Dial position after a settings change. The `CrateDialStore` is no longer held as `@State` in either BrowseView or SettingsView -- it is instantiated transiently to read or write, and the position value is tracked as plain `@State`.
+- Artwork color transitions in `AlbumDetailView` and `PlaybackProgressBar` are now consistently animated via `.animation(value:)`. Any new view that consumes `ArtworkColorExtractor` must add its own `.animation(value: colorExtractor.hasExtracted)` modifier -- the extractor will not animate on its own.
+- `ReviewService` is one step closer to Swift 6 strict concurrency compliance. The remaining blocker is the mutable `modelContext` property, which will need either `@MainActor` isolation or a `Sendable`-conforming wrapper.
+- PlaybackViewModel Combine sinks are now synchronous on the main thread. Event ordering from MusicKit's player state and queue publishers is preserved.
+- `AlbumDetailViewModel` deallocates immediately on navigation-away. Background API calls (library add, rate, favorite) continue to completion via the detached Task but no longer hold a reference to the view model.
+- Auto-advance batch transitions are guaranteed to clear `isAdvancing` regardless of any future refactoring of `PlaybackViewModel`'s lifecycle.
+
+**What would change this:** Migration to Swift 6 strict concurrency mode would surface any remaining issues (the `lazy var` fix preempts one). If `PlaybackViewModel` were ever changed from a singleton to a per-session instance, the strong self captures in `triggerBatchAdvance` and `prefetchTask` would need to be reconsidered. If SwiftUI introduced a built-in mechanism for animating `@Observable` property changes at the publisher level (rather than requiring `.animation(value:)` on each consuming view), the view-layer animation pattern could be simplified.
 
 ---
 
