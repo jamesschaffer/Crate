@@ -17,7 +17,7 @@ struct AuthView: View {
                 Spacer()
 
                 // Logo + wordmark
-                VStack(spacing: 16) {
+                VStack(spacing: 36) {
                     Image("LaunchImage")
                         .resizable()
                         .scaledToFit()
