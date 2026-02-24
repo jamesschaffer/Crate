@@ -20,18 +20,15 @@ jobs:
       - name: Stub GoogleService-Info.plist
         run: cp GoogleService-Info.plist.example GoogleService-Info.plist
 
-      - name: List available simulators
-        run: xcrun simctl list devices available | grep -i iphone | head -20
-
       - name: Run iOS tests
         run: |
           set -o pipefail
           xcodebuild test \
             -scheme Crate-iOS \
-            -destination 'platform=iOS Simulator,name=iPhone,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 16e,OS=latest' \
             -only-testing:CrateTests-iOS \
             CODE_SIGNING_ALLOWED=NO \
-            | xcpretty
+            2>&1 | tee /tmp/ios-test.log | tail -50
 
       - name: Upload test results
         if: always()
@@ -55,9 +52,9 @@ jobs:
           set -o pipefail
           xcodebuild test \
             -scheme Crate-macOS \
-            -destination 'platform=macOS' \
+            -destination 'platform=macOS,arch=arm64' \
             CODE_SIGNING_ALLOWED=NO \
-            | xcpretty
+            2>&1 | tee /tmp/macos-test.log | tail -50
 
       - name: Upload test results
         if: always()
