@@ -18,10 +18,10 @@ struct AuthView: View {
 
                 // Logo + wordmark
                 VStack(spacing: 16) {
-                    Image("AlbumCrateLogo")
+                    Image("LaunchImage")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 128, height: 128)
+                        .frame(width: 180, height: 180)
 
                     Image("AlbumCrateWordmark")
                         .resizable()
