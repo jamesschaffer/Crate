@@ -2,11 +2,10 @@ import Foundation
 
 /// Static two-tier genre taxonomy with real Apple Music genre IDs.
 ///
-/// Apple Music Genre IDs reference (as of 2024):
-///   14 = Pop, 20 = Alternative, 21 = Rock, 18 = Hip-Hop/Rap,
-///   7 = Electronic, 11 = Jazz, 6 = Country, 15 = R&B/Soul,
-///   5 = Classical, 17 = Dance, 2 = Blues, 24 = Reggae,
-///   22 = Singer/Songwriter, 10 = Latin, 29 = World
+/// Apple Music Genre IDs reference:
+///   21 = Rock, 14 = Pop, 18 = Hip-Hop/Rap, 7 = Electronic,
+///   15 = R&B/Soul, 10 = Singer/Songwriter, 11 = Jazz, 2 = Blues,
+///   6 = Country, 5 = Classical, 12 = Latin, 16 = Soundtrack
 ///
 /// Sub-genre IDs come from Apple Music's catalog taxonomy.
 enum Genres {
@@ -17,10 +16,13 @@ enum Genres {
         hipHop,
         electronic,
         rAndB,
+        singerSongwriter,
         jazz,
+        blues,
         country,
         classical,
         latin,
+        soundtrack,
     ]
 
     // MARK: - Rock
@@ -52,7 +54,6 @@ enum Genres {
             SubCategory(id: "pop-indie", name: "Indie Pop", appleMusicID: "1136"),
             SubCategory(id: "pop-kpop", name: "K-Pop", appleMusicID: "1243"),
             SubCategory(id: "pop-jpop", name: "J-Pop", appleMusicID: "1064"),
-            SubCategory(id: "pop-singer-songwriter", name: "Singer/Songwriter", appleMusicID: "22"),
             SubCategory(id: "pop-synth", name: "Synth Pop", appleMusicID: "1165"),
         ]
     )
@@ -149,6 +150,39 @@ enum Genres {
         ]
     )
 
+    // MARK: - Singer/Songwriter
+
+    static let singerSongwriter = GenreCategory(
+        id: "singer-songwriter",
+        name: "Singer/Songwriter",
+        appleMusicID: "10",
+        subcategories: [
+            SubCategory(id: "ss-alt-folk", name: "Alternative Folk", appleMusicID: "1062"),
+            SubCategory(id: "ss-contemporary-folk", name: "Contemporary Folk", appleMusicID: "1063"),
+            SubCategory(id: "ss-contemporary-ss", name: "Contemporary Singer/Songwriter", appleMusicID: "1064"),
+            SubCategory(id: "ss-folk-rock", name: "Folk-Rock", appleMusicID: "1065"),
+            SubCategory(id: "ss-new-acoustic", name: "New Acoustic", appleMusicID: "1066"),
+            SubCategory(id: "ss-traditional-folk", name: "Traditional Folk", appleMusicID: "1067"),
+        ]
+    )
+
+    // MARK: - Blues
+
+    static let blues = GenreCategory(
+        id: "blues",
+        name: "Blues",
+        appleMusicID: "2",
+        subcategories: [
+            SubCategory(id: "blues-acoustic", name: "Acoustic Blues", appleMusicID: "1210"),
+            SubCategory(id: "blues-chicago", name: "Chicago Blues", appleMusicID: "1007"),
+            SubCategory(id: "blues-classic", name: "Classic Blues", appleMusicID: "1009"),
+            SubCategory(id: "blues-contemporary", name: "Contemporary Blues", appleMusicID: "1010"),
+            SubCategory(id: "blues-country", name: "Country Blues", appleMusicID: "1011"),
+            SubCategory(id: "blues-delta", name: "Delta Blues", appleMusicID: "1012"),
+            SubCategory(id: "blues-electric", name: "Electric Blues", appleMusicID: "1013"),
+        ]
+    )
+
     // MARK: - Latin
 
     static let latin = GenreCategory(
@@ -160,6 +194,21 @@ enum Genres {
             SubCategory(id: "latin-salsa", name: "Salsa & Tropical", appleMusicID: "1119"),
             SubCategory(id: "latin-rock", name: "Latin Rock", appleMusicID: "1116"),
             SubCategory(id: "latin-pop", name: "Latin Pop", appleMusicID: "1115"),
+        ]
+    )
+
+    // MARK: - Soundtrack
+
+    static let soundtrack = GenreCategory(
+        id: "soundtrack",
+        name: "Soundtrack",
+        appleMusicID: "16",
+        subcategories: [
+            SubCategory(id: "soundtrack-foreign-cinema", name: "Foreign Cinema", appleMusicID: "1165"),
+            SubCategory(id: "soundtrack-musicals", name: "Musicals", appleMusicID: "1166"),
+            SubCategory(id: "soundtrack-original-score", name: "Original Score", appleMusicID: "1168"),
+            SubCategory(id: "soundtrack-soundtrack", name: "Soundtrack", appleMusicID: "1169"),
+            SubCategory(id: "soundtrack-tv", name: "TV Soundtrack", appleMusicID: "1172"),
         ]
     )
 }
