@@ -20,7 +20,7 @@ struct AlbumGridView: View {
             GridItem(.flexible(), spacing: 0),
         ]
         #else
-        return [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 0)]
+        return [GridItem(.adaptive(minimum: 300, maximum: 400), spacing: 0)]
         #endif
     }
 
