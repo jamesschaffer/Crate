@@ -303,7 +303,7 @@ Favorites need to be stored somewhere. Options:
 - The Swift compiler validates the taxonomy at compile time. Typos in genre IDs, missing fields, or structural errors are caught before the app ever runs. This is strictly stronger than Zod validation at build time, because it is the same language and toolchain -- no separate validation step.
 - Swift structs are type-safe. An `appleMusicGenreIDs` field is an array of strings. You cannot accidentally put an integer in it. With JSON, a missing quote or wrong type is a runtime error.
 - No parsing overhead at app launch. The data is compiled into the binary.
-- The taxonomy is small (9 super-genres, ~50 subcategories) and changes infrequently. A Swift file is the simplest representation with the strongest guarantees.
+- The taxonomy is small (12 super-genres, ~67 subcategories) and changes infrequently. A Swift file is the simplest representation with the strongest guarantees.
 
 **Schema:**
 
