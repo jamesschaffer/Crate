@@ -21,7 +21,7 @@ jobs:
         run: cp GoogleService-Info.plist.example GoogleService-Info.plist
 
       - name: List available simulators
-        run: xcrun simctl list devices available --json | python3 -c "import sys,json; devs=json.load(sys.stdin)['devices']; [print(f'  {r}: {[d[\"name\"] for d in ds]}') for r,ds in sorted(devs.items()) if ds and 'iOS' in r]"
+        run: xcrun simctl list devices available | grep -i iphone | head -20
 
       - name: Run iOS tests
         run: |
