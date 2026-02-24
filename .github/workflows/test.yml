@@ -13,12 +13,9 @@ concurrency:
 jobs:
   ios-tests:
     name: iOS Tests
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
-
-      - name: Select Xcode 16
-        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
 
       - name: Stub GoogleService-Info.plist
         run: cp GoogleService-Info.plist.example GoogleService-Info.plist
@@ -43,12 +40,9 @@ jobs:
 
   macos-tests:
     name: macOS Tests
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
-
-      - name: Select Xcode 16
-        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
 
       - name: Stub GoogleService-Info.plist
         run: cp GoogleService-Info.plist.example GoogleService-Info.plist
