@@ -45,8 +45,14 @@ struct CrateApp: App {
 
     init() {
         // Configure App Check BEFORE Firebase.configure()
-        AppCheck.setAppCheckProviderFactory(CrateAppCheckProviderFactory())
-        FirebaseApp.configure()
+        // Skip Firebase in CI/testing when GoogleService-Info.plist has placeholder values
+        if let options = FirebaseOptions.defaultOptions(),
+           options.apiKey?.hasPrefix("YOUR_") != true {
+            AppCheck.setAppCheckProviderFactory(CrateAppCheckProviderFactory())
+            FirebaseApp.configure()
+        } else {
+            print("[Crate] Skipping Firebase — GoogleService-Info.plist not configured")
+        }
 
         do {
             let schema = Schema([FavoriteAlbum.self, DislikedAlbum.self, AlbumReview.self, SeenAlbum.self])

@@ -20,12 +20,15 @@ jobs:
       - name: Stub GoogleService-Info.plist
         run: cp GoogleService-Info.plist.example GoogleService-Info.plist
 
+      - name: List available simulators
+        run: xcrun simctl list devices available --json | python3 -c "import sys,json; devs=json.load(sys.stdin)['devices']; [print(f'  {r}: {[d[\"name\"] for d in ds]}') for r,ds in sorted(devs.items()) if ds and 'iOS' in r]"
+
       - name: Run iOS tests
         run: |
           set -o pipefail
           xcodebuild test \
             -scheme Crate-iOS \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone,OS=latest' \
             -only-testing:CrateTests-iOS \
             CODE_SIGNING_ALLOWED=NO \
             | xcpretty
