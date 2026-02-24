@@ -1,7 +1,11 @@
 import Foundation
 import Testing
 import SwiftData
+#if os(macOS)
+@testable import Crate_macOS
+#else
 @testable import Crate_iOS
+#endif
 
 /// Tests for ReviewService cache layer and AlbumReview model.
 ///

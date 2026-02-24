@@ -988,7 +988,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = jamesschaffer.CrateTests;
 				SDKROOT = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Crate.app/Contents/MacOS/Crate";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Crate-macOS.app/Contents/MacOS/Crate-macOS";
 			};
 			name = Debug;
 		};
@@ -1058,7 +1058,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = jamesschaffer.CrateTests;
 				SDKROOT = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Crate.app/Contents/MacOS/Crate";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Crate-macOS.app/Contents/MacOS/Crate-macOS";
 			};
 			name = Release;
 		};

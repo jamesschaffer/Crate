@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/ci-pipeline]
   pull_request:
     branches: [main]
 
@@ -25,9 +25,11 @@ jobs:
 
       - name: Run iOS tests
         run: |
+          set -o pipefail
           xcodebuild test \
             -scheme Crate-iOS \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -only-testing:CrateTests-iOS \
             CODE_SIGNING_ALLOWED=NO \
             | xcpretty
 
@@ -53,6 +55,7 @@ jobs:
 
       - name: Run macOS tests
         run: |
+          set -o pipefail
           xcodebuild test \
             -scheme Crate-macOS \
             -destination 'platform=macOS' \

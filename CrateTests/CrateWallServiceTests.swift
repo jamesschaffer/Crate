@@ -1,6 +1,10 @@
 import Testing
 import MusicKit
+#if os(macOS)
+@testable import Crate_macOS
+#else
 @testable import Crate_iOS
+#endif
 
 /// Tests for CrateWallService's album generation and filtering.
 struct CrateWallServiceTests {

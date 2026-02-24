@@ -1,7 +1,11 @@
 import Testing
 import SwiftData
 import MusicKit
+#if os(macOS)
+@testable import Crate_macOS
+#else
 @testable import Crate_iOS
+#endif
 
 /// Tests for the feedback loop: mutual exclusion between likes and dislikes,
 /// feed filtering of disliked albums, and GenreFeedWeights correctness.
