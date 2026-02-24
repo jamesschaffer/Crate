@@ -1,6 +1,10 @@
 import Foundation
 import Testing
+#if os(macOS)
+@testable import Crate_macOS
+#else
 @testable import Crate_iOS
+#endif
 
 /// Tests for OffsetStrategy — verifies offset ranges are correct for each dial position.
 struct OffsetStrategyTests {

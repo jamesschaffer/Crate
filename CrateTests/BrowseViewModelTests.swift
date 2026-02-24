@@ -1,7 +1,11 @@
 import Testing
 import MusicKit
 import SwiftData
+#if os(macOS)
+@testable import Crate_macOS
+#else
 @testable import Crate_iOS
+#endif
 
 /// Tests for BrowseViewModel's genre selection and state management.
 struct BrowseViewModelTests {

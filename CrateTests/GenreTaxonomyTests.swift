@@ -1,5 +1,9 @@
 import Testing
+#if os(macOS)
+@testable import Crate_macOS
+#else
 @testable import Crate_iOS
+#endif
 
 /// Tests for the static genre taxonomy data.
 struct GenreTaxonomyTests {

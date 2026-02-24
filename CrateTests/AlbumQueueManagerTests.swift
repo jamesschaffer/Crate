@@ -1,6 +1,10 @@
 import Testing
 import MusicKit
+#if os(macOS)
+@testable import Crate_macOS
+#else
 @testable import Crate_iOS
+#endif
 
 /// Tests for AlbumQueueManager's pure queue logic.
 struct AlbumQueueManagerTests {

@@ -13,23 +13,22 @@ concurrency:
 jobs:
   ios-tests:
     name: iOS Tests
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
-
-      - name: Select Xcode 16
-        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
 
       - name: Stub GoogleService-Info.plist
         run: cp GoogleService-Info.plist.example GoogleService-Info.plist
 
       - name: Run iOS tests
         run: |
+          set -o pipefail
           xcodebuild test \
             -scheme Crate-iOS \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2' \
+            -destination 'platform=iOS Simulator,name=iPhone 16e,OS=latest' \
+            -only-testing:CrateTests-iOS \
             CODE_SIGNING_ALLOWED=NO \
-            | xcpretty
+            2>&1 | tee /tmp/ios-test.log | tail -50
 
       - name: Upload test results
         if: always()
@@ -41,23 +40,21 @@ jobs:
 
   macos-tests:
     name: macOS Tests
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
-
-      - name: Select Xcode 16
-        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
 
       - name: Stub GoogleService-Info.plist
         run: cp GoogleService-Info.plist.example GoogleService-Info.plist
 
       - name: Run macOS tests
         run: |
+          set -o pipefail
           xcodebuild test \
             -scheme Crate-macOS \
-            -destination 'platform=macOS' \
+            -destination 'platform=macOS,arch=arm64' \
             CODE_SIGNING_ALLOWED=NO \
-            | xcpretty
+            2>&1 | tee /tmp/macos-test.log | tail -50
 
       - name: Upload test results
         if: always()

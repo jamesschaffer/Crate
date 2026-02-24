@@ -1,6 +1,10 @@
 import Foundation
 import MusicKit
+#if os(macOS)
+@testable import Crate_macOS
+#else
 @testable import Crate_iOS
+#endif
 
 /// Errors thrown by MockMusicService for methods that return MusicKit types.
 enum MockMusicServiceError: Error {
