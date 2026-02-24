@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (37 ADRs, ADR-100 through ADR-136) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (38 ADRs, ADR-100 through ADR-137) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -30,13 +30,13 @@ For the full product specification, see the [PRD](./PRD.md).
 - **Playback:** `ApplicationMusicPlayer`
 - **AI Reviews:** Firebase Cloud Functions (Gemini) + App Check, server-side prompt and search grounding
 - **Local Persistence:** SwiftData (favorites, dislikes, reviews, seen albums)
-- **Testing:** XCTest (UI tests) + Swift Testing (unit tests)
+- **Testing:** XCTest (UI tests) + Swift Testing (unit tests, 80 tests across 11 suites)
 - **Deployment:** App Store + Mac App Store, TestFlight for beta
-- **CI/CD:** Fastlane + GitHub Actions (TestFlight via `fastlane ios ios_beta` / `fastlane mac mac_beta`)
+- **CI/CD:** Fastlane + GitHub Actions — CI runs iOS + macOS test suites on every push/PR to `main` (TestFlight via `fastlane ios ios_beta` / `fastlane mac mac_beta`)
 
 ## Prerequisites
 
-- **macOS** with **Xcode 16+** (required for Swift Testing, latest MusicKit, and SwiftUI features)
+- **macOS** with **Xcode 26+** (required for iOS 26 SDK, Swift Testing, latest MusicKit, and SwiftUI features)
 - **Apple Developer Program membership** (required for MusicKit entitlement, TestFlight, and App Store distribution)
 - **Apple Music subscription** (required for playback and subscription-dependent features during development)
 - **Physical iOS device** (iPhone or iPad) for testing -- MusicKit does not work in the iOS Simulator
@@ -94,7 +94,7 @@ Crate/
   Crate.xcodeproj
   Gemfile                         # Bundler dependencies (Fastlane)
   GoogleService-Info.plist.example  # Firebase config template (copy to GoogleService-Info.plist)
-  .github/workflows/test.yml     # GitHub Actions CI (iOS + macOS test suites)
+  .github/workflows/test.yml     # GitHub Actions CI (80 tests, iOS + macOS, macos-26 runners)
   fastlane/
     Appfile                       # App identifier and Apple ID
     Fastfile                      # Build lanes (ios_beta, mac_beta -> TestFlight)
@@ -129,13 +129,15 @@ Crate/
     /Resources                  # Assets.xcassets
   Crate-iOS/                    # iOS entitlements, Info.plist
   Crate-macOS/                  # macOS entitlements, Info.plist, MacCommands.swift
-  CrateTests/                   # Unit tests (Swift Testing): MusicServiceTests,
-                                # BrowseViewModelTests, CrateWallServiceTests,
-                                # GenreTaxonomyTests, FavoritesServiceTests,
-                                # DislikeServiceTests, FeedbackLoopTests,
-                                # AlbumQueueManagerTests, ReviewServiceTests,
-                                # OffsetStrategyTests, SeenAlbumServiceTests,
-                                # MockMusicService (shared test mock)
+  CrateTests/                   # Unit tests (Swift Testing, 80 tests / 11 suites):
+                                # MusicServiceTests, BrowseViewModelTests,
+                                # CrateWallServiceTests, GenreTaxonomyTests,
+                                # FavoritesServiceTests, DislikeServiceTests,
+                                # FeedbackLoopTests, AlbumQueueManagerTests,
+                                # ReviewServiceTests, OffsetStrategyTests,
+                                # SeenAlbumServiceTests, MockMusicService (shared mock).
+                                # All files use #if os(macOS) conditional imports
+                                # for cross-platform CI (Crate_macOS vs Crate_iOS).
   CrateUITests/                 # UI tests (XCTest)
 ```
 

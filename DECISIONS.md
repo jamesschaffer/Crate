@@ -1769,4 +1769,68 @@ Separately, the app's display name was changed from "AlbumCrate" to "AlbumWall P
 
 ---
 
+## ADR-137: CI Pipeline Repair -- Tests Were Never Actually Running
+
+**Date:** 2026-02-24
+**Status:** Accepted
+**Amends:** ADR-134 (Fastlane + GitHub Actions for CI/CD), ADR-136 (Correctness Fixes -- reverses the `lazy var` to `let` change for ReviewService)
+
+**Context:** The GitHub Actions CI pipeline added in ADR-134 appeared to work -- jobs completed with a green checkmark -- but tests were never actually executing successfully. The root cause was `xcpretty`: the original workflow piped `xcodebuild` output through `xcpretty` for formatting, but without `set -o pipefail`, the shell evaluated only xcpretty's exit code (always 0) and ignored xcodebuild's non-zero exit code. The pipeline had been silently broken since its initial setup. Additionally, the runners were `macos-15` which shipped with Xcode 16, but the codebase had been updated to use iOS 26 APIs (availability guards added in a prior commit) that require the Xcode 26 SDK.
+
+**Decision:** Seven fixes to make CI actually run and report test results:
+
+1. **Added `set -o pipefail`** to both the iOS and macOS test steps. With pipefail, if `xcodebuild` exits non-zero, the entire pipeline fails -- even when piped through another command.
+
+2. **Removed `xcpretty`, switched to raw output.** Replaced `| xcpretty` with `| tee /tmp/{ios,macos}-test.log | tail -50`. This preserves the full build log in the artifact while showing the last 50 lines (which contain the test summary) in the GitHub Actions UI. Eliminated a dependency and the exit code masking risk entirely.
+
+3. **Switched runners from `macos-15` to `macos-26`.** The codebase uses iOS 26 availability guards (`#available(iOS 26, *)`), which require the Xcode 26 SDK to compile. The `macos-15` runner shipped with Xcode 16, which does not have the iOS 26 SDK. The `macos-26` runner includes Xcode 26.
+
+4. **Fixed macOS TEST_HOST path.** The macOS test bundle's `TEST_HOST` build setting pointed to the wrong path within the `DerivedData` build products directory. Corrected the path so macOS tests can locate and load the host app.
+
+5. **Added `#if os(macOS)` conditional imports to all test files.** All 11 test files and MockMusicService used `@testable import Crate_iOS` unconditionally. The macOS test target's module name is `Crate_macOS`. Added platform conditionals:
+   ```swift
+   #if os(macOS)
+   @testable import Crate_macOS
+   #else
+   @testable import Crate_iOS
+   #endif
+   ```
+
+6. **Excluded UI tests from CI.** Added `-only-testing:CrateTests-iOS` and `-only-testing:CrateTests-macOS` flags to restrict CI to unit tests only. UI tests (CrateUITests) require a running app with MusicKit authorization and cannot run in CI.
+
+7. **Guarded Firebase initialization for stub plists.** CI copies `GoogleService-Info.plist.example` (which has `YOUR_API_KEY` placeholder values) to `GoogleService-Info.plist`. Without a guard, `FirebaseApp.configure()` would crash at app init time when the test host launches. Added a check in `CrateApp.init()` that reads `FirebaseOptions.defaultOptions()` and skips Firebase configuration if the API key starts with `YOUR_`. Prints `[Crate] Skipping Firebase -- GoogleService-Info.plist not configured` for visibility.
+
+8. **ReviewService `Functions.functions()` changed from `let` to `lazy var`.** ADR-136 changed this from `lazy var` to `let` for thread safety. However, `let` means `Functions.functions()` is called during `ReviewService.init()`, which accesses the Firebase SDK. When Firebase is not configured (CI with stub plist), this crashes. Changed back to `lazy var` so the Firebase Functions client is only instantiated when a review is actually requested -- which never happens in unit tests. The thread safety concern from ADR-136 is a lesser risk than a guaranteed crash in CI.
+
+**Alternatives Considered:**
+
+1. **Keep xcpretty and add `set -o pipefail` only.** Would fix the exit code issue but xcpretty adds a Ruby dependency and can still interfere with output in edge cases. Raw output with `tee` + `tail` is simpler and more reliable.
+
+2. **Use `macos-15` runner with `xcodes` to install Xcode 26.** Possible but slow (Xcode downloads are large) and fragile. Using a runner that ships with the correct Xcode version is more straightforward.
+
+3. **Separate the test target module names with a shared import file.** Could use a single `Imports.swift` file with the `#if os()` conditional. This was considered but rejected because having the conditional at the top of each test file is explicit and self-documenting -- there is no hidden indirection.
+
+4. **Wrap `Functions.functions()` in a computed property or factory method instead of `lazy var`.** Would avoid the thread-safety concern with `lazy var`. Considered but overkill for the current codebase -- `ReviewService` is always accessed from `@MainActor` contexts, so concurrent first access is not a realistic scenario. `lazy var` is the simplest fix.
+
+**Rationale:**
+
+- `set -o pipefail` is a fundamental shell best practice for CI pipelines. Without it, any piped command masks failures. This was the single most important fix -- everything else was secondary.
+- The runner version must match the SDK version the code compiles against. Using `macos-26` ensures the Xcode 26 SDK is available without manual toolchain installation.
+- Conditional imports are the standard Swift pattern for multiplatform test targets. The alternative (separate test files per platform) would create duplication.
+- Guarding Firebase init is a defensive pattern that makes the app resilient to missing or placeholder configuration files. This benefits not just CI but also new contributors who clone the repo before setting up Firebase.
+- The `lazy var` reversal is a pragmatic tradeoff: the thread-safety risk is theoretical (MainActor isolation), while the CI crash was actual and blocking.
+
+**Consequences:**
+
+- CI is now a reliable gate. A green checkmark means 80 tests across 11 suites actually passed on both iOS and macOS. A red X means tests genuinely failed.
+- ADR-134's description of the CI workflow ("`macos-15` runner, Xcode 16", "xcpretty") is superseded. The current workflow uses `macos-26` runners, raw xcodebuild output, and `set -o pipefail`.
+- ADR-136's ReviewService `let` to `lazy var` reversal: `ReviewService.functions` is back to `lazy var`. This is an acceptable tradeoff given the `@MainActor` access pattern, but should be revisited if ReviewService is ever used from non-MainActor contexts.
+- All test files now have a 4-line conditional import block at the top. New test files must include this block or they will fail on one platform.
+- The Firebase guard in `CrateApp.init()` means the app can launch without a valid `GoogleService-Info.plist` -- Firebase features (AI reviews) will not work, but the app will not crash. This is the correct degradation behavior.
+- UI tests are not run in CI. They require MusicKit authorization and Apple Music subscription, which are not available in CI environments. UI tests must be run manually on physical devices.
+
+**What would change this:** If GitHub Actions adds macOS runners with pre-installed Xcode versions that match the project's SDK needs automatically (e.g., runner version tied to project settings), the runner version pinning becomes less of a concern. If Swift introduces a built-in mechanism for multiplatform test module imports, the `#if os()` blocks could be simplified. If Firebase adds a safe "no-op mode" for unconfigured environments, the init guard could be removed.
+
+---
+
 *End of Decision Records*
