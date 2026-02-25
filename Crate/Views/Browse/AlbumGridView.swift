@@ -69,6 +69,84 @@ struct AlbumGridView: View {
     }
 }
 
+// MARK: - macOS Detail Transition
+
+/// On macOS, NavigationStack uses a crossfade that is invisible between two dark views.
+/// This modifier adds a visible slide-and-fade appear animation on macOS only.
+/// On iOS, it's a complete no-op — the native slide transition handles everything.
+extension View {
+    @ViewBuilder
+    func macOSDetailTransition() -> some View {
+        #if os(macOS)
+        modifier(MacOSDetailAppearModifier())
+        #else
+        self
+        #endif
+    }
+}
+
+#if os(macOS)
+private struct MacOSDetailAppearModifier: ViewModifier {
+    @State private var isPresented = false
+    @State private var isDismissing = false
+    @Environment(\.dismiss) private var dismiss
+
+    func body(content: Content) -> some View {
+        GeometryReader { geometry in
+            let offScreenX = max(geometry.size.width, 800)
+
+            ZStack {
+                Color.black
+
+                ProgressView()
+                    .tint(.brandPink)
+                    .opacity(isPresented ? 0 : 1)
+
+                content
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+                    .offset(x: isPresented ? 0 : offScreenX)
+                    .opacity(isPresented ? 1 : 0)
+            }
+        }
+        .background { Color.black.ignoresSafeArea() }
+        .overlay(alignment: .topLeading) {
+            Button {
+                guard !isDismissing else { return }
+                isDismissing = true
+                withAnimation(.spring(duration: 0.35, bounce: 0.0)) {
+                    isPresented = false
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.38) {
+                    dismiss()
+                }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
+                    .background(.ultraThinMaterial.opacity(0.6), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut("[", modifiers: .command)
+            .padding(.top, 12)
+            .padding(.leading, 12)
+            .opacity(isPresented ? 1 : 0)
+        }
+        .task {
+            // Wait for content to load (artwork, tracks, layout) before sliding in.
+            // View is invisible (opacity 0) during this wait so nothing flashes.
+            try? await Task.sleep(for: .milliseconds(500))
+            withAnimation(.spring(duration: 0.4, bounce: 0.0)) {
+                isPresented = true
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .windowToolbar)
+    }
+}
+#endif
+
 #Preview {
     NavigationStack {
         AlbumGridView(

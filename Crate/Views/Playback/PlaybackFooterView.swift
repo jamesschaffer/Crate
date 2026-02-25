@@ -19,8 +19,14 @@ struct PlaybackRowContent: View {
             // Tappable area: artwork + track info
             Group {
                 if let onTap {
+                    #if os(iOS)
                     Button(action: onTap) { trackInfo.contentShape(Rectangle()) }
                         .buttonStyle(.plain)
+                    #else
+                    trackInfo
+                        .contentShape(Rectangle())
+                        .onTapGesture { onTap() }
+                    #endif
                 } else {
                     trackInfo
                 }

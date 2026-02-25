@@ -19,24 +19,7 @@ struct BrowseView: View {
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        GeometryReader { geometry in
-            gridContent(topInset: geometry.safeAreaInsets.top)
-                .ignoresSafeArea(edges: .top)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if showControlBar {
-                        controlBar
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                }
-                .navigationDestination(for: CrateDestination.self) { destination in
-                    switch destination {
-                    case .album(let album, let gridContext):
-                        AlbumDetailView(album: album, gridContext: gridContext)
-                    case .artist(let name, let albumID):
-                        ArtistCatalogView(artistName: name, albumID: albumID)
-                    }
-                }
-        }
+        rootContent
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
@@ -63,6 +46,52 @@ struct BrowseView: View {
             }
         }
         .environment(coordinator)
+    }
+
+    // MARK: - Platform Root Content
+
+    /// iOS wraps in GeometryReader for edge-to-edge grid (safe area inset at top).
+    /// macOS skips GeometryReader — it suppresses NavigationStack transition animations.
+    @ViewBuilder
+    private var rootContent: some View {
+        #if os(iOS)
+        GeometryReader { geometry in
+            gridContent(topInset: geometry.safeAreaInsets.top)
+                .ignoresSafeArea(edges: .top)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if showControlBar {
+                        controlBar
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .navigationDestination(for: CrateDestination.self) { destination in
+                    switch destination {
+                    case .album(let album, let gridContext):
+                        AlbumDetailView(album: album, gridContext: gridContext)
+                    case .artist(let name, let albumID):
+                        ArtistCatalogView(artistName: name, albumID: albumID)
+                    }
+                }
+        }
+        #else
+        gridContent(topInset: 0)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if showControlBar {
+                    controlBar
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .navigationDestination(for: CrateDestination.self) { destination in
+                switch destination {
+                case .album(let album, let gridContext):
+                    AlbumDetailView(album: album, gridContext: gridContext)
+                        .macOSDetailTransition()
+                case .artist(let name, let albumID):
+                    ArtistCatalogView(artistName: name, albumID: albumID)
+                        .macOSDetailTransition()
+                }
+            }
+        #endif
     }
 
     // MARK: - Unified Control Bar

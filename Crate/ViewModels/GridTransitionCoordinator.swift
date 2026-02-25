@@ -235,7 +235,9 @@ final class GridTransitionCoordinator {
         guard itemCount > 0 else { return [] }
 
         let groupA = Array(0..<min(itemCount, GridTransition.groupSize))
-        let groupB = Array(GridTransition.groupSize..<itemCount)
+        let groupB = GridTransition.groupSize < itemCount
+            ? Array(GridTransition.groupSize..<itemCount)
+            : []
 
         // Interleave the two groups.
         var interleaved: [Int] = []

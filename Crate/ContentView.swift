@@ -10,10 +10,14 @@ struct ContentView: View {
         NavigationStack(path: $navigationPath) {
             BrowseView(navigationPath: $navigationPath)
         }
+        #if os(macOS)
+        .toolbarBackground(.hidden, for: .windowToolbar)
+        #endif
         .safeAreaInset(edge: .bottom) {
             PlaybackFooterOverlay(navigationPath: $navigationPath)
         }
         .background { ShaderWarmUpView() }
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -34,6 +38,9 @@ private struct PlaybackFooterOverlay: View {
                 if case .album(let album, _) = last { return album.id == nowPlayingID }
                 return false
             }()
+
+            // Always show footer on detail views; hide progress bar for now-playing album
+            // (AlbumDetailView has its own scrubber).
             PlaybackFooterView(showProgressBar: !isViewingNowPlaying, onTap: navigateToNowPlaying)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .animation(.easeInOut(duration: 0.3), value: playbackViewModel.hasQueue)

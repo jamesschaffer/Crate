@@ -19,14 +19,8 @@ struct AlbumDetailView: View {
         case review = "Review"
     }
 
-    /// Platform-appropriate background color.
-    private var backgroundColor: Color {
-        #if os(iOS)
-        Color(.systemBackground)
-        #else
-        Color(nsColor: .windowBackgroundColor)
-        #endif
-    }
+    /// Always black to maintain the dark album-art aesthetic on both platforms.
+    private var backgroundColor: Color { .black }
 
     /// Whether the currently playing album matches this one.
     private var isPlayingThisAlbum: Bool {
