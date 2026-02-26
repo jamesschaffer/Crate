@@ -49,6 +49,8 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 134 | [Fastlane + GitHub Actions for CI/CD](#adr-134-fastlane--github-actions-for-cicd) | Accepted |
 | 135 | [Feed Variability: Random Offsets, Seen-Album Memory, and Over-Fetch Sampling](#adr-135-feed-variability-random-offsets-seen-album-memory-and-over-fetch-sampling) | Accepted |
 | 136 | [Correctness Fixes: Async Boundaries, Task Captures, and Swift 6 Blockers](#adr-136-correctness-fixes-async-boundaries-task-captures-and-swift-6-blockers) | Accepted |
+| 137 | [CI Pipeline Repair -- Tests Were Never Actually Running](#adr-137-ci-pipeline-repair----tests-were-never-actually-running) | Accepted |
+| 138 | [macOS Dark Aesthetic, Toolbar, Footer Gap, and Grid Crash Fixes](#adr-138-macos-dark-aesthetic-toolbar-footer-gap-and-grid-crash-fixes) | Accepted |
 
 ---
 
@@ -1830,6 +1832,76 @@ Separately, the app's display name was changed from "AlbumCrate" to "AlbumWall P
 - UI tests are not run in CI. They require MusicKit authorization and Apple Music subscription, which are not available in CI environments. UI tests must be run manually on physical devices.
 
 **What would change this:** If GitHub Actions adds macOS runners with pre-installed Xcode versions that match the project's SDK needs automatically (e.g., runner version tied to project settings), the runner version pinning becomes less of a concern. If Swift introduces a built-in mechanism for multiplatform test module imports, the `#if os()` blocks could be simplified. If Firebase adds a safe "no-op mode" for unconfigured environments, the init guard could be removed.
+
+---
+
+## ADR-138: macOS Dark Aesthetic, Toolbar, Footer Gap, and Grid Crash Fixes
+
+**Date:** 2026-02-25
+**Status:** Accepted
+**Amends:** ADR-117 (Blurred Artwork Background for Album Detail), ADR-120 (Scatter/Fade Grid Transition), ADR-125 (Typed Navigation Path, Scrubber Relocation, and Footer Progress Toggle), ADR-130 (macOS Target: Buildable, Testable, and Platform-Specific Fixes)
+
+**Context:** After the macOS target became functional (ADR-130), visual polish testing revealed several macOS-specific issues that did not exist on iOS:
+
+1. **White bleed-through.** The app uses a dark, album-art-driven aesthetic -- black backgrounds with blurred artwork. On macOS, `NSWindow` has its own background color (light by default). Even when SwiftUI views set `Color.black` backgrounds, the window's native background bleeds through at layout seams (safe area gaps, navigation transitions, toolbar regions). This appeared as jarring white flashes between dark views.
+
+2. **Traffic light buttons disappeared.** iOS-only `.toolbar(.hidden, for: .navigationBar)` was applied on BrowseView to remove the navigation bar. On macOS, `.toolbar(.hidden)` (without a specific bar identifier) hid the entire window toolbar -- including the close/minimize/zoom (traffic light) buttons. This made the window non-interactive at the OS level.
+
+3. **White gap between footer and screen bottom.** The playback footer is rendered inside `.safeAreaInset(edge: .bottom)`. On macOS, the detail view used a `MacOSDetailAppearModifier` with a `GeometryReader` and `.clipped()` to contain the slide-in transition animation. `.clipped()` prevents child backgrounds from extending past the GeometryReader's bounds. Because the footer is rendered outside the clipped region (via safeAreaInset), the area behind the footer had no background -- showing the window's light background as a white gap.
+
+4. **Fatal crash in GridTransitionCoordinator.** `staggerSchedule(itemCount:)` created `groupB` as `Array(GridTransition.groupSize..<itemCount)`. When `itemCount` was less than or equal to `groupSize` (e.g., a small genre feed with fewer than 8 albums), the range's lower bound exceeded the upper bound, causing a Swift runtime crash (`Range requires lowerBound <= upperBound`).
+
+5. **macOS footer behavior inconsistency.** On iOS, the playback footer always appeared on detail views, with the progress bar conditionally hidden when viewing the now-playing album (since AlbumDetailView has its own scrubber). On macOS, the footer behavior was different, creating an inconsistent cross-platform experience.
+
+6. **AlbumDetailView used platform-specific background colors.** `backgroundColor` was `Color(.systemBackground)` on iOS and `Color(nsColor: .windowBackgroundColor)` on macOS -- both of which are light colors in light mode, contradicting the dark album-art aesthetic.
+
+**Decision:** Six fixes addressing the visual, interaction, and crash issues:
+
+1. **`.preferredColorScheme(.dark)` on ContentView.** This sets the window-level appearance to dark mode, which changes the `NSWindow` background to black. Unlike `.environment(\.colorScheme, .dark)` (which only affects SwiftUI's rendering context but leaves the window background unchanged), `.preferredColorScheme(.dark)` propagates to the hosting window, eliminating white bleed-through at all layout seams. Applied once at the root level in ContentView.
+
+2. **`.toolbarBackground(.hidden)` instead of `.toolbar(.hidden)`.** On macOS, replaced `.toolbar(.hidden)` with `.toolbarBackground(.hidden, for: .windowToolbar)`. This hides the toolbar's background chrome (making the toolbar area transparent so content extends behind it) while preserving the traffic light buttons. The iOS `.toolbar(.hidden, for: .navigationBar)` remains unchanged (wrapped in `#if os(iOS)`).
+
+3. **`.background(Color.black.ignoresSafeArea())` on MacOSDetailAppearModifier.** Added a black background with `.ignoresSafeArea()` as a sibling on the modifier's GeometryReader. Because `.clipped()` on the content prevents child backgrounds from extending past the GeometryReader bounds, the footer region (rendered via safeAreaInset outside the clipped content) had no background. The `.background()` modifier on the GeometryReader itself is NOT subject to `.clipped()` and extends into the safe area, filling the gap behind the footer.
+
+4. **Guard `groupSize < itemCount` before creating `groupB` range.** Changed `staggerSchedule` to check that `GridTransition.groupSize` is strictly less than `itemCount` before constructing the range. When the item count is equal to or less than the group size, `groupB` is an empty array. This prevents the range crash with small album counts.
+
+5. **Unified footer behavior across platforms.** The `PlaybackFooterOverlay` in ContentView now uses the same logic on both iOS and macOS: the footer always appears on detail views, and the `showProgressBar` parameter is set to `false` when the user is viewing the now-playing album's detail page (where AlbumDetailView provides its own dedicated scrubber).
+
+6. **AlbumDetailView `backgroundColor` is always `.black`.** Removed the `#if os(iOS)` / `#else` conditional that selected platform-specific system background colors. Both platforms now use `Color.black`, consistent with the dark album-art aesthetic. The previous platform-conditional was a leftover from the initial macOS build fix (ADR-126) where the goal was "make it compile" rather than "make it look right."
+
+**Additional changes in the same commit:**
+
+- **macOS AsyncImage for artwork.** `AlbumArtworkView` now uses `AsyncImage` on macOS instead of MusicKit's `ArtworkImage`, which showed ugly black/white triangle placeholders during loading. The macOS path extracts the URL from the `Artwork` object and uses `AsyncImage` with the album's `backgroundColor` as a placeholder fill. iOS continues using `ArtworkImage`.
+- **macOS detail transition.** A new `MacOSDetailAppearModifier` provides a slide-and-fade appear animation for detail views on macOS. macOS `NavigationStack` uses a crossfade that is invisible between two dark views, so this custom transition provides visual feedback. Includes a back button overlay (since the toolbar is transparent) and a 500ms delay before sliding in to allow content to load.
+- **Platform-split tap gesture on PlaybackRowContent.** macOS uses `.onTapGesture` instead of `Button(action:)` for the tappable area in the playback row, avoiding interaction issues with macOS button handling in that context.
+- **BrowseView platform split.** iOS wraps in `GeometryReader` for edge-to-edge grid layout. macOS skips `GeometryReader` because it was suppressing `NavigationStack` transition animations.
+
+**Alternatives Considered:**
+
+1. **`.environment(\.colorScheme, .dark)` instead of `.preferredColorScheme(.dark)`.** Setting the environment's color scheme only affects SwiftUI rendering -- the `NSWindow` background remains in its default (light) state. This would fix most SwiftUI view colors but would not eliminate white bleed-through at the window level. `.preferredColorScheme` was chosen because it propagates to the window host.
+
+2. **Set `NSWindow.backgroundColor = .black` directly via `NSViewRepresentable`.** Would solve the window background issue but is more invasive and fragile -- it bypasses SwiftUI's lifecycle and must be re-applied if the window is recreated. `.preferredColorScheme(.dark)` achieves the same result declaratively within SwiftUI.
+
+3. **Remove `.clipped()` from MacOSDetailAppearModifier.** Would allow child backgrounds to extend past the GeometryReader and fill behind the footer. However, `.clipped()` is required to contain the slide-in transition animation (content would be visible outside its bounds during the slide). The `.background()` approach solves the gap without removing the clip.
+
+4. **Clamp itemCount to groupSize before creating the range.** An alternative to the guard would be `min(GridTransition.groupSize, itemCount)..<itemCount`. This produces an equivalent empty range but is less readable than the explicit conditional.
+
+**Rationale:**
+
+- `.preferredColorScheme(.dark)` is the idiomatic SwiftUI approach for enforcing a color scheme app-wide. It is a single line at the root level, declarative, and covers all window-level rendering including the areas that `.environment(\.colorScheme)` does not reach.
+- The toolbar fix is minimal and targeted: `.toolbarBackground(.hidden)` hides just the chrome while preserving system controls. This is the intended API for "transparent toolbar with visible buttons."
+- The footer gap fix works with the existing architecture (`.clipped()` + `safeAreaInset`) rather than restructuring the layout. The `.background()` modifier on the GeometryReader extends naturally past the clip boundary because `.background()` is applied to the parent frame, not the clipped content.
+- The stagger crash fix is a defensive guard that handles edge cases gracefully without changing the animation behavior for normal cases.
+
+**Consequences:**
+
+- The app is now forced to dark mode on both platforms. If a light mode option is ever desired, `.preferredColorScheme(.dark)` would need to be made conditional based on a user preference.
+- ADR-126's `#if os(iOS)` / `#else` conditional for `backgroundColor` in AlbumDetailView is superseded -- both platforms use `.black`.
+- ADR-130's note about macOS being "buildable and testable" is extended -- macOS is now visually polished with a dark aesthetic matching iOS.
+- New macOS-specific code: `MacOSDetailAppearModifier`, platform-split `AlbumArtworkView`, platform-split `BrowseView.rootContent`, platform-split tap gesture in `PlaybackRowContent`. These are all `#if os()` conditionals in the shared codebase.
+- The `staggerSchedule` crash fix is defensive and has no behavioral change for normal item counts (greater than `groupSize`). For small counts, all items are assigned to `groupA` and `groupB` is empty, meaning all items animate with the staggered effect rather than the bulk fade.
+
+**What would change this:** If macOS ever supports a native dark chrome that SwiftUI respects without `.preferredColorScheme`, the root-level override could be removed. If SwiftUI's `NavigationStack` on macOS adds configurable transitions (not just crossfade), the `MacOSDetailAppearModifier` could be simplified. If a user-selectable light mode is desired, the `.preferredColorScheme` would need to be parameterized.
 
 ---
 

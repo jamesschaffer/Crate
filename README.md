@@ -2,7 +2,7 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, AI album reviews, and AirPlay output routing complete. Feed variability improved with random offsets, seen-album memory, and over-fetch sampling. Review UI polished with auto-generation on tab tap and artwork-themed accents. Review prompt and search grounding logic moved server-side (security hardening). Both iOS and macOS targets are buildable and testable. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, AI album reviews, and AirPlay output routing complete. Feed variability improved with random offsets, seen-album memory, and over-fetch sampling. Review UI polished with auto-generation on tab tap and artwork-themed accents. Review prompt and search grounding logic moved server-side (security hardening). Both iOS and macOS targets are buildable and testable. macOS visual polish applied: forced dark aesthetic, custom detail transitions, unified footer behavior, and platform-specific artwork loading. Visual design polish in progress.
 
 ---
 
@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (38 ADRs, ADR-100 through ADR-137) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (39 ADRs, ADR-100 through ADR-138) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
@@ -119,9 +119,10 @@ Crate/
       /Settings                 # SettingsView (Crate Algorithm radio selector),
                                 # FeedDiagnosticsView, QueueDiagnosticsView
       /Shared                   # AlbumArtworkView, LoadingView, EmptyStateView
-    /Services                   # MusicService, FavoritesService, DislikeService,
+    /Services                   # MusicService, MusicServiceResponses (Codable response types),
+                                # FavoritesService, DislikeService,
                                 # SeenAlbumService, CrateWallService, GenreFeedService,
-                                # ReviewService, WeightedInterleave,
+                                # ReviewService, WeightedInterleave (enum namespace),
                                 # ArtworkColorExtractor, AlbumQueueManager
     /Config                     # Genres.swift (static taxonomy), CrateDialStore.swift,
                                 # GridTransitionConstants.swift, AppColors.swift (brand color),
