@@ -41,6 +41,8 @@ enum Genres {
             SubCategory(id: "rock-hard", name: "Hard Rock", appleMusicID: "1152"),
             SubCategory(id: "rock-prog", name: "Prog-Rock/Art Rock", appleMusicID: "1155"),
             SubCategory(id: "rock-psychedelic", name: "Psychedelic", appleMusicID: "1156"),
+            SubCategory(id: "rock-southern", name: "Southern Rock", appleMusicID: "1161"),
+            SubCategory(id: "rock-british-invasion", name: "British Invasion", appleMusicID: "1148"),
         ]
     )
 
@@ -72,6 +74,7 @@ enum Genres {
             SubCategory(id: "hiphop-alternative", name: "Alternative Rap", appleMusicID: "1068"),
             SubCategory(id: "hiphop-underground", name: "Underground Rap", appleMusicID: "1077"),
             SubCategory(id: "hiphop-dirty-south", name: "Dirty South", appleMusicID: "1069"),
+            SubCategory(id: "hiphop-old-school", name: "Old School Rap", appleMusicID: "1075"),
         ]
     )
 
@@ -103,6 +106,8 @@ enum Genres {
             SubCategory(id: "rnb-soul", name: "Soul", appleMusicID: "1143"),
             SubCategory(id: "rnb-funk", name: "Funk", appleMusicID: "1139"),
             SubCategory(id: "rnb-neo-soul", name: "Neo-Soul", appleMusicID: "1141"),
+            SubCategory(id: "rnb-disco", name: "Disco", appleMusicID: "1137"),
+            SubCategory(id: "rnb-motown", name: "Motown", appleMusicID: "1140"),
         ]
     )
 
@@ -118,6 +123,8 @@ enum Genres {
             SubCategory(id: "jazz-fusion", name: "Fusion", appleMusicID: "1110"),
             SubCategory(id: "jazz-latin", name: "Latin Jazz", appleMusicID: "1111"),
             SubCategory(id: "jazz-smooth", name: "Smooth Jazz", appleMusicID: "1114"),
+            SubCategory(id: "jazz-big-band", name: "Big Band", appleMusicID: "1052"),
+            SubCategory(id: "jazz-vocal", name: "Vocal Jazz", appleMusicID: "1175"),
         ]
     )
 
@@ -132,6 +139,8 @@ enum Genres {
             SubCategory(id: "country-americana", name: "Americana", appleMusicID: "1034"),
             SubCategory(id: "country-traditional", name: "Traditional Country", appleMusicID: "1042"),
             SubCategory(id: "country-contemporary", name: "Contemporary Country", appleMusicID: "1037"),
+            SubCategory(id: "country-bluegrass", name: "Bluegrass", appleMusicID: "1035"),
+            SubCategory(id: "country-outlaw", name: "Outlaw Country", appleMusicID: "1040"),
         ]
     )
 
@@ -147,6 +156,7 @@ enum Genres {
             SubCategory(id: "classical-modern", name: "Modern Era", appleMusicID: "1027"),
             SubCategory(id: "classical-opera", name: "Opera", appleMusicID: "1028"),
             SubCategory(id: "classical-orchestral", name: "Orchestral", appleMusicID: "1029"),
+            SubCategory(id: "classical-romantic", name: "Romantic Era", appleMusicID: "1031"),
         ]
     )
 
@@ -194,6 +204,8 @@ enum Genres {
             SubCategory(id: "latin-tropical", name: "Música Tropical", appleMusicID: "1124"),
             SubCategory(id: "latin-rock", name: "Rock y Alternativo", appleMusicID: "1121"),
             SubCategory(id: "latin-pop", name: "Pop Latino", appleMusicID: "1117"),
+            SubCategory(id: "latin-mexicana", name: "Música Mexicana", appleMusicID: "1123"),
+            SubCategory(id: "latin-baladas", name: "Baladas y Boleros", appleMusicID: "1120"),
         ]
     )
 
