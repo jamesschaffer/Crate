@@ -306,7 +306,7 @@ Favorites need to be stored somewhere. Options:
 - The Swift compiler validates the taxonomy at compile time. Typos in genre IDs, missing fields, or structural errors are caught before the app ever runs. This is strictly stronger than Zod validation at build time, because it is the same language and toolchain -- no separate validation step.
 - Swift structs are type-safe. An `appleMusicGenreIDs` field is an array of strings. You cannot accidentally put an integer in it. With JSON, a missing quote or wrong type is a runtime error.
 - No parsing overhead at app launch. The data is compiled into the binary.
-- The taxonomy is small (12 super-genres, ~67 subcategories) and changes infrequently. A Swift file is the simplest representation with the strongest guarantees.
+- The taxonomy is small (12 super-genres, 78 subcategories) and changes infrequently. A Swift file is the simplest representation with the strongest guarantees.
 
 **Schema:**
 
@@ -1952,6 +1952,8 @@ An audit against Apple's public genre API (`https://itunes.apple.com/WebObjects/
 - **Names may feel less familiar.** "Bop" instead of "Bebop", "Urbano Latino" instead of "Reggaeton" -- these match Apple's taxonomy but may not match what users expect. The trade-off favors accuracy over familiarity.
 
 **What would change this:** If Apple adds new subgenres (e.g., House, Techno as distinct Electronic subgenres), the taxonomy should be updated to include them. The public genre API is the verification source. If we ever need subcategories that Apple does not recognize as distinct genres, we could use search-based browsing (which already handles subcategory taps) rather than the Charts API with genre IDs.
+
+**Follow-up (2026-02-26): Subgenre expansion.** After the initial audit and correction, 12 high-priority subgenres were added across 7 genre categories to improve browsing depth in genres that had only 4-5 subcategories. All IDs verified against the same public genre API. Additions: Disco (1137) and Motown (1140) under R&B/Soul; Southern Rock (1161) and British Invasion (1148) under Rock; Old School Rap (1075) under Hip-Hop; Big Band (1052) and Vocal Jazz (1175) under Jazz; Bluegrass (1035) and Outlaw Country (1040) under Country; Romantic Era (1031) under Classical; Musica Mexicana (1123) and Baladas y Boleros (1120) under Latin. Total subcategory count: 78 (up from 66 post-audit). Pop, Electronic, Singer/Songwriter, Blues, and Soundtrack were unchanged. The Singer/Songwriter and Blues categories had already been expanded from 3 to 6 and 7 subcategories respectively during the audit phase.
 
 ---
 
