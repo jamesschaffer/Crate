@@ -40,16 +40,16 @@ struct GenreTaxonomyTests {
 
     @Test("Subcategory lookup by ID works")
     func subcategoryLookup() {
-        let alt = GenreTaxonomy.subcategory(withID: "rock-alternative")
+        let alt = GenreTaxonomy.subcategory(withID: "rock-adult-alternative")
         #expect(alt != nil)
-        #expect(alt?.name == "Alternative")
-        #expect(alt?.appleMusicID == "20")
+        #expect(alt?.name == "Adult Alternative")
+        #expect(alt?.appleMusicID == "1144")
     }
 
     @Test("Apple Music ID lookup works for both tiers")
     func appleMusicIDLookup() {
         #expect(GenreTaxonomy.appleMusicID(for: "rock") == "21")
-        #expect(GenreTaxonomy.appleMusicID(for: "rock-alternative") == "20")
+        #expect(GenreTaxonomy.appleMusicID(for: "rock-adult-alternative") == "1144")
         #expect(GenreTaxonomy.appleMusicID(for: "nonexistent") == nil)
     }
 

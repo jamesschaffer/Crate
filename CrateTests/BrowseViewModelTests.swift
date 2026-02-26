@@ -77,7 +77,7 @@ struct BrowseViewModelTests {
 
         let vm = BrowseViewModel(musicService: mock)
         vm.configure(modelContext: try makeContext())
-        let subID = "rock-alternative"
+        let subID = "rock-adult-alternative"
 
         // Toggle on
         await vm.toggleSubcategory(subID)
