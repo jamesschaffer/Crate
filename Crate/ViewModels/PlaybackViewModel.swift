@@ -315,11 +315,21 @@ final class PlaybackViewModel {
     private func observePlayerState() {
         // Observe player state changes via Combine and bump a counter
         // so @Observable-backed views re-render.
+        //
+        // IMPORTANT: Both sinks call handleTrackChange(). MusicKit's queue
+        // objectWillChange doesn't reliably fire for natural track-to-track
+        // progressions within the same queue — only for structural changes
+        // (add/remove). The state publisher DOES fire on every transition,
+        // so duplicating the call here ensures album tracking works even
+        // when the queue publisher stays silent. handleTrackChange() is
+        // idempotent (repeated calls with the same title are O(1) no-ops).
         stateObservation = player.state.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.stateChangeCounter += 1
+                self.syncTrackDuration()
+                self.handleTrackChange()
                 self.checkBatchExhausted()
                 self.updateNowPlayingInfo()
             }
@@ -541,8 +551,15 @@ final class PlaybackViewModel {
             return
         }
 
-        if result.albumChanged, let newAlbum = result.newAlbum {
-            nowPlayingAlbum = newAlbum
+        // Sync nowPlayingAlbum with the queue manager's ground truth.
+        // We compare directly rather than relying solely on result.albumChanged,
+        // because checkBatchExhausted can also call trackDidChange() — if it runs
+        // first (from the state observer), it updates queueManager.currentAlbum
+        // but not nowPlayingAlbum, causing handleTrackChange to see albumChanged
+        // as false even though nowPlayingAlbum is stale.
+        if let currentAlbum = queueManager.currentAlbum,
+           currentAlbum.id != nowPlayingAlbum?.id {
+            nowPlayingAlbum = currentAlbum
         }
 
         // If we're on the last album of the batch, pre-fetch the next batch.
