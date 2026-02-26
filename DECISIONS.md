@@ -51,6 +51,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 136 | [Correctness Fixes: Async Boundaries, Task Captures, and Swift 6 Blockers](#adr-136-correctness-fixes-async-boundaries-task-captures-and-swift-6-blockers) | Accepted |
 | 137 | [CI Pipeline Repair -- Tests Were Never Actually Running](#adr-137-ci-pipeline-repair----tests-were-never-actually-running) | Accepted |
 | 138 | [macOS Dark Aesthetic, Toolbar, Footer Gap, and Grid Crash Fixes](#adr-138-macos-dark-aesthetic-toolbar-footer-gap-and-grid-crash-fixes) | Accepted |
+| 139 | [Genre Taxonomy Subgenre ID Audit and Correction](#adr-139-genre-taxonomy-subgenre-id-audit-and-correction) | Accepted |
 
 ---
 
@@ -1916,6 +1917,41 @@ Separately, the app's display name was changed from "AlbumCrate" to "AlbumWall P
 - The `staggerSchedule` crash fix is defensive and has no behavioral change for normal item counts (greater than `groupSize`). For small counts, all items are assigned to `groupA` and `groupB` is empty, meaning all items animate with the staggered effect rather than the bulk fade.
 
 **What would change this:** If macOS ever supports a native dark chrome that SwiftUI respects without `.preferredColorScheme`, the root-level override could be removed. If SwiftUI's `NavigationStack` on macOS adds configurable transitions (not just crossfade), the `MacOSDetailAppearModifier` could be simplified. If a user-selectable light mode is desired, the `.preferredColorScheme` would need to be parameterized.
+
+---
+
+## ADR-139: Genre Taxonomy Subgenre ID Audit and Correction
+
+**Date:** 2026-02-26
+**Status:** Accepted
+**Refines:** ADR-107 (Genre Taxonomy as Static Swift Configuration), ADR-118 (Personalized Genre Feeds with Feedback Loop)
+
+**Context:** The genre taxonomy in `Genres.swift` contained 67 subgenre entries across 12 super-genres, each with an `appleMusicID` string used by the Subcategory Rotation signal in `GenreFeedService` to fetch genre-specific albums from Apple Music's Charts API. These IDs were originally populated based on incomplete or inaccurate sources and had never been verified against Apple's actual genre hierarchy.
+
+An audit against Apple's public genre API (`https://itunes.apple.com/WebObjects/MZStoreServices.woa/ws/genres?id={parentID}`) revealed that **46 of 67 subgenre IDs were wrong**. For example, "Funk" (R&B/Soul subcategory) was mapped to ID 1144 which is actually "Adult Alternative" under Rock; "Dubstep" (Electronic subcategory) was mapped to ID 1208 which is "Traditional Jazz"; "Prog Rock" was mapped to ID 1166 which is "Musicals." The Subcategory Rotation signal was fetching albums from entirely wrong genres, then discarding most results when they did not match the expected genre name filter -- making the signal effectively non-functional.
+
+**Decision:** Three changes:
+
+1. **Corrected 46 subgenre IDs across 9 genre categories.** Each ID was verified against the public genre API response for its parent genre. Rock, Pop, Hip-Hop, Electronic, R&B, Jazz, Country, Classical, and Latin all had incorrect IDs. Singer/Songwriter (3 subcategories), Blues (3 subcategories), and Soundtrack (3 subcategories) were already correct.
+
+2. **Replaced 10 subcategories that have no Apple Music equivalent** with real Apple subgenres. The following entries were invented categories that do not exist in Apple's taxonomy: Indie Rock, Punk (Rock); Indie Pop, J-Pop, Synth Pop (Pop); House, Techno, Trance (Electronic); Trap, Conscious (Hip-Hop). These were replaced with actual Apple subgenres under their respective parent genres (e.g., Indie Rock -> Blues-Rock, Punk -> Rock & Roll, House -> Bass, Techno -> Industrial).
+
+3. **Updated subcategory names to match Apple's official taxonomy.** Names like "Bebop" became "Bop", "Baroque" became "Baroque Era", "Reggaeton" became "Urbano Latino", "Latin Pop" became "Pop Latino", etc. This ensures the display names in the genre bar pills match what Apple Music actually calls these genres.
+
+**Verification method:** Apple's public genre API at `itunes.apple.com/WebObjects/MZStoreServices.woa/ws/genres` returns the full genre tree as JSON. Querying with `?id={parentID}` returns all child subgenres for a given parent genre, including their numeric IDs and official names. This is the authoritative source -- the same data that powers Apple Music's own genre browsing.
+
+**Rationale:**
+- The Subcategory Rotation signal is one of 6 signals in `GenreFeedService`. With wrong IDs, it was fetching albums from unrelated genres and then filtering most of them out, contributing near-zero useful results to the blended feed. Fixing the IDs makes this signal functional.
+- Replacing non-existent subcategories with real Apple subgenres ensures every subcategory in the taxonomy maps to actual Apple Music content. Previously, queries for invented categories returned either nothing or unpredictable results.
+- Matching Apple's official names avoids user confusion if they are familiar with Apple Music's own genre labels.
+
+**Scope of impact:** Rock (8 entries, 6 changed), Pop (5 entries, all changed), Hip-Hop (6 entries, all changed), Electronic (8 entries reduced to 7, all changed), R&B (4 entries, all changed), Jazz (5 entries, 4 changed), Country (4 entries, all changed), Classical (5 entries, all changed), Latin (4 entries, all changed). Singer/Songwriter (3 entries), Blues (3 entries), and Soundtrack (3 entries) were untouched.
+
+**Trade-offs:**
+- **Subcategory selection is now constrained to Apple's taxonomy.** Some musically meaningful categories (Indie Rock, Punk, House, Techno, Trance) do not exist as distinct subgenres in Apple Music. Users familiar with those labels will not see them in the genre bar. This is acceptable because the old entries were not returning correct results anyway -- a label that fetches wrong content is worse than no label at all.
+- **Names may feel less familiar.** "Bop" instead of "Bebop", "Urbano Latino" instead of "Reggaeton" -- these match Apple's taxonomy but may not match what users expect. The trade-off favors accuracy over familiarity.
+
+**What would change this:** If Apple adds new subgenres (e.g., House, Techno as distinct Electronic subgenres), the taxonomy should be updated to include them. The public genre API is the verification source. If we ever need subcategories that Apple does not recognize as distinct genres, we could use search-based browsing (which already handles subcategory taps) rather than the Charts API with genre IDs.
 
 ---
 
