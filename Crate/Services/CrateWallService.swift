@@ -167,7 +167,7 @@ struct CrateWallService: Sendable {
         }
 
         // Step 5: Weighted interleave using shared utility.
-        return weightedInterleave(buckets: buckets, weights: weights.values)
+        return WeightedInterleave.interleave(buckets: buckets, weights: weights.values)
     }
 
     // MARK: - Genre Extraction

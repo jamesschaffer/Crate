@@ -10,9 +10,13 @@ final class DislikeService {
     // MARK: - Model Context
 
     /// The model context — injected at init or set later via the view layer.
-    var modelContext: ModelContext?
+    private(set) var modelContext: ModelContext?
 
     init(modelContext: ModelContext? = nil) {
+        self.modelContext = modelContext
+    }
+
+    func configure(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
 

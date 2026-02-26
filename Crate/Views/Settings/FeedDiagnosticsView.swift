@@ -108,18 +108,32 @@ struct FeedDiagnosticsView: View {
 
     private func loadData() {
         // Load favorites
-        var favDescriptor = FetchDescriptor<FavoriteAlbum>(
-            sortBy: [SortDescriptor(\.dateAdded, order: .reverse)]
-        )
-        favDescriptor.fetchLimit = 100
-        favorites = (try? modelContext.fetch(favDescriptor)) ?? []
+        do {
+            var favDescriptor = FetchDescriptor<FavoriteAlbum>(
+                sortBy: [SortDescriptor(\.dateAdded, order: .reverse)]
+            )
+            favDescriptor.fetchLimit = 100
+            favorites = try modelContext.fetch(favDescriptor)
+        } catch {
+            #if DEBUG
+            print("[Crate] FeedDiagnostics: failed to fetch favorites — \(error)")
+            #endif
+            favorites = []
+        }
 
         // Load dislikes
-        var dislikeDescriptor = FetchDescriptor<DislikedAlbum>(
-            sortBy: [SortDescriptor(\.dateAdded, order: .reverse)]
-        )
-        dislikeDescriptor.fetchLimit = 100
-        disliked = (try? modelContext.fetch(dislikeDescriptor)) ?? []
+        do {
+            var dislikeDescriptor = FetchDescriptor<DislikedAlbum>(
+                sortBy: [SortDescriptor(\.dateAdded, order: .reverse)]
+            )
+            dislikeDescriptor.fetchLimit = 100
+            disliked = try modelContext.fetch(dislikeDescriptor)
+        } catch {
+            #if DEBUG
+            print("[Crate] FeedDiagnostics: failed to fetch dislikes — \(error)")
+            #endif
+            disliked = []
+        }
 
         // Check mutual exclusion — no album should be in both lists
         let favIDs = Set(favorites.map(\.albumID))

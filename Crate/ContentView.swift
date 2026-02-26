@@ -13,7 +13,7 @@ struct ContentView: View {
         #if os(macOS)
         .toolbarBackground(.hidden, for: .windowToolbar)
         #endif
-        .safeAreaInset(edge: .bottom) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             PlaybackFooterOverlay(navigationPath: $navigationPath)
         }
         .background { ShaderWarmUpView() }

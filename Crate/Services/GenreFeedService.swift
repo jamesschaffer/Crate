@@ -162,7 +162,7 @@ struct GenreFeedService: Sendable {
 
         // Step 3: Weighted interleave.
         let weightValues = feedWeights.values
-        return weightedInterleave(buckets: buckets, weights: weightValues)
+        return WeightedInterleave.interleave(buckets: buckets, weights: weightValues)
     }
 
     // MARK: - Signal Fetchers

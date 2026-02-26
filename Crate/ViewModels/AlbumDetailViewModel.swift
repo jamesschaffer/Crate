@@ -52,8 +52,8 @@ final class AlbumDetailViewModel {
     /// Inject the SwiftData model context into both services.
     /// Call this from the view layer before any CRUD operations.
     func configure(modelContext: ModelContext) {
-        favoritesService.modelContext = modelContext
-        dislikeService.modelContext = modelContext
+        favoritesService.configure(modelContext: modelContext)
+        dislikeService.configure(modelContext: modelContext)
     }
 
     // MARK: - Actions

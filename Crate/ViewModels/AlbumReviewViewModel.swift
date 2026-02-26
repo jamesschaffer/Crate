@@ -35,7 +35,7 @@ final class AlbumReviewViewModel {
 
     /// Inject the SwiftData model context. Call from the view layer before any operations.
     func configure(modelContext: ModelContext) {
-        reviewService.modelContext = modelContext
+        reviewService.configure(modelContext: modelContext)
     }
 
     // MARK: - Actions

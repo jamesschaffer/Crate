@@ -101,6 +101,6 @@ struct CrateDialWeights: Sendable {
     /// Convert fractional weights to integer album counts that sum to `total`.
     /// Uses largest-remainder method so rounding errors don't lose albums.
     func albumCounts(total: Int) -> [WallSignal: Int] {
-        distributeByWeight(values, total: total)
+        WeightedInterleave.distribute(values, total: total)
     }
 }

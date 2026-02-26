@@ -130,7 +130,7 @@ struct FeedbackLoopTests {
             "signal3": 0.2,
         ]
 
-        let result = weightedInterleave(buckets: buckets, weights: weights)
+        let result = WeightedInterleave.interleave(buckets: buckets, weights: weights)
         #expect(result.count == 3)
         let resultIDs = Set(result.map(\.id))
         #expect(resultIDs.contains(MusicItemID("A")))
@@ -143,7 +143,7 @@ struct FeedbackLoopTests {
         let buckets: [String: [CrateAlbum]] = [:]
         let weights: [String: Double] = [:]
 
-        let result = weightedInterleave(buckets: buckets, weights: weights)
+        let result = WeightedInterleave.interleave(buckets: buckets, weights: weights)
         #expect(result.isEmpty)
     }
 }

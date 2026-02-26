@@ -9,9 +9,13 @@ final class SeenAlbumService {
 
     // MARK: - Model Context
 
-    var modelContext: ModelContext?
+    private(set) var modelContext: ModelContext?
 
     init(modelContext: ModelContext? = nil) {
+        self.modelContext = modelContext
+    }
+
+    func configure(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
 

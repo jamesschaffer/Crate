@@ -35,10 +35,14 @@ final class ReviewService {
 
     // MARK: - Dependencies
 
-    var modelContext: ModelContext?
+    private(set) var modelContext: ModelContext?
     private lazy var functions = Functions.functions()
 
     init(modelContext: ModelContext? = nil) {
+        self.modelContext = modelContext
+    }
+
+    func configure(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
 

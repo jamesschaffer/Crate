@@ -48,7 +48,7 @@ final class CrateWallViewModel {
     /// Inject the SwiftData model context for seen-album tracking.
     /// Call from the view layer before generating the wall.
     func configure(modelContext: ModelContext) {
-        seenAlbumService.modelContext = modelContext
+        seenAlbumService.configure(modelContext: modelContext)
         seenAlbumService.purgeExpired()
     }
 
