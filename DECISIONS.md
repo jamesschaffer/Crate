@@ -1366,6 +1366,20 @@ Additionally, `stateChangeCounter` was being read directly in `AlbumDetailView.b
 
 **Trade-off:** The user now waits 1-2 seconds (for a 5-album batch with 500ms throttle) before hearing music, versus the previous instant-play approach. In practice, this is a good trade: a brief spinner followed by seamless playback is far better than instant audio that stutters, flickers, and sometimes breaks. The anchor album's tracks are already loaded (fetched by `AlbumDetailViewModel`), so the wait only covers the remaining 4 albums.
 
+### Revision: 2026-02-26 -- Dual-observer pattern for reliable album tracking on iOS
+
+**Problem:** On iOS, `nowPlayingAlbum` became stale during auto-advance. The playback footer and detail UI would show the previous album even though the next album's tracks were playing. The issue did not reproduce on every transition -- it depended on timing between MusicKit's two Combine publishers.
+
+**Root cause:** `PlaybackViewModel` subscribes to two Combine publishers: `player.state.objectWillChange` (fires on play/pause/stop/track changes) and `player.queue.objectWillChange` (fires on queue structural changes). The album-tracking calls (`handleTrackChange()` and `syncTrackDuration()`) were only in the queue observation sink. On iOS, MusicKit's queue publisher does not reliably fire for natural track-to-track progressions within the same queue -- it fires for structural changes (add/remove entries) but not for the player advancing from one track to the next. When the queue publisher stayed silent during a track transition, album tracking never ran, and `nowPlayingAlbum` remained pointed at the previous album.
+
+**Fix:** Two changes in `PlaybackViewModel.swift`:
+
+1. **Duplicate `syncTrackDuration()` and `handleTrackChange()` into the state observation sink.** The state publisher fires on every player state transition (including natural track advances), so album tracking now runs regardless of whether the queue publisher fires. Both calls are idempotent -- `handleTrackChange()` exits immediately (O(1)) when the current track title matches the last-processed title, and `syncTrackDuration()` is a lightweight property update. The duplication has no observable cost.
+
+2. **Compare `nowPlayingAlbum` against `queueManager.currentAlbum` directly.** Previously, `handleTrackChange()` relied on the `albumChanged` flag returned by `trackDidChange()`. But `checkBatchExhausted()` (called from the state sink before `handleTrackChange`) can also call `trackDidChange()`, which updates `queueManager.currentAlbum`. When `handleTrackChange` ran second, `trackDidChange()` saw no change (the manager was already updated) and returned `albumChanged: false` -- even though `nowPlayingAlbum` was still pointing at the old album. The fix compares the published `nowPlayingAlbum` directly against the queue manager's ground truth, bypassing the flag entirely.
+
+**Trade-off:** Album-tracking logic now runs from two sinks instead of one, meaning it executes twice per track change when both publishers fire (which is common on macOS and sometimes happens on iOS). The idempotency of both functions makes this safe -- the second execution is a no-op. The alternative (only subscribing to the state publisher) was considered but rejected because the queue publisher provides faster notification for structural changes like batch transitions, and removing it would introduce latency in those cases.
+
 ---
 
 ## ADR-130: macOS Target: Buildable, Testable, and Platform-Specific Fixes
