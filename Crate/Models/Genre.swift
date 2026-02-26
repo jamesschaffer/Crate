@@ -13,7 +13,14 @@ extension GenreCategory {
     /// Filter albums to those matching this genre or any of its subcategories.
     /// Pre-builds a lowercased Set for O(1) lookups per album genre name.
     func filterAlbums(_ albums: [CrateAlbum]) -> [CrateAlbum] {
-        let nameSet = Set([name.lowercased()] + subcategories.map { $0.name.lowercased() })
+        // Split parent name on "/" so "R&B/Soul" also matches "R&B" or "Soul",
+        // and "Hip-Hop/Rap" also matches "Hip-Hop" or "Rap".
+        let nameComponents = name.split(separator: "/").map {
+            String($0).trimmingCharacters(in: .whitespaces).lowercased()
+        }
+        let nameSet = Set(
+            [name.lowercased()] + nameComponents + subcategories.map { $0.name.lowercased() }
+        )
         return albums.filter { album in
             album.genreNames.contains { genreName in
                 nameSet.contains(genreName.lowercased()) ||
