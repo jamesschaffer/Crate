@@ -1955,6 +1955,8 @@ An audit against Apple's public genre API (`https://itunes.apple.com/WebObjects/
 
 **Follow-up (2026-02-26): Subgenre expansion.** After the initial audit and correction, 12 high-priority subgenres were added across 7 genre categories to improve browsing depth in genres that had only 4-5 subcategories. All IDs verified against the same public genre API. Additions: Disco (1137) and Motown (1140) under R&B/Soul; Southern Rock (1161) and British Invasion (1148) under Rock; Old School Rap (1075) under Hip-Hop; Big Band (1052) and Vocal Jazz (1175) under Jazz; Bluegrass (1035) and Outlaw Country (1040) under Country; Romantic Era (1031) under Classical; Musica Mexicana (1123) and Baladas y Boleros (1120) under Latin. Total subcategory count: 78 (up from 66 post-audit). Pop, Electronic, Singer/Songwriter, Blues, and Soundtrack were unchanged. The Singer/Songwriter and Blues categories had already been expanded from 3 to 6 and 7 subcategories respectively during the audit phase.
 
+**Follow-up (2026-02-26): Slash-separated genre name filtering.** `filterAlbums()` in `Genre.swift` was updated to split parent genre names on "/" before matching. Apple Music uses compound parent genre names like "R&B/Soul" and "Hip-Hop/Rap", but albums may be tagged with only one component (e.g., "R&B" without "Soul"). The fix splits these names into individual components (e.g., "R&B/Soul" produces matches for "R&B/Soul", "R&B", and "Soul") so albums are not incorrectly filtered out. This is a safety-net improvement -- even with correct subgenre IDs, the Charts API can return albums whose genre tags do not exactly match the compound parent name.
+
 ---
 
 *End of Decision Records*
