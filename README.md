@@ -2,7 +2,7 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, AI album reviews, and AirPlay output routing complete. Feed variability improved with random offsets, seen-album memory, and over-fetch sampling. Review UI polished with auto-generation on tab tap and artwork-themed accents. Review prompt and search grounding logic moved server-side (security hardening). Both iOS and macOS targets are buildable and testable. macOS visual polish applied: forced dark aesthetic, custom detail transitions, unified footer behavior, and platform-specific artwork loading. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, AI album reviews, and AirPlay output routing complete. Feed variability improved with random offsets, seen-album memory, and over-fetch sampling. Review UI polished with auto-generation on tab tap and artwork-themed accents. Review prompt and search grounding logic moved server-side (security hardening). Both iOS and macOS targets are buildable, testable, and distributed via TestFlight. macOS visual polish applied: forced dark aesthetic, custom detail transitions, unified footer behavior, and platform-specific artwork loading. Visual design polish in progress.
 
 ---
 

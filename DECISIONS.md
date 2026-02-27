@@ -1446,7 +1446,7 @@ Additionally, `stateChangeCounter` was being read directly in `AlbumDetailView.b
 - Future interactive elements in `AlbumDetailView` (or similar custom layouts) should include `.buttonStyle(.plain)` on macOS to avoid button chrome. This is a pattern to be aware of when adding new buttons.
 - Any new environment dependencies added to `SettingsView` (or its children) must also be injected into the `Settings` scene in `CrateApp.swift`. Forgetting this will cause a crash on macOS when opening Settings.
 - The `addToLibrary` implementation now has two paths: MusicKit-native on iOS, REST API on macOS. If the REST API proves equally reliable on iOS, the two paths could be consolidated in the future.
-- macOS signing is configured for development. TestFlight and Mac App Store distribution will require additional provisioning profile setup.
+- macOS signing is configured for development and TestFlight distribution. The first macOS TestFlight build was archived and uploaded via `xcodebuild` CLI on 2026-02-27.
 
 **What would change this:** If Apple adds `MusicLibrary.shared.add()` to macOS MusicKit in a future release, the REST API fallback could be replaced with the native call for consistency with iOS. If SwiftUI adds automatic environment propagation to `Settings` scenes, the explicit injection could be removed. If the app introduces a large number of buttons in custom layouts, a global `.buttonStyle(.plain)` modifier on the root view (macOS only) might be more maintainable than per-button overrides.
 
