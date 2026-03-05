@@ -52,6 +52,7 @@ For the architecture overview, see [Section 7 of the PRD](./PRD.md#7-architectur
 | 137 | [CI Pipeline Repair -- Tests Were Never Actually Running](#adr-137-ci-pipeline-repair----tests-were-never-actually-running) | Accepted |
 | 138 | [macOS Dark Aesthetic, Toolbar, Footer Gap, and Grid Crash Fixes](#adr-138-macos-dark-aesthetic-toolbar-footer-gap-and-grid-crash-fixes) | Accepted |
 | 139 | [Genre Taxonomy Subgenre ID Audit and Correction](#adr-139-genre-taxonomy-subgenre-id-audit-and-correction) | Accepted |
+| 140 | [Genre Taxonomy Expansion: Full Apple Music Coverage](#adr-140-genre-taxonomy-expansion-full-apple-music-coverage) | Accepted |
 
 ---
 
@@ -306,7 +307,7 @@ Favorites need to be stored somewhere. Options:
 - The Swift compiler validates the taxonomy at compile time. Typos in genre IDs, missing fields, or structural errors are caught before the app ever runs. This is strictly stronger than Zod validation at build time, because it is the same language and toolchain -- no separate validation step.
 - Swift structs are type-safe. An `appleMusicGenreIDs` field is an array of strings. You cannot accidentally put an integer in it. With JSON, a missing quote or wrong type is a runtime error.
 - No parsing overhead at app launch. The data is compiled into the binary.
-- The taxonomy is small (12 super-genres, 78 subcategories) and changes infrequently. A Swift file is the simplest representation with the strongest guarantees.
+- The taxonomy is small (15 parent genres, 139 subcategories as of ADR-140) and changes infrequently. A Swift file is the simplest representation with the strongest guarantees.
 
 **Schema:**
 
@@ -1956,6 +1957,43 @@ An audit against Apple's public genre API (`https://itunes.apple.com/WebObjects/
 **Follow-up (2026-02-26): Subgenre expansion.** After the initial audit and correction, 12 high-priority subgenres were added across 7 genre categories to improve browsing depth in genres that had only 4-5 subcategories. All IDs verified against the same public genre API. Additions: Disco (1137) and Motown (1140) under R&B/Soul; Southern Rock (1161) and British Invasion (1148) under Rock; Old School Rap (1075) under Hip-Hop; Big Band (1052) and Vocal Jazz (1175) under Jazz; Bluegrass (1035) and Outlaw Country (1040) under Country; Romantic Era (1031) under Classical; Musica Mexicana (1123) and Baladas y Boleros (1120) under Latin. Total subcategory count: 78 (up from 66 post-audit). Pop, Electronic, Singer/Songwriter, Blues, and Soundtrack were unchanged. The Singer/Songwriter and Blues categories had already been expanded from 3 to 6 and 7 subcategories respectively during the audit phase.
 
 **Follow-up (2026-02-26): Slash-separated genre name filtering.** `filterAlbums()` in `Genre.swift` was updated to split parent genre names on "/" before matching. Apple Music uses compound parent genre names like "R&B/Soul" and "Hip-Hop/Rap", but albums may be tagged with only one component (e.g., "R&B" without "Soul"). The fix splits these names into individual components (e.g., "R&B/Soul" produces matches for "R&B/Soul", "R&B", and "Soul") so albums are not incorrectly filtered out. This is a safety-net improvement -- even with correct subgenre IDs, the Charts API can return albums whose genre tags do not exactly match the compound parent name.
+
+---
+
+## ADR-140: Genre Taxonomy Expansion: Full Apple Music Coverage
+
+**Date:** 2026-03-05
+**Status:** Accepted
+**Refines:** ADR-107 (Genre Taxonomy as Static Swift Configuration), ADR-139 (Genre Taxonomy Subgenre ID Audit and Correction)
+
+**Context:** After the ADR-139 audit and correction, the taxonomy contained 12 parent genres and 78 subcategories. While all IDs were now correct, coverage was incomplete -- several major Apple Music parent genres were missing entirely (Alternative, Dance, Reggae), and most existing categories had fewer subcategories than Apple's taxonomy supports. Many musically significant subgenres that Apple Music does recognize (e.g., House, Techno, Trance, Punk, Indie Rock, Ska, Dub) were absent because the ADR-139 audit had replaced invented entries with whatever Apple subgenres happened to be available at the time, rather than comprehensively mapping the full set.
+
+**Decision:** Expand the taxonomy to achieve comprehensive Apple Music genre coverage:
+
+1. **Added 3 new parent genres:**
+   - Alternative (Apple Music ID 20) -- 9 subcategories including College Rock, EMO, Grunge, Indie Rock, Indie Pop, Pop Punk, Punk, Goth Rock, New Wave
+   - Dance (Apple Music ID 17) -- 8 subcategories including House, Techno, Trance, Breakbeat, Garage, Hardcore, Jungle/Drum'n'bass, Exercise
+   - Reggae (Apple Music ID 24) -- 5 subcategories including Roots Reggae, Dub, Ska, Modern Dancehall, Lovers Rock
+
+2. **Added subcategories across all existing categories** to match Apple's available subgenre set. Examples: Arena Rock, Glam Rock, Hair Metal, Jam Bands, Psychedelic, Rockabilly, Surf (Rock); K-Pop (Pop); UK Hip-Hop, Underground Rap (Hip-Hop); Dubstep, Bass (Electronic); Doo Wop, Quiet Storm (R&B/Soul); Cool Jazz, Hard Bop, Trad Jazz, Ragtime (Jazz); Acoustic Blues, Country Blues, Delta Blues (Blues); Contemporary Bluegrass, Traditional Bluegrass, Urban Cowboy, Country Gospel, Honky Tonk (Country); Chamber Music, Choral, Early Music, Minimalism, Orchestral (Classical); Contemporary Latin, Raices (Latin); Video Game (Soundtrack).
+
+3. **Regional/language-specific subgenres excluded.** Apple Music has many localized subgenres (Chinese Rock, Korean Hip-Hop, Deutschpop, J-Pop, etc.) that were intentionally omitted to keep the taxonomy focused on universally recognizable genre labels.
+
+**All IDs verified against Apple's public genre API** at `itunes.apple.com/WebObjects/MZStoreServices.woa/ws/genres?id={parentID}` -- the same verification method established in ADR-139.
+
+**Rationale:**
+- The ADR-139 audit proved that several previously "invented" categories (House, Techno, Trance, Punk, Indie Rock) actually do exist in Apple's taxonomy -- they were just under different parent genres. Alternative (ID 20) is a separate parent from Rock (ID 21), and Dance (ID 17) is a separate parent from Electronic (ID 7). Adding these parent genres brings back musically essential categories with correct IDs.
+- Expanding subcategories within existing parents gives the genre bar pills more meaningful granularity. A user browsing Jazz now sees 15 subcategories instead of 5, covering everything from Avant-Garde to Vocal Jazz.
+- The expansion brings the taxonomy close to the original PRD target of ~100 subcategories (actual: 139), surpassing it due to Apple Music's taxonomy being more extensive than initially estimated.
+
+**Scale of change:** From 12 parent genres / 78 subcategories to 15 parent genres / 139 subcategories. Net additions: 3 new parent genres and 61 new subcategories. Only `Genres.swift` was modified (148 lines added, 54 removed).
+
+**Trade-offs:**
+- **Longer genre bar.** 15 parent genres instead of 12 means more horizontal scrolling in the genre bar. The bar is already a scrollable single row, so this is a minor UX consideration.
+- **More subcategory pills per genre.** Some genres now have 15-19 subcategories (Rock: 19, Jazz: 15). Users may need to scroll more in the subcategory pills view. The search-based subcategory browsing (ADR-116) mitigates this -- every subcategory produces meaningful results regardless of count.
+- **No regional subgenres.** Users who primarily listen to music in specific regional categories (e.g., K-Pop is included but J-Pop is not, Chinese Rock is not included) may find gaps. K-Pop was included because it appears under the Pop parent genre and is widely recognized internationally. Other regional subgenres can be added in future expansions if needed.
+
+**What would change this:** If user testing reveals that the genre bar or subcategory pills feel overwhelming with 15 genres and up to 19 subcategories per genre, we could introduce a "favorites" or "pinned genres" feature to let users customize which genres appear in the bar. The underlying taxonomy would remain complete.
 
 ---
 

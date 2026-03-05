@@ -2,13 +2,13 @@
 
 A focused album listening experience built on Apple Music. Browse by genre, pick an album, listen start to finish.
 
-**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, AI album reviews, and AirPlay output routing complete. Feed variability improved with random offsets, seen-album memory, and over-fetch sampling. Review UI polished with auto-generation on tab tap and artwork-themed accents. Review prompt and search grounding logic moved server-side (security hardening). Both iOS and macOS targets are buildable, testable, and distributed via TestFlight. macOS visual polish applied: forced dark aesthetic, custom detail transitions, unified footer behavior, and platform-specific artwork loading. Visual design polish in progress.
+**Status: Active development** -- Core features implemented. Crate Wall landing experience, genre feeds, grid transitions, now-playing progress bar, playback scrubber, launch animation, brand identity, artist catalog browsing, auto-advance album playback, AI album reviews, and AirPlay output routing complete. Genre taxonomy expanded to full Apple Music coverage (15 parent genres, 139 subcategories). Feed variability improved with random offsets, seen-album memory, and over-fetch sampling. Review UI polished with auto-generation on tab tap and artwork-themed accents. Review prompt and search grounding logic moved server-side (security hardening). Both iOS and macOS targets are buildable, testable, and distributed via TestFlight. macOS visual polish applied: forced dark aesthetic, custom detail transitions, unified footer behavior, and platform-specific artwork loading. Visual design polish in progress.
 
 ---
 
 ## What is AlbumWall Player?
 
-AlbumWall Player is a single-purpose native app for Apple Music that removes playlists, podcasts, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy (12 super-genres, 78 subcategories). On launch, an algorithm-driven "Crate Wall" fills the screen with album art, then a control bar slides up from the bottom with a spring animation once content is ready. The wall draws from five blended signals -- listening history, recommendations, charts, new releases, and wild card picks -- controlled by a "Crate Dial" radio selector in settings. When you play an album from any grid, playback automatically continues through the remaining albums -- no need to manually pick the next record. The experience is designed to feel like browsing a record store, not using a streaming app.
+AlbumWall Player is a single-purpose native app for Apple Music that removes playlists, podcasts, and social features. It presents albums as a grid of cover art organized by a two-tier genre taxonomy (15 parent genres, 139 subcategories). On launch, an algorithm-driven "Crate Wall" fills the screen with album art, then a control bar slides up from the bottom with a spring animation once content is ready. The wall draws from five blended signals -- listening history, recommendations, charts, new releases, and wild card picks -- controlled by a "Crate Dial" radio selector in settings. When you play an album from any grid, playback automatically continues through the remaining albums -- no need to manually pick the next record. The experience is designed to feel like browsing a record store, not using a streaming app.
 
 AlbumWall Player is a SwiftUI multiplatform app targeting **iOS** and **macOS** from a single codebase, powered by **MusicKit** for Apple Music integration. The app is primarily client-side, with one server dependency: AI album reviews are generated via a Firebase Cloud Function. The codebase still uses "Crate" internally for the project name, targets, and module names.
 
@@ -19,7 +19,7 @@ For the full product specification, see the [PRD](./PRD.md).
 | Document | Description |
 |----------|-------------|
 | [PRD](./PRD.md) | Product requirements, UX specification, and architecture |
-| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (40 ADRs, ADR-100 through ADR-139) |
+| [DECISIONS.md](./DECISIONS.md) | Architectural decision records (41 ADRs, ADR-100 through ADR-140) |
 | [project_context.md](./project_context.md) | Quick-reference project context for new contributors |
 
 ## Tech Stack
